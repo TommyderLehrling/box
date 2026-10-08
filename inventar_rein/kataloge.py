@@ -5,7 +5,9 @@ import json
 import re
 from collections import Counter
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from collections.abc import Iterable
 from typing import Any, Literal
 
 _DATEN = Path(__file__).resolve().parent / "daten"
@@ -45,6 +47,18 @@ class Pruefart:
     rechtsgrund: str
     durchfuehrung: Literal["intern", "extern", "beides"]
     gruppen: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class Bauteil:
+    bauteilnummer: str
+    bezeichnung: str
+    hersteller: str
+    lieferant: str
+    preis_zuletzt: Decimal | None
+    hinweis: str
+    passt_zu_gruppen: tuple[str, ...]
+    passt_zu_stuecke: tuple[str, ...]
 
 
 def _lies_liste(pfad: Path) -> list[dict[str, Any]]:
@@ -131,6 +145,54 @@ def lade_pruefarten(pfad: Path | None = None) -> list[Pruefart]:
         )
         for e in _lies_liste(pfad)
     ]
+
+
+def lade_bauteile(pfad: Path | None = None) -> list[Bauteil]:
+    """Liest den Bauteilkatalog aus bauteile.json (Startkatalog ist leer: nur die Form)."""
+    pfad = pfad or _DATEN / "bauteile.json"
+    d = pfad.name
+    ergebnis = []
+    for e in _lies_liste(pfad):
+        preis = _feld(e, "preis_zuletzt", str, d, None)
+        try:
+            betrag = None if preis is None else Decimal(preis)
+        except InvalidOperation as fehler:
+            raise ValueError(f"kataloge.feld_typ:{d}:preis_zuletzt") from fehler
+        ergebnis.append(Bauteil(
+            bauteilnummer=_feld(e, "bauteilnummer", str, d),
+            bezeichnung=_feld(e, "bezeichnung", str, d),
+            hersteller=_feld(e, "hersteller", str, d, ""),
+            lieferant=_feld(e, "lieferant", str, d, ""),
+            preis_zuletzt=betrag,
+            hinweis=_feld(e, "hinweis", str, d, ""),
+            passt_zu_gruppen=_texte(e, "passt_zu_gruppen", d),
+            passt_zu_stuecke=_texte(e, "passt_zu_stuecke", d),
+        ))
+    return ergebnis
+
+
+def passende_bauteile(bauteile: Iterable[Bauteil], gruppe: str, inventarnummer: str) -> list[Bauteil]:
+    """Liefert die Bauteile, die zur Gruppe oder genau zu diesem Stueck passen."""
+    return [b for b in bauteile if gruppe in b.passt_zu_gruppen or inventarnummer in b.passt_zu_stuecke]
+
+
+def pruefe_bauteile(bauteile: list[Bauteil], gruppen: list[Gruppe]) -> list[str]:
+    """Liefert Fehlerschluessel zum Bauteilkatalog; leere Liste bedeutet in Ordnung."""
+    fehler: list[str] = []
+    gruppen_schluessel = {g.schluessel for g in gruppen}
+    for b in bauteile:
+        if not b.bauteilnummer.strip():
+            fehler.append("bauteil.nummer_leer")
+        if not b.bezeichnung.strip():
+            fehler.append(f"bauteil.bezeichnung_leer:{b.bauteilnummer}")
+        if b.preis_zuletzt is not None and b.preis_zuletzt < 0:
+            fehler.append(f"bauteil.preis_negativ:{b.bauteilnummer}")
+        if not b.passt_zu_gruppen and not b.passt_zu_stuecke:
+            fehler.append(f"bauteil.passt_zu_nichts:{b.bauteilnummer}")
+        fehler += [f"bauteil.gruppe_unbekannt:{b.bauteilnummer}:{g}" for g in b.passt_zu_gruppen
+                   if g not in gruppen_schluessel]
+    fehler += [f"bauteil.nummer_doppelt:{n}" for n in _doppelte([b.bauteilnummer for b in bauteile])]
+    return fehler
 
 
 def _doppelte(werte: list[str]) -> list[str]:

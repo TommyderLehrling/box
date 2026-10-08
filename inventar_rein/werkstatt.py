@@ -1,0 +1,159 @@
+"""Werkstatt: Statusautomaten fuer Meldung und Reparatur, Folge fuer den Stueckstatus, Reparaturkosten."""
+from __future__ import annotations
+
+from collections.abc import Iterable
+from dataclasses import dataclass, replace
+from datetime import date, datetime
+from decimal import ROUND_HALF_UP, Decimal
+from types import MappingProxyType
+from typing import Literal
+
+MeldungStatus = Literal["offen", "angenommen", "in_arbeit", "erledigt", "zurueckgezogen"]
+ReparaturStatus = Literal["offen", "in_arbeit", "erledigt", "zurueckgezogen"]
+MELDUNG_ARTEN = ("schaden", "reparatur", "wartung", "sonstiges")
+_MELDUNG_WEG = MappingProxyType({
+    "offen": ("angenommen", "zurueckgezogen"),
+    "angenommen": ("in_arbeit", "erledigt", "zurueckgezogen"),
+    "in_arbeit": ("erledigt", "zurueckgezogen"),
+    "erledigt": (),
+    "zurueckgezogen": (),
+})
+_REPARATUR_WEG = MappingProxyType({
+    "offen": ("in_arbeit", "zurueckgezogen"),
+    "in_arbeit": ("erledigt", "zurueckgezogen"),
+    "erledigt": (),
+    "zurueckgezogen": (),
+})
+
+
+@dataclass(frozen=True)
+class Meldung:
+    art: str
+    status: MeldungStatus
+    beschreibung: str
+    gemeldet_von: str
+    gemeldet_am: datetime
+    bearbeitet_von: str | None = None
+    erledigt_am: datetime | None = None
+    rueckmeldung: str = ""
+    grund: str = ""
+
+
+@dataclass(frozen=True)
+class Reparatur:
+    status: ReparaturStatus
+    durchfuehrung: Literal["intern", "extern"]
+    begonnen_am: date | None = None
+    beendet_am: date | None = None
+    kosten: Decimal | None = None
+    kosten_quelle: Literal["geschaetzt", "beleg"] | None = None
+    grund: str = ""
+
+
+def _zeit(zeit: datetime) -> None:
+    if zeit.tzinfo is None or zeit.utcoffset() is None:
+        raise ValueError("werkstatt.zeit_naiv")
+
+
+def neue_meldung(art: str, beschreibung: str, person: str, zeit: datetime) -> Meldung:
+    """Legt eine offene Meldung an (Art aus Katalog, Beschreibung Pflicht)."""
+    _zeit(zeit)
+    if art not in MELDUNG_ARTEN:
+        raise ValueError("meldung.art_unbekannt")
+    if not beschreibung.strip() or not person.strip():
+        raise ValueError("meldung.angaben_fehlen")
+    return Meldung(art, "offen", beschreibung.strip(), person, zeit)
+
+
+def meldung_weiter(
+    m: Meldung, neu: str, person: str, zeit: datetime, rueckmeldung: str = "", grund: str = ""
+) -> Meldung:
+    """Schaltet die Meldung weiter; erledigt braucht eine Rueckmeldung, zurueckziehen einen Grund."""
+    _zeit(zeit)
+    if neu not in _MELDUNG_WEG:
+        raise ValueError("meldung.status_unbekannt")
+    if neu not in _MELDUNG_WEG[m.status]:
+        raise ValueError("meldung.wechsel_nicht_erlaubt")
+    if not person.strip():
+        raise ValueError("meldung.angaben_fehlen")
+    if neu == "erledigt" and not rueckmeldung.strip():
+        raise ValueError("meldung.rueckmeldung_fehlt")
+    if neu == "zurueckgezogen" and not grund.strip():
+        raise ValueError("meldung.grund_fehlt")
+    return replace(
+        m, status=neu, bearbeitet_von=person if neu in ("angenommen", "in_arbeit", "erledigt") else m.bearbeitet_von,  # type: ignore[arg-type]
+        erledigt_am=zeit if neu == "erledigt" else m.erledigt_am,
+        rueckmeldung=rueckmeldung.strip() or m.rueckmeldung, grund=grund.strip() or m.grund)
+
+
+def neue_reparatur(durchfuehrung: str) -> Reparatur:
+    """Legt eine offene Reparatur an (intern oder extern)."""
+    if durchfuehrung not in ("intern", "extern"):
+        raise ValueError("reparatur.durchfuehrung_unbekannt")
+    return Reparatur("offen", durchfuehrung)  # type: ignore[arg-type]
+
+
+def reparatur_beginnen(r: Reparatur, am: date, geschaetzte_kosten: Decimal | None = None) -> Reparatur:
+    """Beginnt die Reparatur; geschaetzte Kosten sind optional."""
+    if r.status != "offen":
+        raise ValueError("reparatur.wechsel_nicht_erlaubt")
+    if geschaetzte_kosten is not None and geschaetzte_kosten < 0:
+        raise ValueError("reparatur.kosten_ungueltig")
+    return replace(r, status="in_arbeit", begonnen_am=am, kosten=geschaetzte_kosten,
+                   kosten_quelle="geschaetzt" if geschaetzte_kosten is not None else None)
+
+
+def reparatur_abschliessen(r: Reparatur, am: date, kosten: Decimal, quelle: str = "geschaetzt") -> Reparatur:
+    """Schliesst die Reparatur mit den Kosten ab; Quelle Beleg ueberschreibt eine Schaetzung."""
+    if r.status != "in_arbeit" or r.begonnen_am is None:
+        raise ValueError("reparatur.wechsel_nicht_erlaubt")
+    if am < r.begonnen_am:
+        raise ValueError("reparatur.ende_vor_beginn")
+    if kosten < 0:
+        raise ValueError("reparatur.kosten_ungueltig")
+    if quelle not in ("geschaetzt", "beleg"):
+        raise ValueError("reparatur.kostenquelle_unbekannt")
+    return replace(r, status="erledigt", beendet_am=am, kosten=kosten, kosten_quelle=quelle)  # type: ignore[arg-type]
+
+
+def kosten_belegen(r: Reparatur, kosten: Decimal) -> Reparatur:
+    """Ersetzt eine Schaetzung nachtraeglich durch den Betrag aus dem Beleg (nur erledigte Reparaturen)."""
+    if r.status != "erledigt":
+        raise ValueError("reparatur.wechsel_nicht_erlaubt")
+    if kosten < 0:
+        raise ValueError("reparatur.kosten_ungueltig")
+    return replace(r, kosten=kosten, kosten_quelle="beleg")
+
+
+def reparatur_zurueckziehen(r: Reparatur, grund: str) -> Reparatur:
+    """Zieht eine offene oder laufende Reparatur mit Grund zurueck."""
+    if "zurueckgezogen" not in _REPARATUR_WEG[r.status]:
+        raise ValueError("reparatur.wechsel_nicht_erlaubt")
+    if not grund.strip():
+        raise ValueError("reparatur.grund_fehlt")
+    return replace(r, status="zurueckgezogen", grund=grund.strip())
+
+
+def status_folge(stueck_status: str, laufende_reparaturen: int) -> str | None:
+    """Zielstatus des Stuecks nach einer Aenderung: in_reparatur, solange eine Reparatur laeuft; sonst zurueck auf aktiv."""
+    if laufende_reparaturen < 0:
+        raise ValueError("reparatur.anzahl_ungueltig")
+    if stueck_status == "aktiv" and laufende_reparaturen > 0:
+        return "in_reparatur"
+    if stueck_status == "in_reparatur" and laufende_reparaturen == 0:
+        return "aktiv"
+    return None
+
+
+def reparaturkosten(reparaturen: Iterable[Reparatur]) -> tuple[Decimal, Decimal]:
+    """Liefert (Summe aus Belegen, Summe aus Schaetzungen) aller erledigten Reparaturen."""
+    beleg = geschaetzt = Decimal(0)
+    for r in reparaturen:
+        if r.status != "erledigt" or r.kosten is None:
+            continue
+        if r.kosten_quelle == "beleg":
+            beleg += r.kosten
+        else:
+            geschaetzt += r.kosten
+    cent = Decimal("0.01")
+    return beleg.quantize(cent, rounding=ROUND_HALF_UP), geschaetzt.quantize(cent, rounding=ROUND_HALF_UP)

@@ -1,4 +1,4 @@
-"""Prueffaelle fuer kosten (C1-C12)."""
+"""Prueffaelle fuer kosten (C1-C14)."""
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
@@ -152,3 +152,16 @@ def test_C13_ungueltige_parameter():
     ):
         with pytest.raises(ValueError):
             kostensatz(p)
+
+
+def test_C14_vorhaltung_in_werktagen():
+    satz = D("100")
+    a = standort(100, tag(9, 1), tag(10, 15))  # Abgang-/Eingangstag Do 15.10.
+    b = standort(200, tag(10, 15), None)
+    erg = vorhaltung([a, b], date(2026, 10, 1), date(2026, 10, 31), satz, werktage=True)
+    assert erg == (Vorhaltung(100, 10, D("1000.00")), Vorhaltung(200, 12, D("1200.00")))  # 1.-14.10. bzw. 15.-31.10.
+    frei = vorhaltung([a, b], date(2026, 10, 1), date(2026, 10, 31), satz, werktage=True,
+                      feiertage=[date(2026, 10, 9), date(2026, 10, 20)])
+    assert [v.tage for v in frei] == [9, 11]
+    nur_wochenende = vorhaltung([standort(100, tag(10, 10), tag(10, 12))], date(2026, 10, 1), date(2026, 10, 31), satz, werktage=True)
+    assert nur_wochenende == ()  # Sa 10. und So 11. zaehlen nicht

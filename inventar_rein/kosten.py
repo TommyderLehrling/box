@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
-from .fristen import naechste_faelligkeit
+from .fristen import naechste_faelligkeit, werktage_zwischen
 from .transfer import Standort
 
 _CENT = Decimal("0.01")
@@ -74,17 +74,22 @@ def kostensatz(p: Kostenparameter) -> Kostensatz:
 
 
 def vorhaltung(
-    standorte: Iterable[Standort], von: date, bis: date, satz_tag: Decimal, mit_menge: bool = False
+    standorte: Iterable[Standort], von: date, bis: date, satz_tag: Decimal, mit_menge: bool = False,
+    werktage: bool = False, feiertage: Iterable[date] = (),
 ) -> tuple[Vorhaltung, ...]:
-    """Kalendertage und Betrag je Kostenstelle in [von, bis]; Eingangstag zaehlt zum Ziel, Abgangstag nicht zur Quelle."""
+    """Tage (Kalender- oder Werktage) und Betrag je Kostenstelle in [von, bis]; Eingangstag zaehlt zum Ziel, Abgangstag nicht zur Quelle."""
     if bis < von:
         raise ValueError("kosten.zeitraum_ungueltig")
+    frei = frozenset(feiertage)
     tage: dict[int, int] = {}
     betrag: dict[int, Decimal] = {}
     for s in standorte:
         anfang = max(s.von.date(), von)
         ende = bis if s.bis is None else min(s.bis.date() - timedelta(days=1), bis)
-        anzahl = (ende - anfang).days + 1
+        if werktage:
+            anzahl = werktage_zwischen(anfang - timedelta(days=1), ende, frei) if ende >= anfang else 0
+        else:
+            anzahl = (ende - anfang).days + 1
         if anzahl <= 0:
             continue
         tage[s.kostenstelle] = tage.get(s.kostenstelle, 0) + anzahl

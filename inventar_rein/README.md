@@ -1,4 +1,4 @@
-# inventar_rein — Vorarbeit „Inventar" (Box, Auftrag 01, Lieferungen L1 bis L5)
+# inventar_rein — Vorarbeit „Inventar" (Box, Auftrag 01, Lieferungen L1 bis L6)
 
 Stand 08.10.2026 · Reine Python-Module mit Prüffällen: keine Datenbank, kein Web, kein Framework. Abhängigkeiten: `openpyxl`, `segno` (`requirements.txt`).
 
@@ -11,6 +11,7 @@ Stand 08.10.2026 · Reine Python-Module mit Prüffällen: keine Datenbank, kein 
 | L3 | `kosten` (kalkulatorische Kosten, Sollwerte Bagger) | 14 |
 | L4 | `import_vorlage` (Excel-Vorlage erzeugen, lesen, prüfen) · `testdaten` (Generator) | 31 |
 | L5 | `etiketten` (QR-Bogen als HTML) · `daten/texte_de.json` (Oberflächentexte) | 17 |
+| L6 | Korrekturen nach Spec v0.2 (Bauteilkatalog, Werktage, Begriffe) · `pruefung` · `stueck_status` · `werkstatt` · `import_plan` · `inventur` · `bestand` · Eigenschaftstests für `transfer` | 61 |
 
 Je Lieferung gibt es eine eigene README und eine `FRAGEN_L<n>.md` (im Ablageordner `lieferungen/L<n>/`).
 
@@ -26,7 +27,7 @@ print(nummer, fristen.naechste_faelligkeit(date(2026, 8, 31), 6), kataloge.pruef
 
 ```
 python -m pytest -q        # im Ordner inventar_rein
-119 passed / 0 failed / 0 skipped   (Python 3.12.3 und 3.13.16, pytest 9.1.1)
+180 passed / 0 failed / 0 skipped   (Python 3.12.3 und 3.13.16, pytest 9.1.1)
 python -c "import inventar_rein"   # ohne Ausgabe
 ```
 
@@ -39,4 +40,4 @@ python -c "import inventar_rein"   # ohne Ausgabe
 
 ## Annahmen, Abweichungen, Fragen
 
-Stehen je Lieferung in der README und in `FRAGEN_L1.md` bis `FRAGEN_L5.md`; zusammengefasst im `PROTOKOLL_BOX_01.md`.
+Stehen je Lieferung in der README und in `FRAGEN_L1.md` bis `FRAGEN_L6.md`; zusammengefasst in `PROTOKOLL_BOX_01.md` und `PROTOKOLL_BOX_02.md`.

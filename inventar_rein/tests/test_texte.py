@@ -9,13 +9,15 @@ from pathlib import Path
 import pytest
 
 from inventar_rein.import_vorlage import FEHLER_SCHLUESSEL
+from inventar_rein.stueck_status import ALLE as STUECK_STATUS
 
 PAKET = Path(__file__).resolve().parent.parent
 SEITEN = ("uebersicht", "hier", "faellig", "werkstatt", "kosten", "stueck", "transfer", "meldung", "pruefung",
           "verwaltung", "gruppen", "merkmale", "pruefarten", "bauteile", "kostensaetze", "einstellungen",
           "import", "etiketten", "testdaten", "auslieferung", "handy_scannen")
 PRAEFIXE = {"gruppe", "merkmal", "pruefart", "muster", "nummernformat", "kataloge", "fristen", "kosten",
-            "transfer", "etiketten", "testdaten", "zubehoer", "inventur"}
+            "transfer", "etiketten", "testdaten", "zubehoer", "inventur", "bauteil", "pruefung", "stueck_status",
+            "meldung", "reparatur", "werkstatt", "import_plan", "bestand"}
 
 
 @pytest.fixture(scope="module")
@@ -32,6 +34,7 @@ def codes_im_quelltext() -> set[str]:
                 kopf = knoten.value.split(":")[0]
                 if re.fullmatch(r"[a-z_0-9]+(\.[a-z_0-9]+)+", kopf) and kopf.split(".")[0] in PRAEFIXE:
                     gefunden.add(kopf)
+    gefunden |= {f"stueck_status.{s}" for s in STUECK_STATUS}  # dynamisch gebaut: stueck_status.<neu>
     return gefunden
 
 
@@ -73,6 +76,16 @@ def test_X6_begriffe_aus_dem_auftrag(texte):
     assert texte["inventar.transfer.taste.zurueckziehen"] == "Zurückziehen"
     assert texte["inventar.erinnerung.transfer"] == "Transfer seit {tage} Werktagen nicht bestätigt"
     assert texte["inventar.kosten.hinweis"] == "kalkulatorisch, nicht steuerlich"
+    for ergebnis in ("bestanden", "maengel", "nicht_bestanden"):  # Begriffe der Spec v0.2, Abschnitt 7
+        assert f"inventar.pruefung.ergebnis.{ergebnis}" in texte
+    for status in ("offen", "angenommen", "in_arbeit", "erledigt", "zurueckgezogen"):
+        assert f"inventar.meldung.status.{status}" in texte
+    for art in ("schaden", "reparatur", "wartung", "sonstiges"):
+        assert f"inventar.meldung.art.{art}" in texte
+    for status in ("offen", "in_arbeit", "erledigt", "zurueckgezogen"):
+        assert f"inventar.reparatur.status.{status}" in texte
+    for neu in ("aktiv", "in_reparatur", "vermisst", "stillgelegt", "verkauft", "verschrottet"):  # Protokollschluessel stueck_status.<neu>
+        assert f"inventar.code.stueck_status.{neu}" in texte
     for art in ("gross", "klein", "menge"):
         assert f"inventar.art.{art}" in texte
     for ampel in ("gruen", "gelb", "rot"):

@@ -1,8 +1,9 @@
-"""Prueffaelle fuer kataloge (K1-K10)."""
+"""Prueffaelle fuer kataloge (K1-K12)."""
 from __future__ import annotations
 
 import json
 from dataclasses import replace
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -129,3 +130,35 @@ def test_K10_lader_und_inhalt(katalog, tmp_path: Path):
         k.lade_pruefarten(keine_liste)
     with pytest.raises(ValueError, match="kataloge.datei_unlesbar"):
         k.lade_gruppen(tmp_path / "gibt_es_nicht.json")
+
+
+def test_K11_bauteilkatalog_form_lader_und_passt_zu(tmp_path: Path):
+    assert k.lade_bauteile() == []  # Startkatalog ist leer, nur die Form
+    datei = tmp_path / "bauteile.json"
+    datei.write_text(json.dumps([
+        {"bauteilnummer": "HF-100", "bezeichnung": "Hydraulikfilter", "hersteller": "Teramax", "lieferant": "Weber",
+         "preis_zuletzt": "49.90", "passt_zu_gruppen": ["baumaschine"]},
+        {"bauteilnummer": "ZR-7", "bezeichnung": "Zahnriemen", "passt_zu_stuecke": ["BM-00017"]},
+    ]), encoding="utf-8")
+    bauteile = k.lade_bauteile(datei)
+    assert bauteile[0].preis_zuletzt == Decimal("49.90") and bauteile[1].preis_zuletzt is None
+    assert k.pruefe_bauteile(bauteile, k.lade_gruppen()) == []
+    assert [b.bauteilnummer for b in k.passende_bauteile(bauteile, "baumaschine", "BM-00001")] == ["HF-100"]
+    assert [b.bauteilnummer for b in k.passende_bauteile(bauteile, "baumaschine", "BM-00017")] == ["HF-100", "ZR-7"]
+    assert k.passende_bauteile(bauteile, "it", "IT-00001") == []
+
+
+def test_K12_bauteilkatalog_pruefung(tmp_path: Path):
+    gruppen = k.lade_gruppen()
+    b = k.Bauteil("A", "Teil", "", "", Decimal("1"), "", ("baumaschine",), ())
+    kaputt = [replace(b, bauteilnummer=" ", bezeichnung=""), replace(b, preis_zuletzt=Decimal("-1")),
+              replace(b, bauteilnummer="C", passt_zu_gruppen=()), replace(b, bauteilnummer="D", passt_zu_gruppen=("x",)),
+              replace(b, bauteilnummer="E"), replace(b, bauteilnummer="E")]
+    fehler = k.pruefe_bauteile(kaputt, gruppen)
+    for erwartet in ("bauteil.nummer_leer", "bauteil.bezeichnung_leer: ", "bauteil.preis_negativ:A",
+                     "bauteil.passt_zu_nichts:C", "bauteil.gruppe_unbekannt:D:x", "bauteil.nummer_doppelt:E"):
+        assert erwartet in fehler, erwartet
+    schlecht = tmp_path / "schlecht.json"
+    schlecht.write_text(json.dumps([{"bauteilnummer": "X", "bezeichnung": "y", "preis_zuletzt": "viel"}]), encoding="utf-8")
+    with pytest.raises(ValueError, match="kataloge.feld_typ"):
+        k.lade_bauteile(schlecht)
