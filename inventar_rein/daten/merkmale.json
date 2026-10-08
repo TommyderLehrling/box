@@ -1,0 +1,57 @@
+[
+  {"gruppe": "baumaschine", "schluessel": "betriebsgewicht", "bezeichnung": "Betriebsgewicht", "typ": "zahl", "einheit": "t", "auswahl": [], "pflicht": false, "sortierung": 10},
+  {"gruppe": "baumaschine", "schluessel": "motorleistung", "bezeichnung": "Motorleistung", "typ": "zahl", "einheit": "kW", "auswahl": [], "pflicht": false, "sortierung": 20},
+  {"gruppe": "baumaschine", "schluessel": "schnellwechsler", "bezeichnung": "Schnellwechsler", "typ": "auswahl", "einheit": "", "auswahl": ["keiner", "MS03", "MS08", "OQ45", "sonstiger"], "pflicht": false, "sortierung": 30},
+  {"gruppe": "baumaschine", "schluessel": "kettenbreite", "bezeichnung": "Kettenbreite", "typ": "zahl", "einheit": "mm", "auswahl": [], "pflicht": false, "sortierung": 40},
+  {"gruppe": "baumaschine", "schluessel": "abgasstufe", "bezeichnung": "Abgasstufe", "typ": "auswahl", "einheit": "", "auswahl": ["II", "IIIA", "IIIB", "IV", "V", "unbekannt"], "pflicht": false, "sortierung": 50},
+
+  {"gruppe": "fahrzeug", "schluessel": "kennzeichen", "bezeichnung": "Kennzeichen", "typ": "text", "einheit": "", "auswahl": [], "pflicht": true, "sortierung": 10},
+  {"gruppe": "fahrzeug", "schluessel": "hu_faellig", "bezeichnung": "HU fällig", "typ": "datum", "einheit": "", "auswahl": [], "pflicht": false, "sortierung": 20},
+  {"gruppe": "fahrzeug", "schluessel": "zul_gesamtgewicht", "bezeichnung": "Zulässiges Gesamtgewicht", "typ": "zahl", "einheit": "kg", "auswahl": [], "pflicht": false, "sortierung": 30},
+  {"gruppe": "fahrzeug", "schluessel": "kraftstoff", "bezeichnung": "Kraftstoff", "typ": "auswahl", "einheit": "", "auswahl": ["Diesel", "Benzin", "Elektro", "Hybrid", "Gas"], "pflicht": false, "sortierung": 40},
+  {"gruppe": "fahrzeug", "schluessel": "fahrgestellnummer", "bezeichnung": "Fahrgestellnummer", "typ": "text", "einheit": "", "auswahl": [], "pflicht": false, "sortierung": 50},
+
+  {"gruppe": "anbaugeraet", "schluessel": "aufnahme", "bezeichnung": "Aufnahme", "typ": "auswahl", "einheit": "", "auswahl": ["keine", "MS03", "MS08", "OQ45", "sonstige"], "pflicht": false, "sortierung": 10},
+  {"gruppe": "anbaugeraet", "schluessel": "arbeitsbreite", "bezeichnung": "Arbeitsbreite", "typ": "zahl", "einheit": "mm", "auswahl": [], "pflicht": false, "sortierung": 20},
+  {"gruppe": "anbaugeraet", "schluessel": "anbaugewicht", "bezeichnung": "Gewicht", "typ": "zahl", "einheit": "kg", "auswahl": [], "pflicht": false, "sortierung": 30},
+  {"gruppe": "anbaugeraet", "schluessel": "passend_fuer", "bezeichnung": "Passend für", "typ": "text", "einheit": "", "auswahl": [], "pflicht": false, "sortierung": 40},
+
+  {"gruppe": "kleingeraet", "schluessel": "antriebsart", "bezeichnung": "Antrieb", "typ": "auswahl", "einheit": "", "auswahl": ["Akku", "Netz", "Benzin", "Druckluft", "Hydraulik"], "pflicht": false, "sortierung": 10},
+  {"gruppe": "kleingeraet", "schluessel": "geraetegewicht", "bezeichnung": "Gewicht", "typ": "zahl", "einheit": "kg", "auswahl": [], "pflicht": false, "sortierung": 20},
+  {"gruppe": "kleingeraet", "schluessel": "nennleistung", "bezeichnung": "Nennleistung", "typ": "zahl", "einheit": "W", "auswahl": [], "pflicht": false, "sortierung": 30},
+
+  {"gruppe": "werkzeug", "schluessel": "werkzeugart", "bezeichnung": "Art", "typ": "text", "einheit": "", "auswahl": [], "pflicht": false, "sortierung": 10},
+  {"gruppe": "werkzeug", "schluessel": "werkzeuggroesse", "bezeichnung": "Größe", "typ": "text", "einheit": "", "auswahl": [], "pflicht": false, "sortierung": 20},
+  {"gruppe": "werkzeug", "schluessel": "werkzeugantrieb", "bezeichnung": "Antrieb", "typ": "auswahl", "einheit": "", "auswahl": ["Hand", "Akku", "Netz", "Druckluft"], "pflicht": false, "sortierung": 30},
+
+  {"gruppe": "elektro", "schluessel": "schutzklasse", "bezeichnung": "Schutzklasse", "typ": "auswahl", "einheit": "", "auswahl": ["I", "II", "III"], "pflicht": true, "sortierung": 10},
+  {"gruppe": "elektro", "schluessel": "spannung", "bezeichnung": "Spannung", "typ": "auswahl", "einheit": "V", "auswahl": ["230", "400"], "pflicht": false, "sortierung": 20},
+  {"gruppe": "elektro", "schluessel": "anschlussleistung", "bezeichnung": "Anschlussleistung", "typ": "zahl", "einheit": "W", "auswahl": [], "pflicht": false, "sortierung": 30},
+  {"gruppe": "elektro", "schluessel": "leitungslaenge", "bezeichnung": "Leitungslänge", "typ": "zahl", "einheit": "m", "auswahl": [], "pflicht": false, "sortierung": 40},
+
+  {"gruppe": "vermessung", "schluessel": "messgeraeteart", "bezeichnung": "Geräteart", "typ": "auswahl", "einheit": "", "auswahl": ["Nivelliergerät", "Tachymeter", "GNSS-Empfänger", "Rotationslaser", "Messlatte", "sonstige"], "pflicht": false, "sortierung": 10},
+  {"gruppe": "vermessung", "schluessel": "genauigkeit", "bezeichnung": "Genauigkeit", "typ": "text", "einheit": "", "auswahl": [], "pflicht": false, "sortierung": 20},
+  {"gruppe": "vermessung", "schluessel": "kalibriert_am", "bezeichnung": "Kalibriert am", "typ": "datum", "einheit": "", "auswahl": [], "pflicht": false, "sortierung": 30},
+
+  {"gruppe": "container", "schluessel": "containertyp", "bezeichnung": "Typ", "typ": "auswahl", "einheit": "", "auswahl": ["Büro", "Lager", "Sanitär", "Abroll"], "pflicht": true, "sortierung": 10},
+  {"gruppe": "container", "schluessel": "containergroesse", "bezeichnung": "Größe", "typ": "auswahl", "einheit": "ft", "auswahl": ["10", "20", "40"], "pflicht": false, "sortierung": 20},
+  {"gruppe": "container", "schluessel": "abmessungen", "bezeichnung": "Maße", "typ": "text", "einheit": "", "auswahl": [], "pflicht": false, "sortierung": 30},
+  {"gruppe": "container", "schluessel": "beheizt", "bezeichnung": "Beheizt", "typ": "ja_nein", "einheit": "", "auswahl": [], "pflicht": false, "sortierung": 40},
+
+  {"gruppe": "schalung_ruestung", "schluessel": "schalungssystem", "bezeichnung": "System", "typ": "text", "einheit": "", "auswahl": [], "pflicht": false, "sortierung": 10},
+  {"gruppe": "schalung_ruestung", "schluessel": "elementart", "bezeichnung": "Elementart", "typ": "auswahl", "einheit": "", "auswahl": ["Stütze", "Träger", "Rahmen", "Platte", "Gerüstbauteil", "sonstige"], "pflicht": false, "sortierung": 20},
+  {"gruppe": "schalung_ruestung", "schluessel": "elementlaenge", "bezeichnung": "Länge", "typ": "zahl", "einheit": "mm", "auswahl": [], "pflicht": false, "sortierung": 30},
+  {"gruppe": "schalung_ruestung", "schluessel": "tragfaehigkeit_kn", "bezeichnung": "Tragfähigkeit", "typ": "zahl", "einheit": "kN", "auswahl": [], "pflicht": false, "sortierung": 40},
+
+  {"gruppe": "hebezeug_anschlag", "schluessel": "hebemittelart", "bezeichnung": "Art", "typ": "auswahl", "einheit": "", "auswahl": ["Kettenzug", "Seilzug", "Anschlagkette", "Rundschlinge", "Hebeband", "Traverse", "Schäkel", "sonstige"], "pflicht": false, "sortierung": 10},
+  {"gruppe": "hebezeug_anschlag", "schluessel": "tragfaehigkeit_kg", "bezeichnung": "Tragfähigkeit", "typ": "zahl", "einheit": "kg", "auswahl": [], "pflicht": true, "sortierung": 20},
+  {"gruppe": "hebezeug_anschlag", "schluessel": "nutzlaenge", "bezeichnung": "Nutzlänge", "typ": "zahl", "einheit": "m", "auswahl": [], "pflicht": false, "sortierung": 30},
+
+  {"gruppe": "bueroausstattung", "schluessel": "moebelart", "bezeichnung": "Art", "typ": "auswahl", "einheit": "", "auswahl": ["Schreibtisch", "Stuhl", "Schrank", "Regal", "Besprechungstisch", "sonstige"], "pflicht": false, "sortierung": 10},
+  {"gruppe": "bueroausstattung", "schluessel": "moebelmasse", "bezeichnung": "Maße", "typ": "text", "einheit": "", "auswahl": [], "pflicht": false, "sortierung": 20},
+  {"gruppe": "bueroausstattung", "schluessel": "raum", "bezeichnung": "Raum", "typ": "text", "einheit": "", "auswahl": [], "pflicht": false, "sortierung": 30},
+
+  {"gruppe": "it", "schluessel": "itgeraeteart", "bezeichnung": "Geräteart", "typ": "auswahl", "einheit": "", "auswahl": ["Laptop", "Desktop", "Tablet", "Smartphone", "Monitor", "Drucker", "sonstige"], "pflicht": true, "sortierung": 10},
+  {"gruppe": "it", "schluessel": "betriebssystem", "bezeichnung": "Betriebssystem", "typ": "text", "einheit": "", "auswahl": [], "pflicht": false, "sortierung": 20},
+  {"gruppe": "it", "schluessel": "benutzer", "bezeichnung": "Benutzer", "typ": "text", "einheit": "", "auswahl": [], "pflicht": false, "sortierung": 30}
+]

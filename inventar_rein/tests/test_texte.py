@@ -1,0 +1,86 @@
+"""Prueffaelle fuer daten/texte_de.json (X1-X7)."""
+from __future__ import annotations
+
+import ast
+import json
+import re
+from pathlib import Path
+
+import pytest
+
+from inventar_rein.import_vorlage import FEHLER_SCHLUESSEL
+
+PAKET = Path(__file__).resolve().parent.parent
+SEITEN = ("uebersicht", "hier", "faellig", "werkstatt", "kosten", "stueck", "transfer", "meldung", "pruefung",
+          "verwaltung", "gruppen", "merkmale", "pruefarten", "bauteile", "kostensaetze", "einstellungen",
+          "import", "etiketten", "testdaten", "auslieferung", "handy_scannen")
+PRAEFIXE = {"gruppe", "merkmal", "pruefart", "muster", "nummernformat", "kataloge", "fristen", "kosten",
+            "transfer", "etiketten", "testdaten", "zubehoer", "inventur"}
+
+
+@pytest.fixture(scope="module")
+def texte() -> dict[str, str]:
+    return json.loads((PAKET / "daten" / "texte_de.json").read_text(encoding="utf-8"))
+
+
+def codes_im_quelltext() -> set[str]:
+    """Alle Meldungsschluessel (Fehler und Protokoll) aus den Modulen, ohne Detailanhang."""
+    gefunden: set[str] = set()
+    for datei in PAKET.glob("*.py"):
+        for knoten in ast.walk(ast.parse(datei.read_text(encoding="utf-8"))):
+            if isinstance(knoten, ast.Constant) and isinstance(knoten.value, str):
+                kopf = knoten.value.split(":")[0]
+                if re.fullmatch(r"[a-z_0-9]+(\.[a-z_0-9]+)+", kopf) and kopf.split(".")[0] in PRAEFIXE:
+                    gefunden.add(kopf)
+    return gefunden
+
+
+def test_X1_gueltiges_json_mit_erlaubten_schluesseln(texte):
+    assert isinstance(texte, dict) and texte
+    for k, v in texte.items():
+        assert k.startswith("inventar.") or k.startswith("hilfe.inventar_"), k
+        assert isinstance(v, str) and v.strip(), k
+
+
+def test_X2_jede_seite_hat_liegt_tasten_danach(texte):
+    for seite in SEITEN:
+        for teil in ("liegt", "tasten", "danach"):
+            assert f"hilfe.inventar_{seite}.{teil}" in texte, (seite, teil)
+    assert len([k for k in texte if k.startswith("hilfe.inventar_")]) == 3 * len(SEITEN)
+
+
+def test_X3_alle_import_fehler_sind_vorhanden(texte):
+    for schluessel in FEHLER_SCHLUESSEL:
+        assert f"inventar.{schluessel}" in texte, schluessel
+
+
+def test_X4_alle_meldungsschluessel_der_module_haben_einen_text(texte):
+    fehlt = sorted(c for c in codes_im_quelltext() if f"inventar.code.{c}" not in texte)
+    assert fehlt == []
+
+
+def test_X5_keine_verwaisten_meldungstexte(texte):
+    vorhanden = {k[len("inventar.code."):] for k in texte if k.startswith("inventar.code.")}
+    assert sorted(vorhanden - codes_im_quelltext()) == []
+
+
+def test_X6_begriffe_aus_dem_auftrag(texte):
+    for status in ("aktiv", "in_reparatur", "vermisst", "stillgelegt", "verkauft", "verschrottet"):
+        assert f"inventar.status.{status}" in texte
+    assert texte["inventar.transfer.taste.abgang"] == "Abgang buchen"
+    assert texte["inventar.transfer.taste.eingang"] == "Ist angekommen"
+    assert texte["inventar.transfer.taste.hier"] == "Ist hier"
+    assert texte["inventar.transfer.taste.zurueckziehen"] == "Zurückziehen"
+    assert texte["inventar.erinnerung.transfer"] == "Transfer seit {tage} Werktagen nicht bestätigt"
+    assert texte["inventar.kosten.hinweis"] == "kalkulatorisch, nicht steuerlich"
+    for art in ("gross", "klein", "menge"):
+        assert f"inventar.art.{art}" in texte
+    for ampel in ("gruen", "gelb", "rot"):
+        assert f"inventar.pruefung.ampel.{ampel}" in texte
+
+
+def test_X7_stil_ohne_ausrufezeichen_und_ohne_du_oder_sie_anrede(texte):
+    for k, v in texte.items():
+        assert "!" not in v, k
+        assert not re.search(r"\b(Sie|Ihr|Ihre|Ihnen|Du|Dein|Deine|Dir|Dich)\b", v), k
+        assert not re.search(r"\b(tragen|geben|klicken|wählen)\s+(Sie|du)\b", v, re.I), k

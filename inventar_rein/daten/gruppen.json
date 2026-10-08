@@ -1,0 +1,14 @@
+[
+  {"schluessel": "baumaschine", "bezeichnung": "Baumaschinen", "kuerzel": "BM", "oben": null, "sortierung": 10},
+  {"schluessel": "fahrzeug", "bezeichnung": "Fahrzeuge", "kuerzel": "FZ", "oben": null, "sortierung": 20},
+  {"schluessel": "anbaugeraet", "bezeichnung": "Anbaugeräte", "kuerzel": "AG", "oben": null, "sortierung": 30},
+  {"schluessel": "kleingeraet", "bezeichnung": "Kleingeräte", "kuerzel": "KG", "oben": null, "sortierung": 40},
+  {"schluessel": "werkzeug", "bezeichnung": "Werkzeug", "kuerzel": "WZ", "oben": null, "sortierung": 50},
+  {"schluessel": "elektro", "bezeichnung": "Elektrische Betriebsmittel", "kuerzel": "EL", "oben": null, "sortierung": 60},
+  {"schluessel": "vermessung", "bezeichnung": "Vermessung", "kuerzel": "VM", "oben": null, "sortierung": 70},
+  {"schluessel": "container", "bezeichnung": "Container", "kuerzel": "CO", "oben": null, "sortierung": 80},
+  {"schluessel": "schalung_ruestung", "bezeichnung": "Schalung und Rüstung", "kuerzel": "SR", "oben": null, "sortierung": 90},
+  {"schluessel": "hebezeug_anschlag", "bezeichnung": "Hebezeuge und Anschlagmittel", "kuerzel": "HA", "oben": null, "sortierung": 100},
+  {"schluessel": "bueroausstattung", "bezeichnung": "Büroausstattung", "kuerzel": "BA", "oben": null, "sortierung": 110},
+  {"schluessel": "it", "bezeichnung": "IT", "kuerzel": "IT", "oben": null, "sortierung": 120}
+]
