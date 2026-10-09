@@ -1,8 +1,0 @@
-digiassistenz-kern>=0.15.2
-openpyxl
-segno
-weasyprint
-
-[pruefung]
-pytest
-httpx
