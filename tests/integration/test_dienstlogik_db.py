@@ -217,7 +217,7 @@ def test_import_mit_fehlerhafter_datei_schreibt_nichts(box, tmp_path) -> None:
     wb.save(datei)
     with _sitzung() as s:
         assert import_lauf.bericht(s, datei).plan is None
-        with pytest.raises(ValueError, match="import.fehler_in_datei"):
+        with pytest.raises(ValueError, match="import_lauf.fehler_in_datei"):
             import_lauf.einspielen(s, datei)
     assert _zeilen("stueck") == 0
 

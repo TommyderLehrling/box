@@ -494,7 +494,6 @@
   "inventar.code.stueck.merkmal_unbekannt": "Dieses Merkmal gibt es in der Gruppe nicht",
   "inventar.code.stueck.merkmal_wert_ungueltig": "Der Wert passt nicht zum Merkmal",
   "inventar.code.nummer.keine_frei": "Keine freie Inventarnummer gefunden",
-  "inventar.code.import.fehler_in_datei": "Die Datei hat Fehler und wird nicht eingespielt",
   "inventar.code.testdaten.nach_auslieferung": "Nach der Auslieferung gibt es keine Testdaten mehr",
   "inventar.code.testdaten.keine_kostenstelle": "Es gibt noch keine Kostenstelle",
   "inventar.code.pruefung.pruefart_unbekannt": "Die Prüfart gibt es nicht",
@@ -505,5 +504,6 @@
   "inventar.code.dateien.unterordner_unbekannt": "Dieser Unterordner ist nicht vorgesehen",
   "inventar.code.dateien.name_leer": "Der Dateiname ist leer",
   "inventar.code.dateien.foto_typ": "Fotos sind nur als jpg oder png erlaubt",
-  "inventar.code.dateien.foto_gross": "Das Foto ist größer als 8 MB"
+  "inventar.code.dateien.foto_gross": "Das Foto ist größer als 8 MB",
+  "inventar.code.import_lauf.fehler_in_datei": "Die Datei hat Fehler und wird nicht eingespielt"
 }

@@ -81,7 +81,7 @@ def einspielen(sitzung: Any, pfad: Path, quelle: str = "import") -> Bericht:
     """Legt an, was neu ist; was abweicht oder schon da ist, bleibt unberührt. Nur ohne Fehler in der Datei."""
     erg = bericht(sitzung, pfad)
     if erg.plan is None:
-        raise ValueError("import.fehler_in_datei")
+        raise ValueError("import_lauf.fehler_in_datei")
     return Bericht(erg.lesen, erg.plan, anlegen(sitzung, erg.plan.neu, quelle), erg.lieferanten_unbekannt)
 
 

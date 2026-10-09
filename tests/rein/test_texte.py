@@ -18,7 +18,7 @@ SEITEN = ("uebersicht", "hier", "faellig", "werkstatt", "kosten", "stueck", "tra
 PRAEFIXE = {"gruppe", "merkmal", "pruefart", "muster", "nummernformat", "kataloge", "fristen", "kosten",
             "transfer", "etiketten", "testdaten", "zubehoer", "inventur", "bauteil", "pruefung", "stueck_status",
             "meldung", "reparatur", "werkstatt", "import_plan", "bestand", "beispielbetrieb",
-            "verrechnung"}
+            "verrechnung", "stueck", "nummer", "dateien", "laden", "import_lauf"}
 
 
 @pytest.fixture(scope="module")
@@ -29,7 +29,7 @@ def texte() -> dict[str, str]:
 def codes_im_quelltext() -> set[str]:
     """Alle Meldungsschluessel (Fehler und Protokoll) aus den Modulen, ohne Detailanhang."""
     gefunden: set[str] = set()
-    for datei in (PAKET / "rein").glob("*.py"):
+    for datei in PAKET.rglob("*.py"):
         for knoten in ast.walk(ast.parse(datei.read_text(encoding="utf-8"))):
             if isinstance(knoten, ast.Constant) and isinstance(knoten.value, str):
                 kopf = knoten.value.split(":")[0]

@@ -1,0 +1,63 @@
+# DOKON Inventar — Kern + Inventar (L10, Entwurf; Box hat es nicht gestartet — VSC passt die Pfade an).
+# Dieselben drei Dienste wie die Kern-compose.yml: Datenbank, App (Kern + Inventar), Caddy mit HTTPS.
+# Zugangsdaten stehen ausschließlich in betrieb/konfig.env (I2), nie hier. Port 8445, damit dieser Aufbau weder
+# den Kern-Aufbau (8444) noch eine laufende Belegerfassung (8443) stört.
+#
+# Voraussetzungen: docker/wheels/digiassistenz_kern-<x.y.z>-py3-none-any.whl (Tag kern-x.y.z),
+# betrieb/konfig.env (siehe konfig.env.beispiel), und der Caddyfile des Kerns unter ${KERN_DOCKER}.
+name: dokon-inventar
+
+services:
+
+  db:
+    image: postgres:16            # enthält contrib → pg_trgm für die Suche
+    restart: "no"
+    env_file: betrieb/konfig.env  # POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB, passend zu DB_URL
+    volumes:
+      - db_daten:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -q"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        KERN_BILD: digi-assistenz-kern:0.2.0
+    image: dokon-inventar:0.1.0
+    restart: unless-stopped
+    env_file: betrieb/konfig.env
+    environment:
+      DIGIASSISTENZ_WURZEL: /betrieb   # die Wurzel des Betriebs: konfig.env und daten/ liegen darunter
+    volumes:
+      - ./:/inventar
+      - ./betrieb:/betrieb
+      - ./docker/wheels:/wheels:ro
+      - ./docker/app-start.sh:/opt/digiassistenz/app-start.sh:ro
+    expose:
+      - "8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    env_file: betrieb/konfig.env
+    ports:
+      - "8445:8443"
+    volumes:
+      - ${KERN_DOCKER:-../Kern/docker}/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_daten:/data
+      - caddy_konfig:/config
+    depends_on:
+      - app
+
+volumes:
+  db_daten:
+  caddy_daten:
+  caddy_konfig:
