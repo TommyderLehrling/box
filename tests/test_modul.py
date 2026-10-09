@@ -7,7 +7,7 @@ import tomllib
 
 import pytest
 
-from conftest import PAKET, WURZEL
+from pfade import PAKET, WURZEL
 from digiassistenz_inventar import modul, rechte
 
 B = modul.BESCHREIBUNG

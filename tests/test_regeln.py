@@ -6,7 +6,7 @@ import re
 
 import pytest
 
-from conftest import PAKET, WURZEL
+from pfade import PAKET, WURZEL
 
 DATEIEN = sorted(p for p in PAKET.rglob("*.py") if "__pycache__" not in p.parts)
 VORLAGEN = sorted((PAKET / "vorlagen").glob("*.html"))

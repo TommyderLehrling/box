@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 from jinja2 import ChoiceLoader, DictLoader, StrictUndefined, UndefinedError
 
-from conftest import PAKET
+from pfade import PAKET
 
 RAHMEN = "<main>{% block titel %}{% endblock %}{% block inhalt %}{% endblock %}</main>"
 

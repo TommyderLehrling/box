@@ -5,7 +5,7 @@ import json
 import re
 from pathlib import Path
 
-from conftest import PAKET
+from pfade import PAKET
 
 EIGENE = json.loads((PAKET / "texte" / "de.json").read_text(encoding="utf-8"))
 DATEIEN = [p for p in PAKET.rglob("*") if p.suffix in {".py", ".html", ".js"} and "__pycache__" not in p.parts

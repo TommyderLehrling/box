@@ -2,12 +2,8 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from pathlib import Path
 
 import pytest
-
-PAKET = Path(__file__).resolve().parents[1] / "digiassistenz_inventar"
-WURZEL = PAKET.parent
 
 
 @pytest.fixture(scope="session")
