@@ -39,7 +39,7 @@ def test_K3_schluessel_doppelt(katalog):
         gruppen, merkmale + [merkmale[5]], pruefarten
     )
     assert "pruefart.schluessel_doppelt:hu" in k.pruefe_kataloge(
-        gruppen, merkmale, pruefarten + [pruefarten[8]]
+        gruppen, merkmale, pruefarten + [next(p for p in pruefarten if p.schluessel == "hu")]
     )
 
 
@@ -54,7 +54,7 @@ def test_K4_merkmal_zeigt_auf_unbekannte_gruppe(katalog):
 def test_K5_pruefart_zeigt_auf_unbekannte_gruppe(katalog):
     gruppen, merkmale, pruefarten = katalog
     kaputt = [replace(pruefarten[0], gruppen=("elektro", "gibt_es_nicht"))]
-    assert "pruefart.gruppe_unbekannt:dguv_v3:gibt_es_nicht" in k.pruefe_kataloge(
+    assert "pruefart.gruppe_unbekannt:dguv_v3_baustelle:gibt_es_nicht" in k.pruefe_kataloge(
         gruppen, merkmale, kaputt
     )
 
@@ -75,13 +75,13 @@ def test_K6_auswahl_nur_bei_typ_auswahl_und_dann_nicht_leer(katalog):
 def test_K7_intervalle_und_durchfuehrung(katalog):
     gruppen, merkmale, pruefarten = katalog
     p = pruefarten[0]
-    assert "pruefart.intervall_ungueltig:dguv_v3" in k.pruefe_kataloge(
+    assert "pruefart.intervall_ungueltig:dguv_v3_baustelle" in k.pruefe_kataloge(
         gruppen, merkmale, [replace(p, intervall_monate=0)]
     )
-    assert "pruefart.zaehler_intervall_ungueltig:dguv_v3" in k.pruefe_kataloge(
+    assert "pruefart.zaehler_intervall_ungueltig:dguv_v3_baustelle" in k.pruefe_kataloge(
         gruppen, merkmale, [replace(p, zaehler_intervall=0)]
     )
-    assert "pruefart.durchfuehrung_unbekannt:dguv_v3:amtlich" in k.pruefe_kataloge(
+    assert "pruefart.durchfuehrung_unbekannt:dguv_v3_baustelle:amtlich" in k.pruefe_kataloge(
         gruppen, merkmale, [replace(p, durchfuehrung="amtlich")]
     )
 
@@ -109,8 +109,19 @@ def test_K10_lader_und_inhalt(katalog, tmp_path: Path):
     wartung = next(p for p in pruefarten if p.schluessel == "wartung_betriebsstunden")
     assert (wartung.intervall_monate, wartung.zaehler_intervall) == (12, 500)
     assert {"druckbehaelter_innen", "druckbehaelter_festigkeit"} <= {p.schluessel for p in pruefarten}
-    dguv = next(p for p in pruefarten if p.schluessel == "dguv_v3")
-    assert set(dguv.gruppen) == {"elektro", "kleingeraet", "it", "bueroausstattung"}
+    baustelle = next(p for p in pruefarten if p.schluessel == "dguv_v3_baustelle")
+    buero = next(p for p in pruefarten if p.schluessel == "dguv_v3_buero")
+    assert (baustelle.intervall_monate, set(baustelle.gruppen)) == (3, {"elektro", "kleingeraet", "werkzeug"})
+    assert (buero.intervall_monate, set(buero.gruppen)) == (24, {"it", "bueroausstattung"})
+    assert "dguv_v3" not in {p.schluessel for p in pruefarten}
+    nach = {p.schluessel: p for p in pruefarten}
+    assert (nach["druckbehaelter_innen"].intervall_monate, nach["druckbehaelter_festigkeit"].intervall_monate,
+            nach["druckbehaelter_aussen"].intervall_monate) == (60, 120, 24)
+    assert (nach["hu"].intervall_monate, nach["sp_sicherheitspruefung"].intervall_monate) == (12, 6)
+    assert (nach["kran"].intervall_monate, nach["hubarbeitsbuehne"].intervall_monate) == (12, 12)
+    assert (nach["verbandkasten"].intervall_monate, nach["baustromverteiler"].gruppen) == (60, ("elektro",))
+    klasse = next(m for m in merkmale if m.schluessel == "fahrzeugklasse")
+    assert klasse.auswahl == ("pkw", "lkw_bis_3_5", "lkw_ueber_3_5", "anhaenger")
 
     fehlt = tmp_path / "gruppen.json"
     fehlt.write_text(json.dumps([{"schluessel": "x"}]), encoding="utf-8")

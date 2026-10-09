@@ -118,7 +118,6 @@ def test_T9_transfers_etwa_fuenf_prozent_angekuendigt(gross):
         z = nach_nummer[t.stueck]
         assert t.status == "angekuendigt" and t.von_kostenstelle == z.kostenstelle != t.nach_kostenstelle
         assert 1 <= t.menge <= z.menge and t.abgang_am.tzinfo is not None
-        assert t.abgespalten == (t.menge < z.menge)
     assert len({t.id for t in gross.transfers}) == len(gross.transfers)
 
 
@@ -155,3 +154,15 @@ def test_T12_ungueltige_eingabe():
                 "kostenstellen": KS, "muster": MUSTER, "stichtag": STICHTAG, **kw}
         with pytest.raises(ValueError, match="testdaten.eingabe_ungueltig"):
             erzeuge(**args)
+
+
+def test_T16_namenslisten_kommen_aus_der_datei_und_sind_unveraenderlich(tmp_path):
+    from inventar_rein.testdaten import lade_namen
+    n = lade_namen()
+    assert n["namen"]["baumaschine"][0] == "Hydraulikbagger 21 t" and isinstance(n["hersteller"], tuple)
+    kaputt = tmp_path / "n.json"
+    kaputt.write_text("{}", encoding="utf-8")
+    with pytest.raises(ValueError, match="namen_feld_fehlt"):
+        lade_namen(kaputt)
+    with pytest.raises(ValueError, match="namen_unlesbar"):
+        lade_namen(tmp_path / "gibt_es_nicht.json")

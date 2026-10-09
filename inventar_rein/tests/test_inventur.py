@@ -63,3 +63,9 @@ def test_V7_leere_eingabe_und_ungueltige_menge():
     assert erg.gefunden == () and erg.vermisst_vorschlag == () and erg.unbekannt == ()
     with pytest.raises(ValueError, match="menge_ungueltig"):
         auswerten([e("A", 100)], [g("A", 100, 0)], [100])
+
+
+def test_V8_mehr_gesehen_ist_ein_hinweis_ohne_buchung():
+    erg = auswerten([e("S", 100, 40), e("T", 100, 5)], [g("S", 100, 45), g("T", 100, 5)], [100])
+    assert erg.gefunden == ("S", "T") and erg.fehlmengen == () and erg.vermisst_vorschlag == ()
+    assert [(m.inventarnummer, m.erwartet, m.gesehen, m.differenz) for m in erg.mehr_gesehen] == [("S", 40, 45, 5)]

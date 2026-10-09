@@ -14,6 +14,7 @@ from inventar_rein.pruefung import (
     eintragen,
     faellig_liste,
     gesamt_ampel,
+    ohne_nachweis,
     pruefstand,
     zuordnungen_fuer,
 )
@@ -30,7 +31,7 @@ def eintrag(art: str, tag: date, ergebnis: str = "bestanden", stand: D | None = 
 def test_R1_zuordnung_ueber_die_gruppe():
     arten = lade_pruefarten()
     fz = {z.pruefart for z in zuordnungen_fuer("fahrzeug", arten)}
-    assert fz == {"feuerloescher", "hu", "uvv_fahrzeug", "tachograph"}
+    assert fz == {"feuerloescher", "hu", "uvv_fahrzeug", "tachograph", "sp_sicherheitspruefung", "verbandkasten"}
     bm = {z.pruefart: z for z in zuordnungen_fuer("baumaschine", arten)}
     assert bm["wartung_betriebsstunden"].zaehler_intervall == 500
     assert zuordnungen_fuer("vermessung", arten) == []
@@ -69,45 +70,52 @@ def test_R5_eintragen_prueft_die_eingabe():
 
 
 def test_R6_stand_nach_datum_mit_ampel():
-    gruen = pruefstand(DGUV, eintrag("dguv_v3", date(2026, 1, 15)), HEUTE, ab=date(2025, 1, 1))
+    gruen = pruefstand(DGUV, eintrag("dguv_v3", date(2026, 1, 15)), HEUTE)
     assert (gruen.faellig_am, gruen.ampel, gruen.grund) == (date(2027, 1, 15), "gruen", "datum")
-    gelb = pruefstand(DGUV, eintrag("dguv_v3", date(2025, 10, 20)), HEUTE, ab=date(2025, 1, 1))
+    gelb = pruefstand(DGUV, eintrag("dguv_v3", date(2025, 10, 20)), HEUTE)
     assert (gelb.faellig_am, gelb.tage, gelb.ampel) == (date(2026, 10, 20), 12, "gelb")
-    rot = pruefstand(DGUV, eintrag("dguv_v3", date(2025, 10, 8)), HEUTE, ab=date(2025, 1, 1))
+    rot = pruefstand(DGUV, eintrag("dguv_v3", date(2025, 10, 8)), HEUTE)
     assert (rot.faellig_am, rot.tage, rot.ampel) == (HEUTE, 0, "rot")  # am Faelligkeitstag rot
 
 
 def test_R7_zaehler_kann_frueher_faellig_machen():
     letzte = eintrag("wartung_betriebsstunden", date(2026, 3, 1), stand=D("1000"))
-    ruhig = pruefstand(WARTUNG, letzte, HEUTE, date(2020, 1, 1), zaehler_jetzt=D("1200"))
+    ruhig = pruefstand(WARTUNG, letzte, HEUTE, zaehler_jetzt=D("1200"))
     assert (ruhig.ampel, ruhig.grund, ruhig.faellig_bei_zaehler, ruhig.zaehler_rest) == ("gruen", "datum", D("1500"), D("300"))
-    gelb = pruefstand(WARTUNG, letzte, HEUTE, date(2020, 1, 1), zaehler_jetzt=D("1460"))
+    gelb = pruefstand(WARTUNG, letzte, HEUTE, zaehler_jetzt=D("1460"))
     assert (gelb.ampel, gelb.grund, gelb.zaehler_rest) == ("gelb", "zaehler", D("40"))
-    rot = pruefstand(WARTUNG, letzte, HEUTE, date(2020, 1, 1), zaehler_jetzt=D("1500"))
+    rot = pruefstand(WARTUNG, letzte, HEUTE, zaehler_jetzt=D("1500"))
     assert (rot.ampel, rot.grund, rot.zaehler_rest) == ("rot", "zaehler", D("0"))
-    ueber = pruefstand(WARTUNG, letzte, HEUTE, date(2020, 1, 1), zaehler_jetzt=D("1620.5"))
+    ueber = pruefstand(WARTUNG, letzte, HEUTE, zaehler_jetzt=D("1620.5"))
     assert ueber.zaehler_rest == D("-120.5") and ueber.ampel == "rot"
 
 
 def test_R8_datum_kann_trotz_ruhigem_zaehler_rot_sein():
     letzte = eintrag("wartung_betriebsstunden", date(2025, 6, 1), stand=D("1000"))
-    stand = pruefstand(WARTUNG, letzte, HEUTE, date(2020, 1, 1), zaehler_jetzt=D("1100"))
+    stand = pruefstand(WARTUNG, letzte, HEUTE, zaehler_jetzt=D("1100"))
     assert (stand.ampel, stand.grund) == ("rot", "datum")
-    ohne_zaehler = pruefstand(WARTUNG, eintrag("wartung_betriebsstunden", date(2026, 3, 1)), HEUTE, date(2020, 1, 1), zaehler_jetzt=D("9999"))
+    ohne_zaehler = pruefstand(WARTUNG, eintrag("wartung_betriebsstunden", date(2026, 3, 1)), HEUTE, zaehler_jetzt=D("9999"))
     assert ohne_zaehler.faellig_bei_zaehler is None and ohne_zaehler.ampel == "gruen"  # kein Stand bei der Pruefung bekannt
 
 
-def test_R9_nie_geprueft_und_nicht_bestanden():
-    neu = pruefstand(DGUV, None, HEUTE, ab=date(2026, 9, 1))
-    assert (neu.grund, neu.faellig_am, neu.ampel) == ("nie_geprueft", date(2027, 9, 1), "gruen")
-    sofort = pruefstand(DGUV, None, HEUTE, ab=date(2026, 9, 1), erstfaellig="sofort")
-    assert (sofort.faellig_am, sofort.ampel) == (date(2026, 9, 1), "rot")
-    durchgefallen = pruefstand(DGUV, eintrag("dguv_v3", date(2026, 10, 1), "nicht_bestanden"), HEUTE, date(2020, 1, 1))
+def test_R9_nie_geprueft_ist_unbekannt_und_nicht_bestanden_rot():
+    neu = pruefstand(DGUV, None, HEUTE)
+    assert (neu.grund, neu.faellig_am, neu.tage, neu.ampel) == ("nie_geprueft", None, None, "unbekannt")
+    durchgefallen = pruefstand(DGUV, eintrag("dguv_v3", date(2026, 10, 1), "nicht_bestanden"), HEUTE)
     assert (durchgefallen.grund, durchgefallen.ampel, durchgefallen.tage) == ("nicht_bestanden", "rot", -7)
-    with pytest.raises(ValueError, match="erstfaellig_unbekannt"):
-        pruefstand(DGUV, None, HEUTE, HEUTE, erstfaellig="nie")
     with pytest.raises(ValueError, match="pruefart_passt_nicht"):
-        pruefstand(DGUV, eintrag("hu", HEUTE), HEUTE, HEUTE)
+        pruefstand(DGUV, eintrag("hu", HEUTE), HEUTE)
+
+
+def test_R13_unbekannt_ist_nicht_gruen_und_hat_einen_eigenen_block():
+    unbekannt = pruefstand(DGUV, None, HEUTE)
+    gruen = pruefstand(DGUV, eintrag("dguv_v3", date(2026, 10, 1)), HEUTE)
+    gelb = pruefstand(DGUV, eintrag("dguv_v3", date(2025, 10, 20)), HEUTE)
+    assert gesamt_ampel([gruen, unbekannt]) == "unbekannt"
+    assert gesamt_ampel([gruen, unbekannt, gelb]) == "gelb"
+    staende = [("B-2", unbekannt), ("B-1", unbekannt), ("B-3", gelb), ("B-4", gruen)]
+    assert [n for n, _ in faellig_liste(staende)] == ["B-3"]
+    assert [n for n, _ in ohne_nachweis(staende)] == ["B-1", "B-2"]
 
 
 def test_R10_gesamt_ampel_ist_die_schlechteste():

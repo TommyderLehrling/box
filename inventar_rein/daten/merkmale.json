@@ -10,6 +10,7 @@
   {"gruppe": "fahrzeug", "schluessel": "zul_gesamtgewicht", "bezeichnung": "Zulässiges Gesamtgewicht", "typ": "zahl", "einheit": "kg", "auswahl": [], "pflicht": false, "sortierung": 30},
   {"gruppe": "fahrzeug", "schluessel": "kraftstoff", "bezeichnung": "Kraftstoff", "typ": "auswahl", "einheit": "", "auswahl": ["Diesel", "Benzin", "Elektro", "Hybrid", "Gas"], "pflicht": false, "sortierung": 40},
   {"gruppe": "fahrzeug", "schluessel": "fahrgestellnummer", "bezeichnung": "Fahrgestellnummer", "typ": "text", "einheit": "", "auswahl": [], "pflicht": false, "sortierung": 50},
+  {"gruppe": "fahrzeug", "schluessel": "fahrzeugklasse", "bezeichnung": "Fahrzeugklasse", "typ": "auswahl", "einheit": "", "auswahl": ["pkw", "lkw_bis_3_5", "lkw_ueber_3_5", "anhaenger"], "pflicht": false, "sortierung": 60},
 
   {"gruppe": "anbaugeraet", "schluessel": "aufnahme", "bezeichnung": "Aufnahme", "typ": "auswahl", "einheit": "", "auswahl": ["keine", "MS03", "MS08", "OQ45", "sonstige"], "pflicht": false, "sortierung": 10},
   {"gruppe": "anbaugeraet", "schluessel": "arbeitsbreite", "bezeichnung": "Arbeitsbreite", "typ": "zahl", "einheit": "mm", "auswahl": [], "pflicht": false, "sortierung": 20},

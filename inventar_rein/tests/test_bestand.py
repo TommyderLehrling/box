@@ -1,6 +1,7 @@
 """Prueffaelle fuer bestand (D1-D9)."""
 from __future__ import annotations
 
+import pytest
 from datetime import date, datetime, timedelta, timezone
 
 from inventar_rein.bestand import StueckInfo, bestand, finde_stueck, stueck_auskunft
@@ -87,7 +88,20 @@ def test_D9_stueck_auskunft():
     z = abgang_buchen(auf("BM-1", A), "BM-1", A, B, 1, "bernd", zeit(7), "handy", "k1").zustand
     antwort = stueck_auskunft(info("BM-1", status="in_reparatur"), z)
     assert antwort == {"inventarnummer": "BM-1", "bezeichnung": "Stueck BM-1", "gruppe": "baumaschine", "gruppe_text": "Baumaschinen",
-                       "art": "gross", "status": "in_reparatur", "standort_kostenstelle_id": A, "standort_seit": date(2026, 10, 1)}
+                       "art": "gross", "status": "in_reparatur", "seriennummer": "", "hersteller": "",
+                       "standort_kostenstelle_id": A, "standort_seit": date(2026, 10, 1)}
     assert stueck_auskunft(info("BM-1", status="verschrottet"), z) is None
     ohne = stueck_auskunft(info("X"), Zustand((), ()))
     assert ohne["standort_kostenstelle_id"] is None and ohne["standort_seit"] is None
+
+
+def test_D10_suche_nach_seriennummer_und_auskunft_mit_hersteller():
+    liste = [info("BM-1", seriennummer="WNCE0123", hersteller="Wacker Neuson"), info("BM-2", seriennummer="")]
+    assert finde_stueck(liste, " wnce0123 ", nach="seriennummer").inventarnummer == "BM-1"
+    assert finde_stueck(liste, "WNCE0123") is None
+    assert finde_stueck(liste, "", nach="seriennummer") is None
+    assert finde_stueck(liste, "BM-2", nach="seriennummer") is None
+    with pytest.raises(ValueError, match="suche_unbekannt"):
+        finde_stueck(liste, "x", nach="farbe")  # type: ignore[arg-type]
+    auskunft = stueck_auskunft(liste[0], Zustand((), ()))
+    assert (auskunft["seriennummer"], auskunft["hersteller"]) == ("WNCE0123", "Wacker Neuson")

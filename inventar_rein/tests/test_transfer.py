@@ -1,6 +1,7 @@
 """Prueffaelle fuer transfer (B1-B13 und Zusatzfaelle Z1-Z8)."""
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 
 import pytest
@@ -78,7 +79,9 @@ def test_B3_eingang_bestaetigen_hat_dasselbe_ergebnis_wie_scan():
     z = abgang(auf(A)).zustand
     per_taste = eingang_bestaetigen(z, z.transfers[0].id, "carla", zeit(9), "handy")
     per_scan = scan_ist_hier(z, STUECK, B, "carla", zeit(9), "handy", "k2")
-    assert per_taste.zustand == per_scan.zustand
+    gleich = replace(per_scan.zustand.transfers[0], eingang_schluessel=None)
+    assert per_taste.zustand == Zustand(per_scan.zustand.standorte, (gleich,))
+    assert per_scan.zustand.transfers[0].eingang_schluessel == "k2"
 
 
 def test_B4_scan_ohne_offenen_transfer_legt_ab_und_zugang_an():
@@ -128,16 +131,16 @@ def test_B8_mengenartikel_teilmenge():
     z = auf(A, menge=40)
     erg = abgang(z, menge=10)
     z1 = erg.zustand
-    assert [(s.kostenstelle, s.menge) for s in z1.standorte if s.bis is not None] == [(A, 40)]
-    assert [(s.kostenstelle, s.menge) for s in offen(z1)] == [(A, 30)]
+    assert [(s.kostenstelle, s.menge) for s in offen(z1)] == [(A, 40)]
     assert (z1.transfers[0].menge, z1.transfers[0].status) == (10, "angekuendigt")
     assert status_auf(z1, B, date(2026, 10, 8)) == ((10, "angekuendigt"),)
+    assert status_auf(z1, A, date(2026, 10, 8)) == ((40, "vor_ort"),)
     z2 = eingang_bestaetigen(z1, z1.transfers[0].id, "carla", zeit(9), "handy").zustand
     assert sorted((s.kostenstelle, s.menge) for s in offen(z2)) == [(A, 30), (B, 10)]
     with pytest.raises(ValueError):
         abgang(auf(A, menge=40), menge=41)
     with pytest.raises(ValueError):
-        abgang(z1, menge=31, schluessel="k9")  # nur noch 30 vorhanden
+        abgang(z1, menge=31, schluessel="k9")  # 10 sind schon reserviert
 
 
 def test_B9_idempotenz_bei_gleichem_eintrag_schluessel():
@@ -227,10 +230,15 @@ def test_B13_stueck_ohne_standort_erster_scan_und_erster_abgang():
     assert erg2.zustand.transfers[0].status == "angekuendigt"
 
 
-def test_Z1_teilmenge_zurueckziehen_gibt_menge_zurueck():
+def test_Z1_teilmenge_zurueckziehen_aendert_den_bestand_nicht():
     z1 = abgang(auf(A, menge=40), menge=10).zustand
-    z2 = zurueckziehen(z1, z1.transfers[0].id, "irrtum", "dora", zeit(9)).zustand
+    erg = zurueckziehen(z1, z1.transfers[0].id, "irrtum", "dora", zeit(9), quelle="werkstatt")
+    z2 = erg.zustand
     assert [(s.kostenstelle, s.menge) for s in offen(z2)] == [(A, 40)]
+    assert z2.transfers[0].beendet_am == zeit(9)
+    assert erg.aenderungen[0].daten["quelle"] == "werkstatt"
+    assert status_auf(z2, B, date(2026, 10, 8)) == ((10, "angekuendigt"),)
+    assert status_auf(z2, B, date(2026, 10, 9)) == ()
 
 
 def test_Z2_teilmenge_ueberholt_geht_an_dritten_ort():
@@ -297,3 +305,50 @@ def test_Z8_status_auf_im_zeitverlauf():
     assert status_auf(z, A, date(2026, 10, 11)) == ((1, "vor_ort"),)
     assert status_auf(z, B, date(2026, 10, 12)) == ((1, "vor_ort"),)
     assert status_auf(z, A, date(2026, 10, 12)) == ()
+
+
+def test_B14_teil_eingang_bestaetigt_weniger_und_kuendigt_fehlmenge_an():
+    z1 = abgang(auf(A, menge=40), menge=10).zustand
+    erg = eingang_bestaetigen(z1, z1.transfers[0].id, "carla", zeit(9), "handy", menge=8)
+    z2 = erg.zustand
+    assert sorted((s.kostenstelle, s.menge) for s in offen(z2)) == [(A, 32), (B, 8)]
+    alt, fehl = z2.transfers
+    assert (alt.status, alt.menge) == ("bestaetigt", 8)
+    assert (fehl.status, fehl.menge, fehl.grund, fehl.von_kostenstelle, fehl.nach_kostenstelle) == (
+        "angekuendigt", 2, "transfer.fehlmenge", A, B)
+    assert fehl.abgang_am == alt.abgang_am and fehl.erinnert_am is None
+    assert fehl in ueberfaellige(z2, date(2026, 10, 14), 3)
+    assert "transfer.fehlmenge" in erg.protokoll
+    z3 = eingang_bestaetigen(z2, fehl.id, "carla", zeit(10), "handy").zustand
+    assert sorted((s.kostenstelle, s.menge) for s in offen(z3)) == [(A, 30), (B, 10)]
+
+
+def test_B15_scan_mit_menge_wie_teil_eingang_und_mehrmenge_ist_fehler():
+    z1 = abgang(auf(A, menge=40), menge=10).zustand
+    z2 = scan_ist_hier(z1, STUECK, B, "carla", zeit(9), "handy", "k2", menge=8).zustand
+    assert sorted((s.kostenstelle, s.menge) for s in offen(z2)) == [(A, 32), (B, 8)]
+    assert [t.menge for t in z2.transfers if t.status == "angekuendigt"] == [2]
+    for aufruf in (
+        lambda: scan_ist_hier(z1, STUECK, B, "carla", zeit(9), "handy", "k3", menge=12),
+        lambda: eingang_bestaetigen(z1, z1.transfers[0].id, "carla", zeit(9), "handy", menge=12),
+    ):
+        with pytest.raises(ValueError, match="menge_zu_gross"):
+            aufruf()
+    with pytest.raises(ValueError, match="menge_ungueltig"):
+        eingang_bestaetigen(z1, z1.transfers[0].id, "carla", zeit(9), "handy", menge=0)
+
+
+def test_B16_wiederholter_scan_nach_teil_eingang_ist_still():
+    z1 = abgang(auf(A, menge=40), menge=10).zustand
+    z2 = scan_ist_hier(z1, STUECK, B, "carla", zeit(9), "handy", "k2", menge=8).zustand
+    nochmal = scan_ist_hier(z2, STUECK, B, "carla", zeit(9, 9), "handy", "k2", menge=8)
+    assert nochmal.aenderungen == () and nochmal.zustand == z2 and nochmal.protokoll == ("transfer.doppelt",)
+
+
+def test_Z9_ueberholt_setzt_beendet_am_und_status_auf_endet_dann():
+    z1 = abgang(auf(A), tag=8).zustand
+    z2 = scan_ist_hier(z1, STUECK, C, "carla", zeit(10), "handy", "k3").zustand
+    ueberholt = z2.transfers[0]
+    assert (ueberholt.status, ueberholt.beendet_am) == ("ueberholt", zeit(10))
+    assert status_auf(z2, B, date(2026, 10, 9)) == ((1, "angekuendigt"),)
+    assert status_auf(z2, B, date(2026, 10, 10)) == ()

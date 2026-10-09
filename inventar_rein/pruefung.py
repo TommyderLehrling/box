@@ -13,8 +13,8 @@ from .fristen import naechste_faelligkeit, tage_bis
 from .kataloge import Pruefart
 
 Ergebnis = Literal["bestanden", "maengel", "nicht_bestanden"]
-Ampel = Literal["gruen", "gelb", "rot"]
-_RANG = MappingProxyType({"gruen": 0, "gelb": 1, "rot": 2})
+Ampel = Literal["gruen", "unbekannt", "gelb", "rot"]
+_RANG = MappingProxyType({"gruen": 0, "unbekannt": 1, "gelb": 2, "rot": 3})
 _ERGEBNISSE = ("bestanden", "maengel", "nicht_bestanden")
 
 
@@ -99,16 +99,12 @@ def eintragen(
 
 
 def pruefstand(
-    zuordnung: Zuordnung, letzte: Eintrag | None, heute: date, ab: date, zaehler_jetzt: Decimal | None = None,
-    gelb_ab_tagen: int = 30, gelb_zaehler_anteil: Decimal = Decimal("0.10"), erstfaellig: str = "intervall",
+    zuordnung: Zuordnung, letzte: Eintrag | None, heute: date, zaehler_jetzt: Decimal | None = None,
+    gelb_ab_tagen: int = 30, gelb_zaehler_anteil: Decimal = Decimal("0.10"),
 ) -> Pruefstand:
-    """Stand einer Pruefart: Faelligkeit nach Datum und Zaehler, schlechtere Ampel gilt."""
-    if erstfaellig not in ("intervall", "sofort"):
-        raise ValueError("pruefung.erstfaellig_unbekannt")
+    """Stand einer Pruefart: Faelligkeit nach Datum und Zaehler, schlechtere Ampel gilt; ohne Pruefung: unbekannt."""
     if letzte is None:
-        faellig = ab if erstfaellig == "sofort" else naechste_faelligkeit(ab, zuordnung.intervall_monate)
-        return Pruefstand(zuordnung.pruefart, faellig, tage_bis(faellig, heute), None, None,
-                          datum_ampel(faellig, heute, gelb_ab_tagen), "nie_geprueft")
+        return Pruefstand(zuordnung.pruefart, None, None, None, None, "unbekannt", "nie_geprueft")
     if letzte.pruefart != zuordnung.pruefart:
         raise ValueError("pruefung.pruefart_passt_nicht")
     if letzte.ergebnis == "nicht_bestanden":
@@ -132,7 +128,7 @@ def pruefstand(
 
 
 def gesamt_ampel(staende: Iterable[Pruefstand]) -> Ampel:
-    """Schlechteste Ampel aller Pruefarten eines Stuecks (ohne Pruefart: gruen)."""
+    """Schlechteste Ampel aller Pruefarten eines Stuecks (rot, gelb, unbekannt, gruen; ohne Pruefart: gruen)."""
     schlechteste: Ampel = "gruen"
     for s in staende:
         if _RANG[s.ampel] > _RANG[schlechteste]:
@@ -143,6 +139,14 @@ def gesamt_ampel(staende: Iterable[Pruefstand]) -> Ampel:
 def faellig_liste(
     staende: Iterable[tuple[str, Pruefstand]], nur: tuple[Ampel, ...] = ("rot", "gelb")
 ) -> list[tuple[str, Pruefstand]]:
-    """Faellig-Liste: erst rot, dann gelb; innerhalb nach Faelligkeit, dann Nummer und Pruefart."""
+    """Faellig-Liste: erst rot, dann gelb; innerhalb nach Faelligkeit, dann Nummer und Pruefart.
+
+    Stuecke ohne Nachweis (unbekannt) stehen nicht hier, sondern in ohne_nachweis.
+    """
     gefiltert = [(n, s) for n, s in staende if s.ampel in nur]
     return sorted(gefiltert, key=lambda x: (-_RANG[x[1].ampel], x[1].faellig_am or date.max, x[0], x[1].pruefart))
+
+
+def ohne_nachweis(staende: Iterable[tuple[str, Pruefstand]]) -> list[tuple[str, Pruefstand]]:
+    """Eigener Block der Faellig-Liste: Stuecke und Pruefarten ohne jede eingetragene Pruefung."""
+    return sorted(((n, s) for n, s in staende if s.ampel == "unbekannt"), key=lambda x: (x[0], x[1].pruefart))

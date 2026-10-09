@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 _ZAEHLT = ("aktiv", "in_reparatur")
+HINWEIS_MEHR_GESEHEN = "inventur.mehr_gesehen"
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,16 @@ class Woanders:
 
 
 @dataclass(frozen=True)
+class MehrGesehen:
+    inventarnummer: str
+    kostenstelle: int
+    erwartet: int
+    gesehen: int
+    differenz: int
+    hinweis: str = HINWEIS_MEHR_GESEHEN
+
+
+@dataclass(frozen=True)
 class Inventurergebnis:
     gefunden: tuple[str, ...]
     woanders: tuple[Woanders, ...]
@@ -48,6 +59,7 @@ class Inventurergebnis:
     vermisst_vorschlag: tuple[str, ...]
     wieder_aufgetaucht: tuple[str, ...]
     unbekannt: tuple[str, ...]
+    mehr_gesehen: tuple[MehrGesehen, ...] = ()  # Hinweis inventur.mehr_gesehen, keine automatische Buchung
 
 
 def auswerten(
@@ -69,6 +81,7 @@ def auswerten(
     gefunden: set[str] = set()
     woanders: list[Woanders] = []
     fehlmengen: list[Fehlt] = []
+    mehr: list[MehrGesehen] = []
     vermisst: set[str] = set()
     zurueck: set[str] = set()
     zeilen_je: dict[str, list[Erwartet]] = defaultdict(list)
@@ -91,6 +104,8 @@ def auswerten(
             if gesehen_hier >= e.menge:
                 gefunden.add(nummer)
                 komplett_fehlend = False
+                if gesehen_hier > e.menge:
+                    mehr.append(MehrGesehen(nummer, e.kostenstelle, e.menge, gesehen_hier, gesehen_hier - e.menge))
             elif gesehen_hier > 0:
                 fehlmengen.append(Fehlt(nummer, e.kostenstelle, e.menge, gesehen_hier))
                 komplett_fehlend = False
@@ -107,4 +122,5 @@ def auswerten(
     return Inventurergebnis(
         tuple(sorted(gefunden)), tuple(sorted(woanders, key=lambda w: (w.inventarnummer, w.erwartet_auf))),
         tuple(sorted(fehlmengen, key=lambda f: (f.inventarnummer, f.kostenstelle))),
-        tuple(sorted(vermisst)), tuple(sorted(zurueck)), tuple(unbekannt))
+        tuple(sorted(vermisst)), tuple(sorted(zurueck)), tuple(unbekannt),
+        tuple(sorted(mehr, key=lambda m: (m.inventarnummer, m.kostenstelle))))

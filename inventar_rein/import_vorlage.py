@@ -35,7 +35,24 @@ FEHLER_SCHLUESSEL = (
     "import.fehler.merkmal_zahl", "import.fehler.merkmal_datum", "import.fehler.merkmal_ja_nein",
     "import.fehler.merkmal_auswahl",
 )
+HINWEIS_BEISPIEL = "import.hinweis.beispiel_uebersprungen"
+BEISPIEL_MARKE = "BEISPIEL"  # Besonderheiten beginnt damit: Zeile wird ignoriert
 _PFLICHT = ("Inventarnummer", "Bezeichnung", "Gruppe", "Art", "Kostenstelle")
+
+
+@dataclass(frozen=True)
+class ImportHinweis:
+    """Kein Fehler: etwas wurde bewusst uebersprungen."""
+
+    zeile: int
+    text_schluessel: str
+
+
+@dataclass(frozen=True)
+class Leseergebnis:
+    zeilen: tuple[ImportZeile, ...]
+    fehler: tuple[ImportFehler, ...]
+    hinweise: tuple[ImportHinweis, ...]
 
 
 @dataclass(frozen=True)
@@ -175,7 +192,7 @@ def erzeuge_vorlage(pfad: Path, gruppen: Iterable[Gruppe], merkmale: Iterable[Me
             "Inventarnummer": f"{g.kuerzel}-00001", "Bezeichnung": f"Beispiel {g.bezeichnung}",
             "Gruppe": g.schluessel, "Art": art, "Hersteller": "Beispiel-Hersteller", "Typ": "BSP-100",
             "Seriennummer": "TEST-000001", "Baujahr": 2020, "Kaufdatum": "15.03.2020", "Kaufpreis": 1000,
-            "Lieferant": "Beispiel-Lieferant", "Kostenstelle": 1000, "Menge": menge, "Besonderheiten": "",
+            "Lieferant": "Beispiel-Lieferant", "Kostenstelle": 1000, "Menge": menge, "Besonderheiten": BEISPIEL_MARKE,
         }
         for m in merkmale:
             if m.gruppe == g.schluessel and m.pflicht:
@@ -199,7 +216,18 @@ def lies(
     muster: Muster | None, heute: date | None = None,
 ) -> tuple[tuple[ImportZeile, ...], tuple[ImportFehler, ...]]:
     """Liest und prueft die Datei; fehlerhafte Zeilen kommen nur in die Fehlerliste."""
-    gruppen_schluessel = {g.schluessel for g in gruppen}
+    erg = lies_mit_hinweisen(pfad, gruppen, merkmale, kostenstellen, muster, heute)
+    return erg.zeilen, erg.fehler
+
+
+def lies_mit_hinweisen(
+    pfad: Path, gruppen: Iterable[Gruppe], merkmale: Iterable[Merkmal], kostenstellen: Iterable[int],
+    muster: Muster | None, heute: date | None = None,
+) -> Leseergebnis:
+    """Wie lies, meldet zusaetzlich uebersprungene Beispielzeilen; Gruppe als Schluessel oder Bezeichnung."""
+    gruppen = list(gruppen)
+    gruppen_schluessel = {g.schluessel.casefold(): g.schluessel for g in gruppen}
+    gruppen_bezeichnung = {g.bezeichnung.strip().casefold(): g.schluessel for g in gruppen}
     je_gruppe: dict[str, dict[str, Merkmal]] = {}
     for m in merkmale:
         je_gruppe.setdefault(m.gruppe, {})[m.schluessel] = m
@@ -213,13 +241,19 @@ def lies(
         kopf.pop()
     fehler: list[ImportFehler] = []
     if tuple(kopf[: len(SPALTEN)]) != SPALTEN:
-        return (), (ImportFehler(1, "", "import.fehler.kopf_ungueltig", ";".join(kopf)),)
+        return Leseergebnis((), (ImportFehler(1, "", "import.fehler.kopf_ungueltig", ";".join(kopf)),), ())
     fehler += [ImportFehler(1, name, "import.fehler.spalte_unbekannt", name)
                for name in kopf[len(SPALTEN):] if not name.startswith("m:") or len(name) == 2]
     ok: dict[int, ImportZeile] = {}
+    hinweise: list[ImportHinweis] = []
+    beispiele: set[int] = set()
     for nr, roh in enumerate(zeilen[1:], start=2):
         werte = {name: (roh[i] if i < len(roh) else None) for i, name in enumerate(kopf)}
         if all(_text(v) == "" for v in werte.values()):
+            continue
+        if _text(werte["Besonderheiten"]).upper().startswith(BEISPIEL_MARKE):
+            beispiele.add(nr)
+            hinweise.append(ImportHinweis(nr, HINWEIS_BEISPIEL))
             continue
         zf: list[ImportFehler] = []
 
@@ -233,8 +267,11 @@ def lies(
         if nummer and muster is not None and not entspricht(muster, nummer):
             fehl("Inventarnummer", "import.fehler.nummer_muster", nummer)
         gruppe, art = _text(werte["Gruppe"]), _text(werte["Art"])
-        if gruppe and gruppe not in gruppen_schluessel:
+        treffer = gruppen_schluessel.get(gruppe.casefold()) or gruppen_bezeichnung.get(gruppe.casefold())
+        if gruppe and treffer is None:
             fehl("Gruppe", "import.fehler.gruppe_unbekannt")
+        elif treffer is not None:
+            gruppe = treffer
         if art and art not in ARTEN:
             fehl("Art", "import.fehler.art_unbekannt")
         ks = _ganzzahl(werte["Kostenstelle"])
@@ -301,7 +338,7 @@ def lies(
                 _text(werte["Typ"]), _text(werte["Seriennummer"]), baujahr, kaufdatum, kaufpreis,
                 _text(werte["Lieferant"]), ks or 0, menge, _text(werte["Besonderheiten"]), werte_m)
     nummern: dict[str, list[int]] = {}
-    for z in _nummern(ws, ok):
+    for z in _nummern(ws, beispiele):
         nummern.setdefault(z[1], []).append(z[0])
     for nummer, rows in nummern.items():
         if len(rows) > 1:
@@ -309,13 +346,15 @@ def lies(
                 fehler.append(ImportFehler(r, "Inventarnummer", "import.fehler.nummer_doppelt", nummer))
                 ok.pop(r, None)
     fehler.sort(key=lambda f: (f.zeile, f.spalte, f.text_schluessel))
-    return tuple(ok[k] for k in sorted(ok)), tuple(fehler)
+    return Leseergebnis(tuple(ok[k] for k in sorted(ok)), tuple(fehler), tuple(hinweise))
 
 
-def _nummern(ws: Any, ok: dict[int, ImportZeile]) -> list[tuple[int, str]]:
-    """Alle normalisierten Inventarnummern der Datei (auch von fehlerhaften Zeilen) mit Zeilennummer."""
+def _nummern(ws: Any, uebersprungen: set[int]) -> list[tuple[int, str]]:
+    """Alle normalisierten Inventarnummern der Datei (auch von fehlerhaften Zeilen, ohne Beispielzeilen)."""
     ergebnis = []
     for nr, roh in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+        if nr in uebersprungen:
+            continue
         nummer = normalisiere(_text(roh[0] if roh else None))
         if nummer:
             ergebnis.append((nr, nummer))

@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 from openpyxl import Workbook, load_workbook
 
-from inventar_rein.import_vorlage import FEHLER_SCHLUESSEL, SPALTEN, erzeuge_vorlage, lies
+from inventar_rein.import_vorlage import FEHLER_SCHLUESSEL, SPALTEN, erzeuge_vorlage, lies, lies_mit_hinweisen
 from inventar_rein.kataloge import lade_gruppen, lade_merkmale
 from inventar_rein.nummernformat import Muster
 
@@ -58,13 +58,33 @@ def test_I1_vorlage_hat_kopf_beispiele_dropdowns_und_kommentare(tmp_path: Path):
     assert wb["Listen"]["A2"].value == "baumaschine" and wb["Listen"]["B4"].value == "menge"
 
 
-def test_I2_vorlage_ist_selbst_lesbar(tmp_path: Path):
+def test_I2_vorlage_ist_selbst_lesbar_und_beispiele_werden_uebersprungen(tmp_path: Path):
     datei = tmp_path / "vorlage.xlsx"
     erzeuge_vorlage(datei, GRUPPEN, MERKMALE)
-    zeilen, fehler = lies(datei, GRUPPEN, MERKMALE, KS, Muster("{gruppe}-{nr:5}"), HEUTE)
-    assert fehler == ()
-    assert [(z.inventarnummer, z.art, z.menge) for z in zeilen] == [("BM-00001", "gross", 1), ("FZ-00001", "menge", 40)]
-    assert zeilen[1].merkmale["kennzeichen"] == "Beispiel"  # Pflichtmerkmal ist vorbelegt
+    erg = lies_mit_hinweisen(datei, GRUPPEN, MERKMALE, KS, Muster("{gruppe}-{nr:5}"), HEUTE)
+    assert (erg.zeilen, erg.fehler) == ((), ())
+    assert [(h.zeile, h.text_schluessel) for h in erg.hinweise] == [
+        (2, "import.hinweis.beispiel_uebersprungen"), (3, "import.hinweis.beispiel_uebersprungen")]
+    assert lies(datei, GRUPPEN, MERKMALE, KS, None, HEUTE) == ((), ())
+
+
+def test_I17_beispielzeile_zaehlt_nicht_als_doppelte_nummer(tmp_path: Path):
+    beispiel = {**GUT, "Besonderheiten": "beispiel: bitte loeschen"}
+    echt = {**GUT, "Besonderheiten": "echt"}
+    datei = schreibe(tmp_path / "t.xlsx", [beispiel, echt])
+    erg = lies_mit_hinweisen(datei, GRUPPEN, MERKMALE, KS, None, HEUTE)
+    assert erg.fehler == () and [z.inventarnummer for z in erg.zeilen] == ["BM-00017"]
+    assert [h.zeile for h in erg.hinweise] == [2]
+
+
+def test_I18_gruppe_als_schluessel_oder_bezeichnung_ohne_gross_klein(tmp_path: Path):
+    bezeichnung = next(g.bezeichnung for g in GRUPPEN if g.schluessel == "baumaschine")
+    zeilen = [{**GUT, "Inventarnummer": "BM-1", "Gruppe": bezeichnung.upper()},
+              {**GUT, "Inventarnummer": "BM-2", "Gruppe": " Baumaschine "},
+              {**GUT, "Inventarnummer": "BM-3", "Gruppe": "gibt es nicht"}]
+    ergebnis, fehler = lese(tmp_path, zeilen)
+    assert [(z.inventarnummer, z.gruppe) for z in ergebnis] == [("BM-1", "baumaschine"), ("BM-2", "baumaschine")]
+    assert schluessel(fehler) == [(4, "Gruppe", "import.fehler.gruppe_unbekannt")]
 
 
 def test_I3_pflichtfelder(tmp_path: Path):

@@ -1,12 +1,15 @@
 """Fiktive, deterministische Testdaten aus einem Seed (keine echten Seriennummern)."""
 from __future__ import annotations
 
+import json
 import random
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from pathlib import Path
 from types import MappingProxyType
+from typing import Any
 
 from .fristen import ampel, naechste_faelligkeit
 from .import_vorlage import ImportZeile
@@ -20,23 +23,6 @@ GEWICHTE = {
     "schalung_ruestung": 5, "bueroausstattung": 8, "it": 12, "anbaugeraet": 2, "vermessung": 2,
     "hebezeug_anschlag": 2,
 }
-_NAMEN = {
-    "baumaschine": ["Hydraulikbagger 21 t", "Minibagger 1,8 t", "Radlader 8 t", "Kettendumper 6 t", "Tandemwalze 12 t", "Mobilbagger 14 t", "Planierraupe 18 t", "Teleskoplader 3,5 t"],
-    "fahrzeug": ["Kipper 3-Achs", "Transporter 3,5 t", "Pritschenwagen", "Kleinbus 9 Sitze", "Sattelzugmaschine", "Kastenwagen"],
-    "anbaugeraet": ["Tieflöffel 600 mm", "Grabenlöffel 400 mm", "Hydraulikhammer 800 kg", "Sortiergreifer", "Palettengabel", "Kehrbesen 2 m"],
-    "kleingeraet": ["Rüttelplatte 400 kg", "Stampfer 70 kg", "Trennschleifer 400 mm", "Tauchpumpe 2 Zoll", "Stromerzeuger 8 kVA", "Bautrockner", "Kompressor 10 bar", "Nassschneider"],
-    "werkzeug": ["Schaufel", "Spitzhacke", "Wasserwaage 2 m", "Schubkarre", "Maurerkelle-Set", "Stemmhammer", "Bohrhammer", "Akkuschrauber-Set"],
-    "elektro": ["Kabeltrommel 50 m", "Baustromverteiler", "Verlängerungskabel 25 m", "Flutlichtstrahler", "Handlampe", "Heizlüfter 3 kW", "Kabelbrücke"],
-    "vermessung": ["Nivelliergerät", "Rotationslaser", "Messlatte 5 m", "Tachymeter", "GNSS-Empfänger", "Fluchtstab"],
-    "container": ["Bürocontainer 20 ft", "Lagercontainer 20 ft", "Sanitärcontainer 10 ft", "Mannschaftscontainer 20 ft", "Abrollcontainer 10 m³"],
-    "schalung_ruestung": ["Schalungsstütze", "Schaltafel 50 x 250", "Gerüstrahmen 2 m", "Gerüstbelag 3 m", "Deckenträger 4 m", "Eckschalung"],
-    "hebezeug_anschlag": ["Kettenzug 2 t", "Rundschlinge 3 t", "Anschlagkette 2-strängig", "Traverse 4 m", "Hebeband 5 t", "Schäkel 4,75 t"],
-    "bueroausstattung": ["Schreibtisch 160×80", "Bürostuhl", "Rollcontainer", "Aktenschrank", "Besprechungstisch", "Regal 5 Fächer"],
-    "it": ["Laptop 15 Zoll", "Tablet 10 Zoll", "Monitor 27 Zoll", "Drucker A3", "Smartphone", "Dockingstation"],
-}
-_HERSTELLER = ["Teramax", "Nordwerk", "Granit-Technik", "Falkenstein Geräte", "Alpha-Tec", "Brandt Maschinenbau", "Kessler & Söhne", "Ostmark Technik"]
-_LIEFERANTEN = ["Maschinenhandel Weber", "Baugeräte Süd", "Technikhaus Nord", "Büroteam Mitte", "Fahrzeughandel Rhein", "Industriebedarf Lenz"]
-_HINWEISE = ["Lackschaden links", "Ersatzschlüssel im Büro", "Hydraulikschlauch erneuert", "Vom Subunternehmer übernommen", "Akku schwächelt", "Aufkleber fehlt", "Gebraucht gekauft", "Nur mit Einweisung benutzen"]
 _PREISE = {  # (min, max, Schritt)
     "baumaschine": (25000, 350000, 500), "fahrzeug": (18000, 120000, 500), "anbaugeraet": (1500, 30000, 50),
     "kleingeraet": (300, 9000, 10), "werkzeug": (15, 1200, 1), "elektro": (30, 2500, 1),
@@ -52,15 +38,31 @@ _ZAHLEN = {"betriebsgewicht": (1, 40), "motorleistung": (15, 400), "kettenbreite
            "geraetegewicht": (3, 800), "nennleistung": (200, 9000), "anschlussleistung": (100, 3500),
            "leitungslaenge": (5, 50), "elementlaenge": (500, 6000), "tragfaehigkeit_kn": (5, 80),
            "tragfaehigkeit_kg": (250, 5000), "nutzlaenge": (1, 6)}
-_TEXTE = {"abmessungen": ["6,05 x 2,44 x 2,59 m", "3,00 x 2,44 x 2,59 m"], "moebelmasse": ["160 x 80 cm", "120 x 60 cm", "200 x 100 cm"],
-          "raum": ["Büro 1.01", "Büro 2.04", "Besprechung", "Lager"], "betriebssystem": ["Windows 11", "Windows 10", "Android 14"],
-          "benutzer": ["Team Bauleitung", "Team Disposition", "Team Büro"], "genauigkeit": ["± 2 mm", "± 5 mm", "± 1 mm"],
-          "schalungssystem": ["Rahmenschalung R2", "Trägerschalung T4"], "werkzeugart": ["Handwerkzeug", "Maschinenwerkzeug"],
-          "werkzeuggroesse": ["klein", "mittel", "groß"], "passend_fuer": ["Bagger 8-12 t", "Bagger 18-24 t", "Radlader"]}
-_NAMEN = MappingProxyType({k: tuple(v) for k, v in _NAMEN.items()})
-_TEXTE = MappingProxyType({k: tuple(v) for k, v in _TEXTE.items()})
-_HERSTELLER, _LIEFERANTEN, _HINWEISE = tuple(_HERSTELLER), tuple(_LIEFERANTEN), tuple(_HINWEISE)
 GEWICHTE, _PREISE, _ART, _ZAHLEN = (MappingProxyType(d) for d in (GEWICHTE, _PREISE, _ART, _ZAHLEN))
+_DATEI = Path(__file__).resolve().parent / "daten" / "testdaten_namen.json"
+
+
+def lade_namen(pfad: Path = _DATEI) -> Mapping[str, Any]:
+    """Liest Namenslisten, Hersteller, Lieferanten, Hinweise und Textwerte (unveraenderlich)."""
+    try:
+        roh = json.loads(pfad.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as fehler:
+        raise ValueError("testdaten.namen_unlesbar") from fehler
+    for feld in ("namen", "hersteller", "lieferanten", "hinweise", "texte", "fallback_text"):
+        if feld not in roh:
+            raise ValueError("testdaten.namen_feld_fehlt")
+    return MappingProxyType({
+        "namen": MappingProxyType({k: tuple(v) for k, v in roh["namen"].items()}),
+        "hersteller": tuple(roh["hersteller"]), "lieferanten": tuple(roh["lieferanten"]),
+        "hinweise": tuple(roh["hinweise"]),
+        "texte": MappingProxyType({k: tuple(v) for k, v in roh["texte"].items()}),
+        "fallback_text": roh["fallback_text"],
+    })
+
+
+_N = lade_namen()
+_NAMEN, _HERSTELLER, _LIEFERANTEN, _HINWEISE, _TEXTE = (
+    _N["namen"], _N["hersteller"], _N["lieferanten"], _N["hinweise"], _N["texte"])
 STANDARD_ANZAHL = 2500
 _UTC = timezone.utc
 
@@ -105,7 +107,7 @@ def _merkmal_wert(rng: random.Random, m: Merkmal, stichtag: date) -> str:
         return rng.choice(m.auswahl)
     if m.schluessel == "kennzeichen":
         return f"{rng.choice(['MZ', 'WI', 'DA', 'KH'])}-{rng.choice('ABCDEFGHKLMNPRSTUVWXZ')}{rng.choice('ABCDEFGHKLMNPRSTUVWXZ')} {rng.randint(10, 9999)}"
-    return rng.choice(_TEXTE.get(m.schluessel, ("k. A.",)))
+    return rng.choice(_TEXTE.get(m.schluessel, (_N["fallback_text"],)))
 
 
 def _fristen_vergeben(

@@ -9,8 +9,8 @@ from typing import Any, Literal
 from .fristen import werktage_zwischen
 
 Status = Literal["angekuendigt", "bestaetigt", "ueberholt", "zurueckgezogen"]
-Quelle = Literal["web", "handy", "import", "system"]
-_QUELLEN = ("web", "handy", "import", "system")
+Quelle = Literal["web", "handy", "import", "system", "baustelle", "pruefung", "werkstatt"]
+_QUELLEN = ("web", "handy", "import", "system", "baustelle", "pruefung", "werkstatt")
 
 
 @dataclass(frozen=True)
@@ -41,7 +41,8 @@ class Transfer:
     quelle: Quelle
     eintrag_schluessel: str
     erinnert_am: datetime | None
-    abgespalten: bool = False  # Teilmenge wurde beim Abgang schon aus dem Standort abgespalten
+    beendet_am: datetime | None = None  # gesetzt bei ueberholt/zurueckgezogen
+    eingang_schluessel: str | None = None  # Eintrag-Schluessel des Scans, der den Eingang bestaetigt hat
 
 
 @dataclass(frozen=True)
@@ -134,21 +135,14 @@ def _ohne(z: Zustand, schluessel: str) -> Ergebnis:
     return Ergebnis(z, (), (schluessel,))
 
 
-def _abgang_aus(a: _Arbeit, src: Standort, menge: int, tid: str) -> bool:
-    """Spaltet bei Teilmenge den Rest ab; liefert, ob abgespalten wurde."""
-    if menge < src.menge:
-        a.standort_schliessen(src)
-        a.standort_oeffnen(src.stueck, src.kostenstelle, src.menge - menge, tid)
-        return True
-    return False
-
-
 def _eingang_anwenden(a: _Arbeit, t: Transfer) -> None:
-    """Schliesst die Quelle (ausser bei Teilmenge) und oeffnet bzw. mehrt das Ziel."""
-    if not t.abgespalten and t.von_kostenstelle is not None:
+    """Verkleinert bzw. schliesst die Quelle und oeffnet bzw. mehrt das Ziel."""
+    if t.von_kostenstelle is not None:
         quelle = next((s for s in a.standorte if s.bis is None and s.kostenstelle == t.von_kostenstelle), None)
         if quelle is not None:
             a.standort_schliessen(quelle)
+            if quelle.menge > t.menge:
+                a.standort_oeffnen(t.stueck, quelle.kostenstelle, quelle.menge - t.menge, t.id)
     menge = t.menge
     ziel = next((s for s in a.standorte if s.bis is None and s.kostenstelle == t.nach_kostenstelle), None)
     if ziel is not None:
@@ -179,21 +173,21 @@ def abgang_buchen(
             raise ValueError("transfer.nicht_auf_kostenstelle")
         src = a.standort_oeffnen(stueck, von_ks, menge, None)
         a.protokoll.append("transfer.erstanlage")
-    belegt = sum(t.menge for t in _offene_transfers(z) if t.von_kostenstelle == von_ks and not t.abgespalten)
+    belegt = sum(t.menge for t in _offene_transfers(z) if t.von_kostenstelle == von_ks)
     if menge > src.menge - belegt:
         raise ValueError("transfer.menge_zu_gross")
     tid = "t:" + eintrag_schluessel
-    geteilt = _abgang_aus(a, src, menge, tid)
     a.transfer_neu(Transfer(tid, stueck, menge, von_ks, nach_ks, "angekuendigt", zeit, person,
-                            None, None, grund, quelle, eintrag_schluessel, None, geteilt))
+                            None, None, grund, quelle, eintrag_schluessel, None))
     a.protokoll.append("transfer.abgang")
     return a.ergebnis()
 
 
 def eingang_bestaetigen(
-    z: Zustand, transfer_id: str, person: str, zeit: datetime, quelle: Quelle
+    z: Zustand, transfer_id: str, person: str, zeit: datetime, quelle: Quelle, menge: int | None = None,
+    eingang_schluessel: str | None = None,
 ) -> Ergebnis:
-    """Bestaetigt den Eingang: Quelle schliessen, Ziel oeffnen."""
+    """Bestaetigt den Eingang (optional Teilmenge): Quelle verkleinern, Ziel oeffnen, Fehlmenge neu ankuendigen."""
     t = _finde(z, transfer_id)
     _pruefe(z, t.stueck, person, zeit, quelle)
     if t.status == "bestaetigt":
@@ -202,8 +196,23 @@ def eingang_bestaetigen(
         raise ValueError("transfer.nicht_offen")
     if t.abgang_am is not None and zeit < t.abgang_am:
         raise ValueError("transfer.zeit_rueckwaerts")
+    if menge is not None and menge < 1:
+        raise ValueError("transfer.menge_ungueltig")
+    if menge is not None and menge > t.menge:
+        raise ValueError("transfer.menge_zu_gross")
     a = _Arbeit(z, person, zeit, quelle)
-    t = a.transfer_aendern(t, status="bestaetigt", eingang_am=zeit, eingang_von=person)
+    fehl = 0 if menge is None else t.menge - menge
+    if fehl:
+        t = a.transfer_aendern(t, status="bestaetigt", eingang_am=zeit, eingang_von=person,
+                              menge=menge, eingang_schluessel=eingang_schluessel)
+        schluessel = t.eintrag_schluessel + "|fehlmenge"
+        a.transfer_neu(Transfer("t:" + schluessel, t.stueck, fehl, t.von_kostenstelle, t.nach_kostenstelle,
+                                "angekuendigt", t.abgang_am, t.abgang_von, None, None, "transfer.fehlmenge",
+                                t.quelle, schluessel, None))
+        a.protokoll.append("transfer.fehlmenge")
+    else:
+        t = a.transfer_aendern(t, status="bestaetigt", eingang_am=zeit, eingang_von=person,
+                               eingang_schluessel=eingang_schluessel)
     _eingang_anwenden(a, t)
     a.protokoll.append("transfer.eingang")
     return a.ergebnis()
@@ -219,16 +228,14 @@ def scan_ist_hier(
         raise ValueError("transfer.eintrag_schluessel_fehlt")
     if menge is not None and menge < 1:
         raise ValueError("transfer.menge_ungueltig")
-    if any(t.eintrag_schluessel == eintrag_schluessel for t in z.transfers):
+    if any(eintrag_schluessel in (t.eintrag_schluessel, t.eingang_schluessel) for t in z.transfers):
         return _ohne(z, "transfer.doppelt")
     offene = _offene_transfers(z)
     hierher = [t for t in offene if t.nach_kostenstelle == ks]
     if hierher:
         if len(hierher) > 1:
             raise ValueError("transfer.mehrdeutig")
-        if menge is not None and menge != hierher[0].menge:
-            raise ValueError("transfer.menge_abweichend")
-        return eingang_bestaetigen(z, hierher[0].id, person, zeit, quelle)
+        return eingang_bestaetigen(z, hierher[0].id, person, zeit, quelle, menge, eintrag_schluessel)
     offen = _offen(z)
     if any(s.kostenstelle == ks for s in offen):
         return _ohne(z, "inventur.gesehen")
@@ -240,10 +247,10 @@ def scan_ist_hier(
         alt = offene[0]
         if menge is not None and menge != alt.menge:
             raise ValueError("transfer.menge_abweichend")
-        a.transfer_aendern(alt, status="ueberholt", grund=f"transfer.gesehen_auf:{ks}")
+        a.transfer_aendern(alt, status="ueberholt", grund=f"transfer.gesehen_auf:{ks}", beendet_am=zeit)
         a.protokoll.append("transfer.ueberholt")
         neu = Transfer(tid, stueck, alt.menge, alt.von_kostenstelle, ks, "bestaetigt", zeit, person,
-                       zeit, person, "", "system", eintrag_schluessel, None, alt.abgespalten)
+                       zeit, person, "", "system", eintrag_schluessel, None)
         a.protokoll.append("transfer.abgang_system")
     elif offen:
         if len(offen) > 1:
@@ -252,9 +259,8 @@ def scan_ist_hier(
         wieviel = src.menge if menge is None else menge
         if wieviel > src.menge:
             raise ValueError("transfer.menge_zu_gross")
-        geteilt = _abgang_aus(a, src, wieviel, tid)
         neu = Transfer(tid, stueck, wieviel, src.kostenstelle, ks, "bestaetigt", zeit, person,
-                       zeit, person, "", "system", eintrag_schluessel, None, geteilt)
+                       zeit, person, "", "system", eintrag_schluessel, None)
         a.protokoll.append("transfer.abgang_system")
     else:
         neu = Transfer(tid, stueck, 1 if menge is None else menge, None, ks, "bestaetigt", None, None,
@@ -266,23 +272,18 @@ def scan_ist_hier(
     return a.ergebnis()
 
 
-def zurueckziehen(z: Zustand, transfer_id: str, grund: str, person: str, zeit: datetime) -> Ergebnis:
+def zurueckziehen(
+    z: Zustand, transfer_id: str, grund: str, person: str, zeit: datetime, quelle: Quelle = "web"
+) -> Ergebnis:
     """Zieht einen angekuendigten Transfer mit Grund zurueck (nichts wird geloescht)."""
     t = _finde(z, transfer_id)
-    _pruefe(z, t.stueck, person, zeit)
+    _pruefe(z, t.stueck, person, zeit, quelle)
     if not grund.strip():
         raise ValueError("transfer.grund_fehlt")
     if t.status != "angekuendigt":
         raise ValueError("transfer.nicht_zurueckziehbar")
-    a = _Arbeit(z, person, zeit, "web")
-    a.transfer_aendern(t, status="zurueckgezogen", grund=grund)
-    if t.abgespalten:
-        rest = next((s for s in a.standorte if s.bis is None and s.kostenstelle == t.von_kostenstelle), None)
-        menge = t.menge
-        if rest is not None:
-            a.standort_schliessen(rest)
-            menge += rest.menge
-        a.standort_oeffnen(t.stueck, t.von_kostenstelle, menge, t.id)  # type: ignore[arg-type]
+    a = _Arbeit(z, person, zeit, quelle)
+    a.transfer_aendern(t, status="zurueckgezogen", grund=grund, beendet_am=zeit)
     a.protokoll.append("transfer.zurueckgezogen")
     return a.ergebnis()
 
@@ -326,6 +327,8 @@ def status_auf(z: Zustand, ks: int, tag: date) -> tuple[tuple[int, Literal["vor_
             ende = None
         elif t.status == "bestaetigt" and t.eingang_am is not None:
             ende = t.eingang_am.date()
+        elif t.status in ("ueberholt", "zurueckgezogen") and t.beendet_am is not None:
+            ende = t.beendet_am.date()
         else:
             continue
         if t.abgang_am.date() <= tag and (ende is None or tag < ende):
@@ -350,6 +353,8 @@ def zubehoer_folgt(
         for aend in hauptstueck_ergebnis.aenderungen:
             d, z = aend.daten, erg.zustand
             person = d["person"]
+            if aend.art == "transfer_neu" and d["grund"] == "transfer.fehlmenge":
+                continue
             if aend.art == "transfer_neu":
                 schluessel = f"{d['id']}|{stueck}"
                 if d["status"] == "angekuendigt":

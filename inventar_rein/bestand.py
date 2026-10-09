@@ -5,7 +5,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
-from typing import Any
+from typing import Any, Literal
 
 from .nummernformat import normalisiere
 from .stueck_status import hinweis as status_hinweis
@@ -22,14 +22,23 @@ class StueckInfo:
     art: str
     status: str
     pruefung_ueberfaellig: bool = False
+    seriennummer: str = ""
+    hersteller: str = ""
 
 
-def finde_stueck(stuecke: Iterable[StueckInfo], eingabe: str) -> StueckInfo | None:
-    """Sucht eine getippte Nummer: getrimmt und unabhaengig von Gross- und Kleinschreibung."""
+def finde_stueck(
+    stuecke: Iterable[StueckInfo], eingabe: str, nach: Literal["inventarnummer", "seriennummer"] = "inventarnummer"
+) -> StueckInfo | None:
+    """Sucht eine getippte Nummer: getrimmt und unabhaengig von Gross- und Kleinschreibung.
+
+    Bei nach="seriennummer" gilt die Hersteller-Seriennummer; leere Seriennummern treffen nie.
+    """
+    if nach not in ("inventarnummer", "seriennummer"):
+        raise ValueError("bestand.suche_unbekannt")
     gesucht = normalisiere(eingabe)
     if not gesucht:
         return None
-    return next((s for s in stuecke if normalisiere(s.inventarnummer) == gesucht), None)
+    return next((s for s in stuecke if normalisiere(getattr(s, nach)) == gesucht), None)
 
 
 def _hinweis(info: StueckInfo) -> str:
@@ -77,6 +86,7 @@ def stueck_auskunft(info: StueckInfo, z: Zustand) -> dict[str, Any] | None:
     return {
         "inventarnummer": info.inventarnummer, "bezeichnung": info.bezeichnung, "gruppe": info.gruppe,
         "gruppe_text": info.gruppe_text, "art": info.art, "status": info.status,
+        "seriennummer": info.seriennummer, "hersteller": info.hersteller,
         "standort_kostenstelle_id": standort.kostenstelle if standort else None,
         "standort_seit": standort.von.date() if standort else None,
     }

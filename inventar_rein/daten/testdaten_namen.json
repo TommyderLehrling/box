@@ -1,0 +1,32 @@
+{
+  "namen": {
+    "baumaschine": ["Hydraulikbagger 21 t", "Minibagger 1,8 t", "Radlader 8 t", "Kettendumper 6 t", "Tandemwalze 12 t", "Mobilbagger 14 t", "Planierraupe 18 t", "Teleskoplader 3,5 t"],
+    "fahrzeug": ["Kipper 3-Achs", "Transporter 3,5 t", "Pritschenwagen", "Kleinbus 9 Sitze", "Sattelzugmaschine", "Kastenwagen"],
+    "anbaugeraet": ["Tieflöffel 600 mm", "Grabenlöffel 400 mm", "Hydraulikhammer 800 kg", "Sortiergreifer", "Palettengabel", "Kehrbesen 2 m"],
+    "kleingeraet": ["Rüttelplatte 400 kg", "Stampfer 70 kg", "Trennschleifer 400 mm", "Tauchpumpe 2 Zoll", "Stromerzeuger 8 kVA", "Bautrockner", "Kompressor 10 bar", "Nassschneider"],
+    "werkzeug": ["Schaufel", "Spitzhacke", "Wasserwaage 2 m", "Schubkarre", "Maurerkelle-Set", "Stemmhammer", "Bohrhammer", "Akkuschrauber-Set"],
+    "elektro": ["Kabeltrommel 50 m", "Baustromverteiler", "Verlängerungskabel 25 m", "Flutlichtstrahler", "Handlampe", "Heizlüfter 3 kW", "Kabelbrücke"],
+    "vermessung": ["Nivelliergerät", "Rotationslaser", "Messlatte 5 m", "Tachymeter", "GNSS-Empfänger", "Fluchtstab"],
+    "container": ["Bürocontainer 20 ft", "Lagercontainer 20 ft", "Sanitärcontainer 10 ft", "Mannschaftscontainer 20 ft", "Abrollcontainer 10 m³"],
+    "schalung_ruestung": ["Schalungsstütze", "Schaltafel 50 x 250", "Gerüstrahmen 2 m", "Gerüstbelag 3 m", "Deckenträger 4 m", "Eckschalung"],
+    "hebezeug_anschlag": ["Kettenzug 2 t", "Rundschlinge 3 t", "Anschlagkette 2-strängig", "Traverse 4 m", "Hebeband 5 t", "Schäkel 4,75 t"],
+    "bueroausstattung": ["Schreibtisch 160×80", "Bürostuhl", "Rollcontainer", "Aktenschrank", "Besprechungstisch", "Regal 5 Fächer"],
+    "it": ["Laptop 15 Zoll", "Tablet 10 Zoll", "Monitor 27 Zoll", "Drucker A3", "Smartphone", "Dockingstation"]
+  },
+  "hersteller": ["Teramax", "Nordwerk", "Granit-Technik", "Falkenstein Geräte", "Alpha-Tec", "Brandt Maschinenbau", "Kessler & Söhne", "Ostmark Technik"],
+  "lieferanten": ["Maschinenhandel Weber", "Baugeräte Süd", "Technikhaus Nord", "Büroteam Mitte", "Fahrzeughandel Rhein", "Industriebedarf Lenz"],
+  "hinweise": ["Lackschaden links", "Ersatzschlüssel im Büro", "Hydraulikschlauch erneuert", "Vom Subunternehmer übernommen", "Akku schwächelt", "Aufkleber fehlt", "Gebraucht gekauft", "Nur mit Einweisung benutzen"],
+  "texte": {
+    "abmessungen": ["6,05 x 2,44 x 2,59 m", "3,00 x 2,44 x 2,59 m"],
+    "moebelmasse": ["160 x 80 cm", "120 x 60 cm", "200 x 100 cm"],
+    "raum": ["Büro 1.01", "Büro 2.04", "Besprechung", "Lager"],
+    "betriebssystem": ["Windows 11", "Windows 10", "Android 14"],
+    "benutzer": ["Team Bauleitung", "Team Disposition", "Team Büro"],
+    "genauigkeit": ["± 2 mm", "± 5 mm", "± 1 mm"],
+    "schalungssystem": ["Rahmenschalung R2", "Trägerschalung T4"],
+    "werkzeugart": ["Handwerkzeug", "Maschinenwerkzeug"],
+    "werkzeuggroesse": ["klein", "mittel", "groß"],
+    "passend_fuer": ["Bagger 8-12 t", "Bagger 18-24 t", "Radlader"]
+  },
+  "fallback_text": "k. A."
+}

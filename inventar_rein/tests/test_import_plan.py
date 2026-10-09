@@ -59,3 +59,11 @@ def test_M6_doppelte_nummer_in_der_eingabe_ist_fehler():
     with pytest.raises(ValueError, match="nummer_doppelt"):
         plane([zeile("BM-1"), zeile("bm-1")], {})
     assert plane([], {}).bericht == ()
+
+
+def test_M7_hinweis_je_abweichendem_feld():
+    bestand = {"BM-1": zeile("BM-1")}
+    plan = plane([zeile("BM-1", hersteller="Anders", kaufpreis=D("999"))], bestand)
+    assert [(h.text_schluessel, h.detail) for h in plan.hinweise] == [
+        ("import.hinweis.abweichung", "BM-1:hersteller"), ("import.hinweis.abweichung", "BM-1:kaufpreis")]
+    assert plane([zeile("BM-1")], bestand).hinweise == ()

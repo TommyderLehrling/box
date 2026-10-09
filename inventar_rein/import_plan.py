@@ -29,11 +29,18 @@ class BerichtZeile:
 
 
 @dataclass(frozen=True)
+class Hinweis:
+    text_schluessel: str
+    detail: str  # "<inventarnummer>:<feld>"
+
+
+@dataclass(frozen=True)
 class Plan:
     neu: tuple[ImportZeile, ...]
     unveraendert: tuple[str, ...]
     abweichend: tuple[Abweichung, ...]
     bericht: tuple[BerichtZeile, ...]
+    hinweise: tuple[Hinweis, ...] = ()  # je abweichendem Feld ein import.hinweis.abweichung
 
 
 def plane(zeilen: Iterable[ImportZeile], vorhanden: Mapping[str, ImportZeile]) -> Plan:
@@ -63,4 +70,5 @@ def plane(zeilen: Iterable[ImportZeile], vorhanden: Mapping[str, ImportZeile]) -
     schluessel = sorted({(g, a) for g, a, _ in zaehler})
     bericht = tuple(BerichtZeile(g, a, zaehler[(g, a, "neu")], zaehler[(g, a, "unveraendert")],
                                  zaehler[(g, a, "abweichend")]) for g, a in schluessel)
-    return Plan(tuple(neu), tuple(gleich), tuple(anders), bericht)
+    hinweise = tuple(Hinweis("import.hinweis.abweichung", f"{a.inventarnummer}:{f}") for a in anders for f in a.felder)
+    return Plan(tuple(neu), tuple(gleich), tuple(anders), bericht, hinweise)

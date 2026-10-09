@@ -97,3 +97,21 @@ def test_X7_stil_ohne_ausrufezeichen_und_ohne_du_oder_sie_anrede(texte):
         assert "!" not in v, k
         assert not re.search(r"\b(Sie|Ihr|Ihre|Ihnen|Du|Dein|Deine|Dir|Dich)\b", v), k
         assert not re.search(r"\b(tragen|geben|klicken|wählen)\s+(Sie|du)\b", v, re.I), k
+
+
+class _Dummy(dict):
+    def __missing__(self, key: str) -> str:
+        return "x"
+
+
+def test_X8_jeder_text_laesst_sich_mit_einem_dummy_mapping_formatieren(texte):
+    for k, v in texte.items():
+        v.format_map(_Dummy())  # wörtliche Klammern sind als doppelte Klammern maskiert
+    assert texte["inventar.code.muster.nr_fehlt"].format_map(_Dummy()) == "{nr:N} fehlt im Muster"
+
+
+def test_X9_neue_begriffe_aus_auftrag_02(texte):
+    for schluessel in ("inventar.pruefung.ampel.unbekannt", "inventar.import.hinweis.beispiel_uebersprungen",
+                       "inventar.import.hinweis.abweichung", "inventar.code.transfer.fehlmenge",
+                       "inventar.code.inventur.mehr_gesehen"):
+        assert schluessel in texte

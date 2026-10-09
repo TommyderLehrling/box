@@ -35,8 +35,8 @@ def offen(z: Zustand) -> list[Standort]:
 
 
 def schwebend(z: Zustand) -> int:
-    """Menge, die aus dem Standort abgespalten ist und auf Bestaetigung wartet."""
-    return sum(t.menge for t in z.transfers if t.status == "angekuendigt" and t.abgespalten)
+    """Seit der Teilung beim Eingang wartet keine Menge ausserhalb der Standorte."""
+    return 0
 
 
 def pruefe_invarianten(z: Zustand, gesamt: int) -> None:
@@ -51,11 +51,12 @@ def pruefe_invarianten(z: Zustand, gesamt: int) -> None:
         assert t.status in ("angekuendigt", "bestaetigt", "ueberholt", "zurueckgezogen")
         assert (t.status == "bestaetigt") == (t.eingang_am is not None), "Eingang nur bei bestaetigt"
     frei = {s.kostenstelle: s.menge for s in offen(z)}
-    ganze = sum(t.menge for t in z.transfers if t.status == "angekuendigt" and not t.abgespalten)
-    assert ganze <= sum(frei.values()), "angekuendigte Ganz-Transfers liegen noch im Bestand"
+    reserviert: dict[int | None, int] = {}
     for t in z.transfers:
-        if t.status == "angekuendigt" and not t.abgespalten:
-            assert frei.get(t.von_kostenstelle, 0) >= t.menge, "Quelle hat noch genug"
+        if t.status == "angekuendigt":
+            reserviert[t.von_kostenstelle] = reserviert.get(t.von_kostenstelle, 0) + t.menge
+    for ks_, menge_ in reserviert.items():
+        assert frei.get(ks_, 0) >= menge_, "Quelle hat noch genug fuer alle angekuendigten Transfers"
 
 
 def zufallsschritt(rng: random.Random, z: Zustand, nr: int, gesamt: int) -> tuple[Ergebnis | None, tuple]:
@@ -78,7 +79,8 @@ def zufallsschritt(rng: random.Random, z: Zustand, nr: int, gesamt: int) -> tupl
             return scan_ist_hier(z, STUECK, ks, "p", zeit, "handy", schluessel, menge), aufruf
         if art == "eingang" and pend:
             t = rng.choice(pend)
-            return eingang_bestaetigen(z, t.id, "p", zeit, "handy"), ("eingang", t.id)
+            teil = rng.choice([None, None, rng.randint(1, t.menge)])
+            return eingang_bestaetigen(z, t.id, "p", zeit, "handy", teil), ("eingang", t.id)
         if art == "zurueck" and pend:
             t = rng.choice(pend)
             return zurueckziehen(z, t.id, "grund", "p", zeit), ("zurueck", t.id)
@@ -118,15 +120,18 @@ def test_P2_wiederholung_mit_gleichem_schluessel_aendert_nichts():
                 continue
             if aufruf[0] in ("abgang", "scan") and erg.aenderungen:
                 zeit = ANFANG + timedelta(hours=nr + 2)
+                sk = aufruf[-1]
+                if not any(sk in (t.eintrag_schluessel, t.eingang_schluessel) for t in erg.zustand.transfers):
+                    z = erg.zustand
+                    continue  # reiner Sehen-Scan: keine Buchung, nichts zu wiederholen
                 if aufruf[0] == "abgang":
                     _, von, nach, menge, sk = aufruf
                     nochmal = abgang_buchen(erg.zustand, STUECK, von, nach, menge, "p", zeit, "handy", sk)
                 else:
                     _, ks, menge, sk = aufruf
                     nochmal = scan_ist_hier(erg.zustand, STUECK, ks, "p", zeit, "handy", sk, menge)
-                if any(t.eintrag_schluessel == sk for t in erg.zustand.transfers):
-                    assert nochmal.aenderungen == () and nochmal.zustand == erg.zustand
-                    pruefungen += 1
+                assert nochmal.aenderungen == () and nochmal.zustand == erg.zustand
+                pruefungen += 1
             z = erg.zustand
     assert pruefungen > 200
 
