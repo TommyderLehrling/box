@@ -195,7 +195,7 @@ def erzeuge(
             transfers.append(Transfer(
                 f"t:testdaten-{seed}-{z.inventarnummer}", z.inventarnummer, menge, z.kostenstelle, nach,
                 "angekuendigt", abgang, "testdaten", None, None, "", "import",
-                f"testdaten-{seed}-{z.inventarnummer}", None, menge < z.menge))
+                f"testdaten-{seed}-{z.inventarnummer}", None))
     eintraege: list[tuple[str, str, int, date]] = []
     for z in stuecke:
         for p in pruefarten:

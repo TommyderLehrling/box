@@ -118,6 +118,7 @@ def test_T9_transfers_etwa_fuenf_prozent_angekuendigt(gross):
         z = nach_nummer[t.stueck]
         assert t.status == "angekuendigt" and t.von_kostenstelle == z.kostenstelle != t.nach_kostenstelle
         assert 1 <= t.menge <= z.menge and t.abgang_am.tzinfo is not None
+        assert t.beendet_am is None and t.eingang_schluessel is None
     assert len({t.id for t in gross.transfers}) == len(gross.transfers)
 
 
