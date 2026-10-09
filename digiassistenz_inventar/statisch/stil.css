@@ -1,0 +1,4 @@
+/* Inventar — Bernstein (dunkel #8A5A00, auf Weiß 5,93 : 1); nur das, was der Kern nicht schon hat */
+.inventar-kacheln .taste { border-color: #8A5A00; }
+.inventar-kacheln .zahl { font-weight: 700; color: #8A5A00; }
+.inventar-reiter p { margin: 0.2rem 0; }

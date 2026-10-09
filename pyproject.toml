@@ -1,0 +1,26 @@
+[project]
+name = "digiassistenz-inventar"
+version = "0.1.0"
+description = "DOKON Inventar — Geräteverwaltung einer Baufirma als Modul des Kerns"
+requires-python = ">=3.12"
+dependencies = ["digiassistenz-kern>=0.15.2", "openpyxl", "segno", "weasyprint"]
+
+[project.optional-dependencies]
+pruefung = ["pytest", "httpx"]
+
+[project.entry-points."digiassistenz.module"]
+inventar = "digiassistenz_inventar.modul:BESCHREIBUNG"
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["digiassistenz_inventar*"]
+
+[tool.setuptools.package-data]
+"digiassistenz_inventar" = [
+  "texte/*.json", "vorlagen/*.html", "statisch/*", "migrationen/*.mako",
+  "migrationen/versions/*.py", "rein/daten/*.json",
+]

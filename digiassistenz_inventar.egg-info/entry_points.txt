@@ -1,0 +1,2 @@
+[digiassistenz.module]
+inventar = digiassistenz_inventar.modul:BESCHREIBUNG

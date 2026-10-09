@@ -7,7 +7,7 @@ from decimal import Decimal as D
 import pytest
 
 from digiassistenz_inventar.rein.werkstatt import (
-    kosten_belegen,
+    kosten_aus_rechnung,
     meldung_weiter,
     neue_meldung,
     neue_reparatur,
@@ -73,10 +73,10 @@ def test_W5_reparatur_ablauf():
 
 def test_W6_beleg_ersetzt_schaetzung_nur_nach_abschluss():
     r = reparatur_abschliessen(reparatur_beginnen(neue_reparatur("extern"), date(2026, 10, 1)), date(2026, 10, 2), D("500"))
-    belegt = kosten_belegen(r, D("487.30"))
-    assert (belegt.kosten, belegt.kosten_quelle) == (D("487.30"), "beleg")
+    belegt = kosten_aus_rechnung(r, D("487.30"))
+    assert (belegt.kosten, belegt.kosten_quelle) == (D("487.30"), "rechnung")
     with pytest.raises(ValueError, match="wechsel_nicht_erlaubt"):
-        kosten_belegen(neue_reparatur("intern"), D("1"))
+        kosten_aus_rechnung(neue_reparatur("intern"), D("1"))
 
 
 def test_W7_reparatur_pruefungen():
@@ -125,7 +125,7 @@ def test_W10_reparaturkosten_getrennt_nach_quelle():
         r = reparatur_beginnen(neue_reparatur("extern"), date(2026, 1, 1))
         return reparatur_abschliessen(r, date(2026, 1, 2), D(kosten), quelle)
     laufend = reparatur_beginnen(neue_reparatur("intern"), date(2026, 1, 1), D("999"))
-    liste = [erledigt("100.005", "beleg"), erledigt("50", "geschaetzt"), erledigt("20.50", "beleg"), laufend,
+    liste = [erledigt("100.005", "rechnung"), erledigt("50", "geschaetzt"), erledigt("20.50", "rechnung"), laufend,
              reparatur_zurueckziehen(neue_reparatur("intern"), "x")]
     assert reparaturkosten(liste) == (D("120.51"), D("50.00"))
     assert reparaturkosten([]) == (D("0.00"), D("0.00"))

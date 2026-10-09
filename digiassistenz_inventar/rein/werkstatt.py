@@ -46,7 +46,7 @@ class Reparatur:
     begonnen_am: date | None = None
     beendet_am: date | None = None
     kosten: Decimal | None = None
-    kosten_quelle: Literal["geschaetzt", "beleg"] | None = None
+    kosten_quelle: Literal["geschaetzt", "rechnung"] | None = None
     grund: str = ""
 
 
@@ -104,25 +104,25 @@ def reparatur_beginnen(r: Reparatur, am: date, geschaetzte_kosten: Decimal | Non
 
 
 def reparatur_abschliessen(r: Reparatur, am: date, kosten: Decimal, quelle: str = "geschaetzt") -> Reparatur:
-    """Schliesst die Reparatur mit den Kosten ab; Quelle Beleg ueberschreibt eine Schaetzung."""
+    """Schliesst die Reparatur mit den Kosten ab; Quelle Rechnung ueberschreibt eine Schaetzung."""
     if r.status != "in_arbeit" or r.begonnen_am is None:
         raise ValueError("reparatur.wechsel_nicht_erlaubt")
     if am < r.begonnen_am:
         raise ValueError("reparatur.ende_vor_beginn")
     if kosten < 0:
         raise ValueError("reparatur.kosten_ungueltig")
-    if quelle not in ("geschaetzt", "beleg"):
+    if quelle not in ("geschaetzt", "rechnung"):
         raise ValueError("reparatur.kostenquelle_unbekannt")
     return replace(r, status="erledigt", beendet_am=am, kosten=kosten, kosten_quelle=quelle)  # type: ignore[arg-type]
 
 
-def kosten_belegen(r: Reparatur, kosten: Decimal) -> Reparatur:
-    """Ersetzt eine Schaetzung nachtraeglich durch den Betrag aus dem Beleg (nur erledigte Reparaturen)."""
+def kosten_aus_rechnung(r: Reparatur, kosten: Decimal) -> Reparatur:
+    """Ersetzt eine Schaetzung nachtraeglich durch den Betrag aus der Rechnung (nur erledigte Reparaturen)."""
     if r.status != "erledigt":
         raise ValueError("reparatur.wechsel_nicht_erlaubt")
     if kosten < 0:
         raise ValueError("reparatur.kosten_ungueltig")
-    return replace(r, kosten=kosten, kosten_quelle="beleg")
+    return replace(r, kosten=kosten, kosten_quelle="rechnung")
 
 
 def reparatur_zurueckziehen(r: Reparatur, grund: str) -> Reparatur:
@@ -147,13 +147,13 @@ def status_folge(stueck_status: str, laufende_reparaturen: int) -> str | None:
 
 def reparaturkosten(reparaturen: Iterable[Reparatur]) -> tuple[Decimal, Decimal]:
     """Liefert (Summe aus Belegen, Summe aus Schaetzungen) aller erledigten Reparaturen."""
-    beleg = geschaetzt = Decimal(0)
+    echt = geschaetzt = Decimal(0)
     for r in reparaturen:
         if r.status != "erledigt" or r.kosten is None:
             continue
-        if r.kosten_quelle == "beleg":
-            beleg += r.kosten
+        if r.kosten_quelle == "rechnung":
+            echt += r.kosten
         else:
             geschaetzt += r.kosten
     cent = Decimal("0.01")
-    return beleg.quantize(cent, rounding=ROUND_HALF_UP), geschaetzt.quantize(cent, rounding=ROUND_HALF_UP)
+    return echt.quantize(cent, rounding=ROUND_HALF_UP), geschaetzt.quantize(cent, rounding=ROUND_HALF_UP)

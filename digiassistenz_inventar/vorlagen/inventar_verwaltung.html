@@ -1,0 +1,11 @@
+{% extends "rahmen.html" %}
+{% block titel %}{{ t("inventar.menue_verwaltung") }} — {{ t("web.titel") }}{% endblock %}
+{% block inhalt %}
+{% with seite = "inventar_verwaltung", titel = t("inventar.menue_verwaltung") %}{% include "teil_seitenkopf.html" %}{% endwith %}
+<table class="liste">
+  <tr><th>{{ t("web.was") }}</th><th>{{ t("web.wert") }}</th></tr>
+  {% for schluessel, anzahl in zahlen %}
+  <tr><td>{{ t("inventar.verwaltung." ~ schluessel) }}</td><td class="zahl">{{ anzahl }}</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

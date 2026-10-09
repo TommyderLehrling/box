@@ -1,0 +1,40 @@
+{% extends "rahmen.html" %}
+{% block titel %}{{ t("inventar.menue_inventar") }} — {{ t("web.titel") }}{% endblock %}
+{% block inhalt %}
+{% with seite = "inventar_uebersicht", titel = t("inventar.menue_inventar") %}{% include "teil_seitenkopf.html" %}{% endwith %}
+
+{% if kacheln %}
+<p class="tastenreihe raster inventar-kacheln">
+  {% for k in kacheln %}
+  <a class="taste" href="{{ k.weg }}"><span class="zahl">{{ k.zahl }}</span> {{ t(k.text) }}</a>
+  {% endfor %}
+</p>
+{% endif %}
+
+<form class="filterzeile" method="get" action="/inventar">
+  <label for="inv-filter">{{ t("web.filter") }}</label>
+  <input type="search" id="inv-filter" name="q" value="{{ q }}" size="24" placeholder="{{ t("web.filter_hinweis") }}">
+  <button type="submit">{{ t("web.suchen") }}</button>
+</form>
+
+{% if not zeilen %}
+<p class="leise">{{ t("inventar.keine_stuecke") }}</p>
+{% else %}
+<table class="liste" id="inventar-liste">
+  <tr>
+    <th>{{ t("web.nummer") }}</th><th>{{ t("web.bezeichnung") }}</th><th>{{ t("inventar.spalte_gruppe") }}</th>
+    <th>{{ t("inventar.spalte_steht_auf") }}</th><th>{{ t("inventar.spalte_pruefstand") }}</th><th>{{ t("web.status") }}</th>
+  </tr>
+  {% for z in zeilen %}
+  <tr>
+    <td>{{ z.nummer }}</td><td>{{ z.bezeichnung }}</td><td>{{ z.gruppe }}</td>
+    <td>{{ z.steht_auf|oder_strich }}</td><td>{{ z.ampel }}</td><td>{{ t("inventar.status." ~ z.status) }}</td>
+  </tr>
+  {% endfor %}
+</table>
+<p class="tastenreihe">
+  {% if seite_nr > 1 %}<a class="taste" href="/inventar?q={{ q|urlencode }}&amp;seite={{ seite_nr - 1 }}">{{ t("inventar.zurueck") }}</a>{% endif %}
+  {% if mehr %}<a class="taste" href="/inventar?q={{ q|urlencode }}&amp;seite={{ seite_nr + 1 }}">{{ t("inventar.weiter") }}</a>{% endif %}
+</p>
+{% endif %}
+{% endblock %}

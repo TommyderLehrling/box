@@ -1,0 +1,15 @@
+{% extends "rahmen.html" %}
+{% block titel %}{{ t("inventar.menue_hier") }} — {{ t("web.titel") }}{% endblock %}
+{% block inhalt %}
+{% with seite = "inventar_hier", titel = t("inventar.menue_hier") %}{% include "teil_seitenkopf.html" %}{% endwith %}
+{% if not zeilen %}
+<p class="leise">{{ t("inventar.hier_leer") }}</p>
+{% else %}
+<table class="liste">
+  <tr><th>{{ t("web.kostenstelle") }}</th><th>{{ t("web.nummer") }}</th><th>{{ t("inventar.spalte_menge") }}</th></tr>
+  {% for z in zeilen %}
+  <tr><td>{{ z.kostenstelle }}</td><td>{{ z.nummer }}</td><td class="zahl">{{ z.menge }}</td></tr>
+  {% endfor %}
+</table>
+{% endif %}
+{% endblock %}

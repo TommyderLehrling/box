@@ -1,0 +1,5 @@
+<tbody>
+  {% for schluessel, zahl in zeilen %}
+  <tr><td>{{ t("inventar.uebersicht." ~ schluessel) }}</td><td>{{ zahl }}</td></tr>
+  {% endfor %}
+</tbody>

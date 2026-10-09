@@ -232,7 +232,7 @@ def lies_mit_hinweisen(
     for m in merkmale:
         je_gruppe.setdefault(m.gruppe, {})[m.schluessel] = m
     erlaubte_ks = frozenset(kostenstellen)
-    jahr_max = (heute or date.today()).year
+    jahr_max = 9999 if heute is None else heute.year  # ohne Stichtag keine Obergrenze (die Uhr gehört dem Aufrufer)
     wb = load_workbook(pfad, data_only=True)
     ws = wb[BLATT] if BLATT in wb.sheetnames else wb.worksheets[0]
     zeilen = list(ws.iter_rows(values_only=True))

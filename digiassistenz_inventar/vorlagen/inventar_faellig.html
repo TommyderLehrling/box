@@ -1,0 +1,6 @@
+{% extends "rahmen.html" %}
+{% block titel %}{{ t("inventar.menue_faellig") }} — {{ t("web.titel") }}{% endblock %}
+{% block inhalt %}
+{% with seite = "inventar_faellig", titel = t("inventar.menue_faellig") %}{% include "teil_seitenkopf.html" %}{% endwith %}
+<p class="leise">{{ hinweis }}</p>
+{% endblock %}
