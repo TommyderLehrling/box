@@ -1,0 +1,18 @@
+{
+  "quelle": "vorschlag_box",
+  "hinweis": "Vorschlagswerte der Box, kein Tabellenwert; Thomas setzt die echten Werte",
+  "gruppen": {
+    "baumaschine": {"nutzungsdauer_monate": 96, "reparatur_prozent_jahr": 12, "restwert_prozent": 10, "zins_prozent": 4, "quelle": "vorschlag_box"},
+    "fahrzeug": {"nutzungsdauer_monate": 72, "reparatur_prozent_jahr": 8, "restwert_prozent": 15, "zins_prozent": 4, "quelle": "vorschlag_box"},
+    "anbaugeraet": {"nutzungsdauer_monate": 60, "reparatur_prozent_jahr": 10, "restwert_prozent": 10, "zins_prozent": 4, "quelle": "vorschlag_box"},
+    "kleingeraet": {"nutzungsdauer_monate": 60, "reparatur_prozent_jahr": 12, "restwert_prozent": 5, "zins_prozent": 4, "quelle": "vorschlag_box"},
+    "werkzeug": {"nutzungsdauer_monate": 36, "reparatur_prozent_jahr": 5, "restwert_prozent": 0, "zins_prozent": 4, "quelle": "vorschlag_box"},
+    "elektro": {"nutzungsdauer_monate": 60, "reparatur_prozent_jahr": 6, "restwert_prozent": 0, "zins_prozent": 4, "quelle": "vorschlag_box"},
+    "vermessung": {"nutzungsdauer_monate": 72, "reparatur_prozent_jahr": 3, "restwert_prozent": 10, "zins_prozent": 4, "quelle": "vorschlag_box"},
+    "container": {"nutzungsdauer_monate": 120, "reparatur_prozent_jahr": 3, "restwert_prozent": 10, "zins_prozent": 4, "quelle": "vorschlag_box"},
+    "schalung_ruestung": {"nutzungsdauer_monate": 96, "reparatur_prozent_jahr": 4, "restwert_prozent": 10, "zins_prozent": 4, "quelle": "vorschlag_box"},
+    "hebezeug_anschlag": {"nutzungsdauer_monate": 72, "reparatur_prozent_jahr": 4, "restwert_prozent": 5, "zins_prozent": 4, "quelle": "vorschlag_box"},
+    "bueroausstattung": {"nutzungsdauer_monate": 96, "reparatur_prozent_jahr": 1, "restwert_prozent": 0, "zins_prozent": 4, "quelle": "vorschlag_box"},
+    "it": {"nutzungsdauer_monate": 36, "reparatur_prozent_jahr": 2, "restwert_prozent": 0, "zins_prozent": 4, "quelle": "vorschlag_box"}
+  }
+}

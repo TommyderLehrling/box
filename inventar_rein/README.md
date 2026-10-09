@@ -1,4 +1,4 @@
-# inventar_rein — Vorarbeit „Inventar" (Box, Auftrag 01 und 02, Lieferungen L1 bis L7)
+# inventar_rein — Vorarbeit „Inventar" (Box, Auftrag 01 und 02, Lieferungen L1 bis L9)
 
 Stand 09.10.2026 · Reine Python-Module mit Prüffällen: keine Datenbank, kein Web, kein Framework. Abhängigkeiten: `openpyxl`, `segno` (`requirements.txt`).
 
@@ -11,6 +11,8 @@ Stand 09.10.2026 · Reine Python-Module mit Prüffällen: keine Datenbank, kein 
 | L3 | `kosten` (kalkulatorische Kosten, Sollwerte Bagger) | 14 |
 | L4 | `import_vorlage` (Excel-Vorlage erzeugen, lesen, prüfen) · `testdaten` (Generator) | 31 |
 | L5 | `etiketten` (QR-Bogen als HTML) · `daten/texte_de.json` (Oberflächentexte) | 17 |
+| L8 | `kacheln` (Posteingang) · `verrechnung` (Vorhaltung plus Stunden, Miete gegen eigen, CSV) · `daten/kostensaetze_standard.json` + `kosten.parameter_fuer` · `etiketten.inventarnummer_aus_scan` · Mengen je Stück als Standard | +13 |
+| L9 | `beispielbetrieb` (+ `daten/beispielbetrieb.json`, 50 Stücke mit Geschichte) | +9 |
 | L7 | Korrekturen nach Auftrag 02: `transfer` (Teilung beim Eingang, Teil-Eingang, `beendet_am`), `pruefung` (`unbekannt`), Prüfarten-Katalog, `bestand` (Seriennummer), `import_vorlage` (Beispielzeilen, Gruppe per Bezeichnung), Hinweise, Texte, `testdaten_namen.json` | +13 |
 | L6 | Korrekturen nach Spec v0.2 (Bauteilkatalog, Werktage, Begriffe) · `pruefung` · `stueck_status` · `werkstatt` · `import_plan` · `inventur` · `bestand` · Eigenschaftstests für `transfer` | 61 |
 
@@ -28,7 +30,7 @@ print(nummer, fristen.naechste_faelligkeit(date(2026, 8, 31), 6), kataloge.pruef
 
 ```
 python -m pytest -q        # im Ordner inventar_rein
-193 passed / 0 failed / 0 skipped   (Python 3.12.3 und 3.13.16, pytest 9.1.1, auch mit -W error)
+215 passed / 0 failed / 0 skipped   (Python 3.12.3 und 3.13.16, pytest 9.1.1, auch mit -W error)
 python -c "import inventar_rein"   # ohne Ausgabe
 ```
 

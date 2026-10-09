@@ -5,9 +5,11 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from decimal import Decimal
 from html import escape
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 import segno
+
+from .nummernformat import normalisiere
 
 MAX_BEZEICHNUNG = 48  # zwei Zeilen zu je etwa 24 Zeichen bei 8 pt
 NUMMER_PT = 14
@@ -101,3 +103,31 @@ def bogen_html(etiketten: Iterable[Etikett], basis_url: str, layout: Layout = La
         '<!DOCTYPE html>\n<html lang="de"><head><meta charset="utf-8"><title>Etiketten</title>'
         f"<style>\n{_css(layout)}</style></head><body>\n" + "\n".join(seiten) + "\n</body></html>\n"
     )
+
+
+_VERBOTEN = frozenset('<>"\'`\\;?#%&=|{}')
+
+
+def inventarnummer_aus_scan(text: str, basis_url: str) -> str | None:
+    """Liest die Inventarnummer aus unserer QR-Adresse oder aus einer getippten bzw. gekauften reinen Nummer.
+
+    Fremde Adressen, leere und unplausible Eingaben liefern None; das Ergebnis ist normalisiert.
+    """
+    if not basis_url.startswith(("http://", "https://")):
+        raise ValueError("etiketten.basis_url_ungueltig")
+    eingabe = text.strip()
+    if not eingabe:
+        return None
+    if "://" in eingabe:
+        vorspann = basis_url.rstrip("/").lower() + "/inventar/s/"
+        if not eingabe.lower().startswith(vorspann):
+            return None
+        rest = eingabe[len(vorspann):]
+        rest = rest.split("#", 1)[0].split("?", 1)[0].rstrip("/")
+        if "/" in rest:
+            return None
+        eingabe = unquote(rest)
+    nummer = normalisiere(eingabe)
+    if not nummer or len(nummer) > 64 or any(ord(z) < 32 or z in _VERBOTEN for z in nummer):
+        return None
+    return nummer

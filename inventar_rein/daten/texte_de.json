@@ -395,5 +395,18 @@
   "inventar.code.beispielbetrieb.zeit_naiv": "Zeitangabe im Beispielbetrieb hat keine Zeitzone",
   "inventar.code.beispielbetrieb.nummer_doppelt": "Inventarnummer kommt im Beispielbetrieb mehrfach vor",
   "inventar.code.beispielbetrieb.kostenstelle_unbekannt": "Kostenstelle im Beispielbetrieb nicht vorhanden",
-  "inventar.code.beispielbetrieb.zubehoer_unbekannt": "Zubehör verweist auf ein unbekanntes Stück"
+  "inventar.code.beispielbetrieb.zubehoer_unbekannt": "Zubehör verweist auf ein unbekanntes Stück",
+  "inventar.code.kosten.gruppe_ohne_standard": "Für diese Gruppe gibt es keinen Standardwert",
+  "inventar.code.kosten.standardwerte_unlesbar": "Datei mit den Standardwerten der Kostensätze ist nicht lesbar",
+  "inventar.code.verrechnung.zeitraum_ungueltig": "Das Ende des Zeitraums liegt vor dem Anfang",
+  "inventar.code.verrechnung.stueck_unbekannt": "Einsatzstunden für ein unbekanntes Stück",
+  "inventar.code.verrechnung.stunden_ungueltig": "Einsatzstunden dürfen nicht negativ sein",
+  "inventar.code.verrechnung.miete_unvollstaendig": "Mietgerät braucht Zeitraum und Mietkosten",
+  "inventar.code.verrechnung.satz_stunde_fehlt": "Stück {detail}: Stundensatz fehlt, Stunden zählen mit 0",
+  "inventar.kachel.pruefungen_faellig": "Prüfungen fällig oder überfällig",
+  "inventar.kachel.ohne_nachweis": "Prüfungen ohne Nachweis",
+  "inventar.kachel.transfers_an_mich": "Angekündigt an mich",
+  "inventar.kachel.transfers_ueberfaellig": "Transfers überfällig",
+  "inventar.kachel.meldungen_offen": "Meldungen offen",
+  "inventar.kachel.reparaturen_in_arbeit": "Reparaturen in Arbeit"
 }

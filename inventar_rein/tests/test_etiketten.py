@@ -97,3 +97,18 @@ def test_E9_eigenes_layout():
 def test_E10_leere_liste_ist_fehler():
     with pytest.raises(ValueError, match="etiketten.leer"):
         bogen_html([], BASIS)
+
+
+def test_E11_nummer_aus_scan_url_oder_getippt():
+    from inventar_rein.etiketten import inventarnummer_aus_scan as aus
+    basis = "https://dokon.example"
+    assert aus("https://dokon.example/inventar/s/BM-04711", basis) == "BM-04711"
+    assert aus(" HTTPS://DOKON.EXAMPLE/inventar/s/bm-04711/?ref=x#a ", basis) == "BM-04711"
+    assert aus(qr_inhalt(basis + "/", "AB 12/ä-ß"), basis) == "AB 12/Ä-ß"
+    assert aus("  bm-04711 ", basis) == "BM-04711"
+    assert aus("12345678", basis) == "12345678"               # reine Nummer eines gekauften Etiketts
+    for ungueltig in ("", "   ", "https://fremd.example/inventar/s/BM-1", "https://dokon.example/inventar/s/",
+                      "https://dokon.example/inventar/s/a/b", "BM<script>", "a;b", "x" * 65, "BM\n1\x00"):
+        assert aus(ungueltig, basis) is None, ungueltig
+    with pytest.raises(ValueError, match="basis_url_ungueltig"):
+        aus("BM-1", "dokon.example")

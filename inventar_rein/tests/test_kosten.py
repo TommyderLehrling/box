@@ -101,10 +101,10 @@ def test_C7_vorhaltung_fasst_standorte_je_kostenstelle_zusammen():
     assert erg == (Vorhaltung(100, 6, D("60.00")),)
 
 
-def test_C8_vorhaltung_menge_nur_auf_wunsch():
+def test_C8_vorhaltung_menge_ist_standard_und_abschaltbar():
     s = standort(100, tag(10, 1), None, menge=40)
-    ohne = vorhaltung([s], date(2026, 10, 1), date(2026, 10, 2), D("2.00"))
-    mit = vorhaltung([s], date(2026, 10, 1), date(2026, 10, 2), D("2.00"), mit_menge=True)
+    mit = vorhaltung([s], date(2026, 10, 1), date(2026, 10, 2), D("2.00"))
+    ohne = vorhaltung([s], date(2026, 10, 1), date(2026, 10, 2), D("2.00"), mit_menge=False)
     assert ohne[0].betrag == D("4.00") and mit[0].betrag == D("160.00")
     with pytest.raises(ValueError):
         vorhaltung([s], date(2026, 10, 2), date(2026, 10, 1), D("2.00"))
@@ -165,3 +165,22 @@ def test_C14_vorhaltung_in_werktagen():
     assert [v.tage for v in frei] == [9, 11]
     nur_wochenende = vorhaltung([standort(100, tag(10, 10), tag(10, 12))], date(2026, 10, 1), date(2026, 10, 31), satz, werktage=True)
     assert nur_wochenende == ()  # Sa 10. und So 11. zaehlen nicht
+
+
+def test_C15_standardwerte_je_gruppe_als_vorschlag_gekennzeichnet():
+    from inventar_rein.kataloge import lade_gruppen
+    from inventar_rein.kosten import lade_standardwerte, parameter_fuer
+    werte = lade_standardwerte()
+    assert set(werte) == {g.schluessel for g in lade_gruppen()}
+    assert {w.quelle for w in werte.values()} == {"vorschlag_box"}
+    p = parameter_fuer("baumaschine", werte, D("150000"))
+    assert (p.restwert, p.nutzungsdauer_monate, p.zins_prozent, p.reparatur_prozent_jahr) == (D("15000.00"), 96, D("4"), D("12"))
+    assert kostensatz(p).satz_monat == D("3156.25")  # wie der Bagger der Sollwerte
+    with pytest.raises(ValueError, match="gruppe_ohne_standard"):
+        parameter_fuer("gibt_es_nicht", werte, D("100"))
+    with pytest.raises(ValueError, match="preis_ungueltig"):
+        parameter_fuer("it", werte, D("-1"))
+    with pytest.raises(TypeError):
+        werte["it"] = werte["it"]  # type: ignore[index]
+    with pytest.raises(ValueError, match="standardwerte_unlesbar"):
+        lade_standardwerte(__import__("pathlib").Path("/gibt/es/nicht.json"))

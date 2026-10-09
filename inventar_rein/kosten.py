@@ -1,10 +1,13 @@
 """Kalkulatorische Kostenrechnung (Logik der Baugeraeteliste); keine steuerliche AfA."""
 from __future__ import annotations
 
-from collections.abc import Iterable
+import json
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
+from pathlib import Path
+from types import MappingProxyType
 
 from .fristen import naechste_faelligkeit, werktage_zwischen
 from .transfer import Standort
@@ -74,7 +77,7 @@ def kostensatz(p: Kostenparameter) -> Kostensatz:
 
 
 def vorhaltung(
-    standorte: Iterable[Standort], von: date, bis: date, satz_tag: Decimal, mit_menge: bool = False,
+    standorte: Iterable[Standort], von: date, bis: date, satz_tag: Decimal, mit_menge: bool = True,
     werktage: bool = False, feiertage: Iterable[date] = (),
 ) -> tuple[Vorhaltung, ...]:
     """Tage (Kalender- oder Werktage) und Betrag je Kostenstelle in [von, bis]; Eingangstag zaehlt zum Ziel, Abgangstag nicht zur Quelle."""
@@ -136,3 +139,39 @@ def restbuchwert_kalk(p: Kostenparameter, kaufdatum: date, stichtag: date) -> De
     abschreibung, _, _ = _roh(p)
     n = _volle_monate(kaufdatum, stichtag, p.nutzungsdauer_monate)
     return _runde(max(p.restwert, p.kaufpreis - abschreibung * n))
+
+
+@dataclass(frozen=True)
+class Standardwert:
+    nutzungsdauer_monate: int
+    reparatur_prozent_jahr: Decimal
+    restwert_prozent: Decimal
+    zins_prozent: Decimal
+    quelle: str
+
+
+_STANDARD = Path(__file__).resolve().parent / "daten" / "kostensaetze_standard.json"
+
+
+def lade_standardwerte(pfad: Path | None = None) -> Mapping[str, Standardwert]:
+    """Liest die Vorschlagswerte je Gruppe (unveraenderlich); jeder Eintrag traegt seine Quelle."""
+    try:
+        roh = json.loads((pfad or _STANDARD).read_text(encoding="utf-8"))
+        gruppen = roh["gruppen"]
+        return MappingProxyType({g: Standardwert(
+            int(w["nutzungsdauer_monate"]), Decimal(str(w["reparatur_prozent_jahr"])),
+            Decimal(str(w["restwert_prozent"])), Decimal(str(w["zins_prozent"])), str(w["quelle"]))
+            for g, w in gruppen.items()})
+    except (OSError, ValueError, KeyError, TypeError, ArithmeticError) as fehler:
+        raise ValueError("kosten.standardwerte_unlesbar") from fehler
+
+
+def parameter_fuer(gruppe: str, standardwerte: Mapping[str, Standardwert], kaufpreis: Decimal) -> Kostenparameter:
+    """Baut die Kostenparameter eines Stuecks aus dem Standard seiner Gruppe und dem Kaufpreis."""
+    w = standardwerte.get(gruppe)
+    if w is None:
+        raise ValueError("kosten.gruppe_ohne_standard")
+    p = Kostenparameter(kaufpreis, _runde(kaufpreis * w.restwert_prozent / 100), w.nutzungsdauer_monate,
+                        w.zins_prozent, w.reparatur_prozent_jahr)
+    _pruefe(p)
+    return p
