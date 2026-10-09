@@ -390,5 +390,10 @@
   "inventar.import.hinweis.beispiel_uebersprungen": "Beispielzeile übersprungen",
   "inventar.import.hinweis.abweichung": "Stück {detail}: Angabe weicht vom Bestand ab und wurde nicht überschrieben",
   "inventar.code.testdaten.namen_unlesbar": "Namensdatei der Testdaten ist nicht lesbar",
-  "inventar.code.testdaten.namen_feld_fehlt": "In der Namensdatei der Testdaten fehlt ein Feld"
+  "inventar.code.testdaten.namen_feld_fehlt": "In der Namensdatei der Testdaten fehlt ein Feld",
+  "inventar.code.beispielbetrieb.datei_unlesbar": "Datei des Beispielbetriebs ist nicht lesbar",
+  "inventar.code.beispielbetrieb.zeit_naiv": "Zeitangabe im Beispielbetrieb hat keine Zeitzone",
+  "inventar.code.beispielbetrieb.nummer_doppelt": "Inventarnummer kommt im Beispielbetrieb mehrfach vor",
+  "inventar.code.beispielbetrieb.kostenstelle_unbekannt": "Kostenstelle im Beispielbetrieb nicht vorhanden",
+  "inventar.code.beispielbetrieb.zubehoer_unbekannt": "Zubehör verweist auf ein unbekanntes Stück"
 }

@@ -17,7 +17,7 @@ SEITEN = ("uebersicht", "hier", "faellig", "werkstatt", "kosten", "stueck", "tra
           "import", "etiketten", "testdaten", "auslieferung", "handy_scannen")
 PRAEFIXE = {"gruppe", "merkmal", "pruefart", "muster", "nummernformat", "kataloge", "fristen", "kosten",
             "transfer", "etiketten", "testdaten", "zubehoer", "inventur", "bauteil", "pruefung", "stueck_status",
-            "meldung", "reparatur", "werkstatt", "import_plan", "bestand"}
+            "meldung", "reparatur", "werkstatt", "import_plan", "bestand", "beispielbetrieb"}
 
 
 @pytest.fixture(scope="module")
@@ -32,7 +32,7 @@ def codes_im_quelltext() -> set[str]:
         for knoten in ast.walk(ast.parse(datei.read_text(encoding="utf-8"))):
             if isinstance(knoten, ast.Constant) and isinstance(knoten.value, str):
                 kopf = knoten.value.split(":")[0]
-                if re.fullmatch(r"[a-z_0-9]+(\.[a-z_0-9]+)+", kopf) and kopf.split(".")[0] in PRAEFIXE:
+                if not kopf.endswith(".json") and re.fullmatch(r"[a-z_0-9]+(\.[a-z_0-9]+)+", kopf) and kopf.split(".")[0] in PRAEFIXE:
                     gefunden.add(kopf)
     gefunden |= {f"stueck_status.{s}" for s in STUECK_STATUS}  # dynamisch gebaut: stueck_status.<neu>
     return gefunden
