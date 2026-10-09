@@ -1,5 +1,7 @@
 # FRAGEN_L10 — Fragen und Erkenntnisse (Box, Stand 09.10.2026)
 
+**Zum Antworten:** Abschnitt G ist die gemeinsame Antwortliste für Thomas, GER und CC/VSC. Bitte die Spalte „Antwort“ ausfüllen (Name, Datum, ja/nein/anderer Weg) und die Datei unter demselben Namen in `lieferungen/L10/` ablegen; Box liest sie beim nächsten Lauf. Fragen an den Kern gehen über GER an die Brücke (Regel 2).
+
 Gebaut wird gegen **KERN_STECKBRIEF_kern-0.15.2** (ersetzt die Fassung 0.13.2 vollständig). Alles hier ist Entwurf, bis VSC es auf dem echten Kern laufen lässt.
 
 ## A. Entscheidung nötig (Vorschlag steht dabei)
@@ -51,3 +53,20 @@ Gebaut wird gegen **KERN_STECKBRIEF_kern-0.15.2** (ersetzt die Fassung 0.13.2 vo
 
 - Ich kann nichts gegen den echten Kern ausführen. Der Kern in `kern_fuer_box` ist ohne `modelle.py` nicht importierbar. Ich teste gegen einen eigenen, kleinen Ersatz des Kerns (nur in `tests/`) und gegen eine lokale PostgreSQL ohne Kern.
 - Der Stand ist **Entwurf**, bis VSC T-I-5 und T-I-6 auf dem echten Kern fährt.
+
+## G. Antwortliste (Adressat, Frage, Antwort)
+
+Adressaten: **Thomas** (Fachentscheidung) · **GER** (Auftrag, Spec, Brücke) · **CC/VSC** (Kern, baut das Modul in den Kern ein) · **Belegerfassung** (nur Info).
+
+| Nr. | Adressat | Frage | Vorschlag Box | Antwort (bitte eintragen) |
+|---|---|---|---|---|
+| A1 | GER, dann Thomas | `app.modul` setzen (Auftrag 03) oder nicht (Steckbrief 11)? | Nicht setzen; `bezeichnung="inventar.modul"` | |
+| A2 | GER, dann Thomas | Nachzug der 11 Bausteine an bestehende Konten (Auftrag 03: „leer“)? | Ja, Grund `nachzug:inventar_einbau` | |
+| 6 | GER | Suche (`suche=_suche`, Seite `/suche`) in L10 aufnehmen? Sie stand nicht in Auftrag 03. | Ja, sonst wird ein Prüffall „jeder GET-Weg 200“ für `/suche` rot | |
+| D1–D6 | GER | Datenmodell wie in Abschnitt D (Tabelle `zaehler`, Text-Schlüssel, Kostensatz-Startwerte, Menge in `standort`)? | Ja | |
+| 3 | CC/VSC (über GER) | Steckbrief 1.4 und 3.1 nennen die Richtung `modul.anmelden` ↔ `rechte.anmelden` gegensätzlich. Welche gilt im Quelltext? | Keine Folge für `inventar`; Kern oder Steckbrief korrigieren | |
+| 4 | CC/VSC (über GER) | Gibt es einen Weg, die Kern-Mindestfassung in der Modulbeschreibung zu nennen? Ein Feld fehlt. | Nur `pyproject.toml` und Konstante `KERN_MINDESTFASSUNG`; Kern-Wunsch: Feld | |
+| 5 | CC/VSC (über GER) | Ist `from digiassistenz_kern import aehnlichkeit` (`rang`, `HOECHSTENS`) für Module erlaubt? Importpfad nicht im Steckbrief. | Ja; sonst eigene Suche mit `ilike` | |
+| 7 | CC/VSC | Nur Info: Ich rufe `sitzung.db.begin_nested()` nicht selbst auf, die Suche läuft im Sicherungspunkt des Kerns. | Bitte bestätigen | |
+| I1 | Belegerfassung | Nur Info: Die Belegerfassung kennt `inventar` nur als Modul mit eigenem Schema und Konto; kein Fremdschlüssel in ihr Schema (T-K-14), keine Wege oder Bausteine von ihr im Code. | — | |
+| I2 | CC/VSC, Belegerfassung | Nur Info: Mit Kern 0.15 und einem Modul mit `suche` ist `/suche` für `inventar` 200. Prüffälle, die jeden GET-Weg erwarten, sehen dann `/suche`. | — | |
