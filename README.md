@@ -1,6 +1,6 @@
 # DOKON Inventar — `digiassistenz_inventar` (Modul `inventar`, Entwurf L13)
 
-Geräteverwaltung einer Baufirma als Modul des Kerns `digiassistenz_kern` ≥ 0.15.2: Schema `inventar`, Konto `inventar_nutzer`,
+Geräteverwaltung einer Baufirma als Modul des Kerns `digiassistenz_kern` ≥ 0.15.3: Schema `inventar`, Konto `inventar_nutzer`,
 Kette `i0001…`, Bausteine `inventar.*`. Die Fachlogik liegt in `digiassistenz_inventar/rein/` (reine Module, keine Datenbank).
 **Entwurf**, bis VSC das Modul auf dem echten Kern fährt (Aufträge 01–03, Lieferungen L1–L13, Auftrag 04).
 
@@ -25,7 +25,7 @@ Modelle gegen Kette, Seiten, Prüfungen), jeweils `skipped = 0`. **T-I-6** (mit 
 
 | Ort | Inhalt |
 |---|---|
-| `pyproject.toml` | Einstiegspunkt `digiassistenz.module` → `inventar`, `digiassistenz-kern>=0.15.2` |
+| `pyproject.toml` | Einstiegspunkt `digiassistenz.module` → `inventar`, `digiassistenz-kern>=0.15.3` |
 | `digiassistenz_inventar/modul.py` | die Modulbeschreibung (Menü, Erweiterungen, Ereignis, Suche, Verbindung) |
 | `rechte.py`, `modelle.py` | elf Bausteine, Vorlagen-Ergänzung, Nachzug · 18 Tabellen |
 | `migration.py`, `migrationen/` | Kette `i0001_grundlinie` (Rolle, Schema, alle Tabellen), Kern zuerst |
