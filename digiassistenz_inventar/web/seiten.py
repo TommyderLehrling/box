@@ -9,7 +9,6 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func
 
 from digiassistenz_kern.sitzung import Sitzung
-from digiassistenz_kern.texte import t
 from digiassistenz_kern.web import gemeinsam, wahlfeld
 
 from .. import kacheln as modul_kacheln
@@ -73,7 +72,7 @@ def liste_teil(
     return gemeinsam.sortierung_merken(antwort, LISTE, werte["spalte"], werte["absteigend"])
 
 
-def _ziel(sitzung: Sitzung, text: str, ks: str) -> RedirectResponse:
+def _ziel(sitzung: Sitzung, text: str, ks: str, art: str = "") -> RedirectResponse:
     nummer = normalisiere(text)
     zeile = sitzung.db.execute(sicht.stuecke(sitzung).where(func.upper(m.Stueck.inventarnummer) == nummer)).scalars().first()
     if zeile is None:
@@ -81,7 +80,10 @@ def _ziel(sitzung: Sitzung, text: str, ks: str) -> RedirectResponse:
             func.upper(m.Stueck.seriennummer) == nummer).order_by(m.Stueck.inventarnummer)).scalars().first()
     if zeile is None:
         raise gemeinsam.KeinRecht("inventar", "sehen")
-    return RedirectResponse(f"/inventar/stueck/{int(zeile.id)}" + (f"?ks={ks}" if ks.isdigit() else ""), status_code=303)
+    abfrage = [f"ks={ks}"] if ks.isdigit() else []
+    if abfrage and art == "kamera":
+        abfrage.append("art=kamera")  # nur die Kamera der Scan-Seite sagt das; getippt gilt als Eingabe im Browser
+    return RedirectResponse(f"/inventar/stueck/{int(zeile.id)}" + (("?" + "&".join(abfrage)) if abfrage else ""), status_code=303)
 
 
 @router.get("/inventar/s")
@@ -95,16 +97,8 @@ def scan_eingabe(
 
 @router.get("/inventar/s/{inventarnummer}")
 def qr_ziel(
-    inventarnummer: str, ks: str = "", sitzung: Sitzung = Depends(gemeinsam.angemeldet),
+    inventarnummer: str, ks: str = "", art: str = "", sitzung: Sitzung = Depends(gemeinsam.angemeldet),
     _recht=Depends(gemeinsam.verlangt("inventar", "sehen")),
 ) -> RedirectResponse:
     """Das Ziel des QR-Codes: Nummer (oder Seriennummer) → Stück-Seite; was es nicht gibt, ist „kein Recht“ (N7)."""
-    return _ziel(sitzung, inventarnummer, ks)
-
-
-@router.get("/inventar/faellig", response_class=HTMLResponse)
-def faellig_seite(
-    request: Request, sitzung: Sitzung = Depends(gemeinsam.angemeldet),
-    _recht=Depends(gemeinsam.verlangt_eines(("inventar", "pruefen"), ("inventar", "werkstatt"))),
-) -> HTMLResponse:
-    return gemeinsam.seite(request, sitzung, "inventar_faellig.html", aktiv="inventar_faellig", hinweis=t("inventar.kommt_mit_g3"))
+    return _ziel(sitzung, inventarnummer, ks, art)

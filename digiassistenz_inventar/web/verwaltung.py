@@ -154,15 +154,18 @@ def pruefarten(
     mid = sitzung.kontext.mandant_id
     alle_gruppen = {int(g.id): g for g in sitzung.db.execute(select(m.Gruppe).where(m.Gruppe.mandant_id == mid)).scalars()}
     je_art: dict[int, list[str]] = {}
+    je_art_intervall: dict[int, dict[str, int]] = {}
     for z in sitzung.db.execute(select(m.GruppePruefart).where(m.GruppePruefart.mandant_id == mid, m.GruppePruefart.aktiv)).scalars():
         je_art.setdefault(int(z.pruefart_id), []).append(alle_gruppen[int(z.gruppe_id)].schluessel)
+        if z.intervall_monate is not None:
+            je_art_intervall.setdefault(int(z.pruefart_id), {})[alle_gruppen[int(z.gruppe_id)].schluessel] = int(z.intervall_monate)
     zeilen = [{
         "schluessel": p.schluessel, "bezeichnung": p.bezeichnung, "intervall": p.intervall_monate, "zaehler": p.zaehler_intervall or "",
         "rechtsgrund": p.rechtsgrund, "durchfuehrung": p.durchfuehrung, "je_merkmal": katalogpflege.je_merkmal_text(p.intervall_je_merkmal),
-        "gruppen": je_art.get(int(p.id), []), "aktiv": p.aktiv, "startwert": p.startwert}
+        "gruppen": je_art.get(int(p.id), []), "gruppen_intervall": je_art_intervall.get(int(p.id), {}), "aktiv": p.aktiv, "startwert": p.startwert}
         for p in sitzung.db.execute(select(m.Pruefart).where(m.Pruefart.mandant_id == mid).order_by(m.Pruefart.id)).scalars()]
     leer = {"schluessel": "", "bezeichnung": "", "intervall": 12, "zaehler": "", "rechtsgrund": "", "durchfuehrung": "intern", "je_merkmal": "",
-            "gruppen": [], "aktiv": True}
+            "gruppen": [], "gruppen_intervall": {}, "aktiv": True}
     return _seite(request, sitzung, "inventar_verwaltung_pruefarten.html", "pruefarten", zeilen=zeilen, fertig=bool(fertig),
                   eintrag=next((z for z in zeilen if z["schluessel"] == bearbeiten), leer), durchfuehrungen=list(m.DURCHFUEHRUNG),
                   gruppen=[(g.schluessel, g.bezeichnung) for g in alle_gruppen.values()])
@@ -176,7 +179,8 @@ def pruefart_speichern(
     gewaehlt = tuple(wert for name, wert in f.items() if name.startswith("g_") and isinstance(wert, str))
     return _speichern(request, sitzung, "pruefarten", lambda: katalogpflege.pruefart_speichern(
         sitzung, _text(f, "schluessel"), _text(f, "bezeichnung"), _text(f, "intervall_monate"), _text(f, "zaehler_intervall"),
-        _text(f, "rechtsgrund"), _text(f, "durchfuehrung"), _text(f, "je_merkmal"), gewaehlt, "aktiv" in f))
+        _text(f, "rechtsgrund"), _text(f, "durchfuehrung"), _text(f, "je_merkmal"), gewaehlt, "aktiv" in f,
+        {name[3:]: wert for name, wert in f.items() if name.startswith("gi_") and isinstance(wert, str)}))
 
 
 # ---- Bauteile -----------------------------------------------------------------------------------------------------
@@ -245,7 +249,7 @@ def einstellungen_seite(
     _recht=Depends(gemeinsam.verlangt("inventar", "einstellen")),
 ) -> HTMLResponse:
     mid = sitzung.kontext.mandant_id
-    felder = [(s, katalog.einstellung(sitzung.db, mid, s)) for s in katalogpflege.EINSTELLUNGEN_ZAHL + ("nummernmuster", "zins_prozent", "etikett_layout")]
+    felder = [(s, katalog.einstellung(sitzung.db, mid, s)) for s in katalogpflege.EINSTELLUNGEN_ZAHL + ("nummernmuster", "zins_prozent", "etikett_layout", "erinnern_um")]
     return _seite(request, sitzung, "inventar_verwaltung_einstellungen.html", "einstellungen", felder=felder, fertig=bool(fertig),
                   auslieferung=katalog.einstellung(sitzung.db, mid, "auslieferung_am"))
 
@@ -255,7 +259,7 @@ def einstellungen_speichern(
     request: Request, f: dict[str, Any] = Depends(formular), sitzung: Sitzung = Depends(gemeinsam.angemeldet),
     _recht=Depends(gemeinsam.verlangt("inventar", "einstellen")),
 ) -> HTMLResponse:
-    namen = katalogpflege.EINSTELLUNGEN_ZAHL + ("nummernmuster", "zins_prozent", "etikett_layout", "auslieferung_am")
+    namen = katalogpflege.EINSTELLUNGEN_ZAHL + ("nummernmuster", "zins_prozent", "etikett_layout", "erinnern_um", "auslieferung_am")
     return _speichern(request, sitzung, "einstellungen", lambda: katalogpflege.einstellungen_speichern(
         sitzung, {n: _text(f, n) for n in namen if n in f}))
 

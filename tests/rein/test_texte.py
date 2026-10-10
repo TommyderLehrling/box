@@ -18,7 +18,7 @@ SEITEN = ("uebersicht", "hier", "faellig", "werkstatt", "kosten", "stueck", "tra
 PRAEFIXE = {"gruppe", "merkmal", "pruefart", "muster", "nummernformat", "kataloge", "fristen", "kosten",
             "transfer", "etiketten", "testdaten", "zubehoer", "inventur", "bauteil", "pruefung", "stueck_status",
             "meldung", "reparatur", "werkstatt", "import_plan", "bestand", "beispielbetrieb",
-            "verrechnung", "stueck", "nummer", "dateien", "laden", "import_lauf", "katalog", "web", "zaehlerstand"}
+            "verrechnung", "stueck", "nummer", "dateien", "laden", "import_lauf", "katalog", "web", "zaehlerstand", "zeitplan"}
 
 
 @pytest.fixture(scope="module")

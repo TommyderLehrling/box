@@ -29,7 +29,7 @@ from .rechte import MODULRECHTE
 
 SCHLUESSEL = "inventar"
 VERSION = fassung("digiassistenz-inventar", neben=Path(__file__))
-KERN_MINDESTFASSUNG = "0.15.2"
+KERN_MINDESTFASSUNG = "0.15.3"
 
 #: Schlüssel der Baustelle — nur für `Verbindung(braucht=…)`; offen, ob `app` oder `baustelle` (Auftrag 03, Abschnitt 4)
 MODUL_BAUSTELLE = "baustelle"
@@ -113,6 +113,7 @@ BESCHREIBUNG = Modulbeschreibung(
     schluessel=SCHLUESSEL,
     bezeichnung="inventar.modul",
     version=VERSION,
+    kern_mindestens=KERN_MINDESTFASSUNG,
     rechte=MODULRECHTE,
     menuepunkte=(
         Menueeintrag(WEG_UEBERSICHT, "inventar.menue_inventar", "inventar", reihenfolge=10,
@@ -128,7 +129,7 @@ BESCHREIBUNG = Modulbeschreibung(
     startseite=WEG_UEBERSICHT,
     konfig_schluessel=(KONFIG_ETIKETT_URL,),
     schemata=(SCHLUESSEL,),
-    prozesse=(),
+    prozesse=("digiassistenz_inventar.erinnern",),
     arbeitsordner=("inventar",),
     texte=Path(__file__).with_name("texte"),
     vorlagen=Path(__file__).with_name("vorlagen"),

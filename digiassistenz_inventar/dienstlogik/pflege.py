@@ -20,6 +20,7 @@ from .. import modelle as m
 from .stueck import OBJEKT_TYP, _benutzer, _merkmale_schreiben
 from .transfer import finde_stueck
 
+KAUFDATEN = ("kaufdatum", "kaufpreis")
 ANGABEN = ("bezeichnung", "hersteller", "typ", "seriennummer", "baujahr", "lieferant_id", "kaufdatum", "kaufpreis", "besonderheiten")
 
 
@@ -42,6 +43,8 @@ def aendern(sitzung: Any, inventarnummer: str, angaben: dict[str, Any], merkmale
     alt, neu = [], []
     for name in ANGABEN:
         if name in angaben and angaben[name] != getattr(zeile, name):
+            if name in KAUFDATEN:
+                _fordern(sitzung, "kosten_pflegen")
             alt.append(f"{name}={_wert(getattr(zeile, name))}")
             neu.append(f"{name}={_wert(angaben[name])}")
             setattr(zeile, name, angaben[name])

@@ -5,7 +5,7 @@
 {% if fertig %}<p class="gut" role="status">✓ {{ t("inventar.fertig.gespeichert") }}</p>{% endif %}
 <form method="post" action="/inventar/verwaltung/einstellungen" hx-post="/inventar/verwaltung/einstellungen" hx-target="#katalog-meldung" hx-swap="innerHTML">
   {% for schluessel, wert in felder %}
-  <p><label for="e-{{ schluessel }}">{{ t("inventar.einstellung." ~ schluessel) }}</label> <input id="e-{{ schluessel }}" name="{{ schluessel }}" size="24" value="{{ wert }}"></p>
+  <p><label for="e-{{ schluessel }}">{{ t("inventar.einstellung." ~ schluessel) }}</label> <input id="e-{{ schluessel }}" name="{{ schluessel }}" size="24" value="{{ wert }}">{% if schluessel == "werktage" %} <span class="klein leise">{{ t("inventar.einstellung.werktage_hinweis") }}</span>{% endif %}</p>
   {% endfor %}
   <p><label for="e-auslieferung">{{ t("inventar.einstellung.auslieferung_am") }}</label>
      <input id="e-auslieferung" name="auslieferung_am" type="date" value="{{ auslieferung }}"{% if auslieferung %} readonly{% endif %}>

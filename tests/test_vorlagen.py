@@ -37,6 +37,17 @@ LISTE = dict(filter=FILTER, seite_inhalt=SEITE, spalte="nummer", absteigend=Fals
 UEBERSICHT = dict(
     LISTE, ansicht="liste", ordner=[], kacheln=[{"text": "inventar.kachel.pruefungen_faellig", "zahl": 3, "weg": "/inventar/faellig"}],
     gruppen=[("baumaschinen", "Baumaschinen")], wahl_ks=wahl(), stati=["aktiv", "vermisst"], **darf())
+def _faellig_zeile(nr: int, ampel: str, zeichen: str, **mehr):
+    return {"id": nr, "nummer": f"BM-0000{nr}", "bezeichnung": "Bagger", "gruppe": "Baumaschinen", "ort": "79795 Husum", "pruefart": "uvv",
+            "pruefart_name": "UVV", "ampel": ampel, "zeichen": zeichen, "faellig_am": HEUTE, "hinweis": "überfällig seit 3 Tagen", **mehr}
+
+
+FAELLIG = dict(
+    filter=SimpleNamespace(pruefart="", kostenstelle="", gruppe=""), arten=[("uvv", "UVV")], gruppen=[("bm", "Baumaschinen")], wahl_ks=wahl(),
+    fertig=True, uebersicht=SimpleNamespace(
+        ueberfaellig=SimpleNamespace(zeilen=[_faellig_zeile(1, "rot", "✗")], gesamt=1, gekuerzt=False),
+        faellig=SimpleNamespace(zeilen=[_faellig_zeile(2, "gelb", "⚠")], gesamt=250, gekuerzt=True),
+        ohne_nachweis=SimpleNamespace(zeilen=[], gesamt=0, gekuerzt=False), gelesen=252, abgeschnitten=True), **darf())
 ORT = SimpleNamespace(titel="79795 Husum", anzahl=1, kinder=[], stuecke=[ZEILE])
 ORDNER = [SimpleNamespace(titel="Baumaschinen", anzahl=1, kinder=[ORT], stuecke=[])]
 STUECK = SimpleNamespace(id=1, inventarnummer="BM-00001", bezeichnung="Bagger", art="gross", hersteller="Cat", typ="320", seriennummer="S1",
@@ -50,7 +61,8 @@ STUECK_SEITE = dict(
     offen=[OFFEN], verlauf_orte=[{"kostenstelle": "79795 Husum", "menge": 1, "von": JETZT, "bis": None, "quelle": "web"}],
     transfers=[TRANSFER], pruefstaende=[{"art": "UVV", "ampel": "gelb", "zeichen": "⚠", "faellig_am": HEUTE, "hinweis": "fällig in 5 Tagen"}],
     ampel="gelb", ampel_zeichen="⚠", ampel_hinweis="fällig in 5 Tagen",
-    pruefungen=[{"art": "UVV", "am": HEUTE, "ergebnis": "bestanden", "durchfuehrung": "intern", "pruefer": "Meier", "naechste": HEUTE, "nachweis": True}],
+    pruefungen=[{"id": 4, "art": "UVV", "am": HEUTE, "ergebnis": "bestanden", "durchfuehrung": "intern", "pruefer": "Meier", "naechste": HEUTE, "nachweis": True},
+                {"id": 5, "art": "UVV", "am": HEUTE, "ergebnis": "maengel", "durchfuehrung": "extern", "pruefer": "TÜV", "naechste": HEUTE, "nachweis": False}],
     meldungen=[{"art": "schaden", "beschreibung": "Kratzer", "status": "offen", "am": JETZT, "von": "Eins", "hat_foto": False}],
     reparaturen=[{"status": "offen", "beschreibung": "", "begonnen": HEUTE, "beendet": None, "kosten": Decimal("10")}],
     zaehlerstaende=[{"stand": Decimal("12.5"), "einheit": "h", "am": JETZT, "quelle": "web"}],
@@ -61,7 +73,15 @@ STUECK_SEITE = dict(
     verlauf=[{"am": JETZT, "text": "Stück angelegt", "alt": None, "neu": "BM-00001", "wer": "Eins", "fuer": "Zwei"}],
     lieferant="Händler", steht_auf="79795 Husum", seit=JETZT, angekuendigt_auf="79800 Nord", fertig="angelegt", wahl_nach=wahl("nach"),
     von_ks=[OFFEN], melde_ks=[OFFEN], bauteile_katalog=[(1, "B1 Filter")], status_moeglich=["vermisst"], hauptlage="eingang", buchung="k-1",
-    scan_ks="5", scan_ok=True, **darf())
+    scan_ks="5", scan_ok=True, scan_art="kamera",
+    pruefen_arten=[{"schluessel": "uvv", "bezeichnung": "UVV"}, {"schluessel": "sp", "bezeichnung": "Sicherheitsprüfung"}], pruefen_vorgabe="uvv", pruefen_offen=True,
+    pruefen_weiter="faellig", benutzer_auswahl=[(1, "Eins"), (2, "Zwei")], benutzer_ich=1, wahl_pruefer_lieferant=wahl("pruefer_lieferant_id"),
+    heute_iso=HEUTE.isoformat(),
+    pruefarten_stueck=[{"schluessel": "uvv", "bezeichnung": "UVV", "katalog_intervall": 12, "gruppe_intervall": None, "stueck_intervall": 6, "aktiv": True,
+                        "herkunft": "gruppe", "wirksam": 6, "zaehler_intervall": None, "je_merkmal": False},
+                       {"schluessel": "sp", "bezeichnung": "Sicherheitsprüfung", "katalog_intervall": 24, "gruppe_intervall": None, "stueck_intervall": None,
+                        "aktiv": False, "herkunft": "stueck", "wirksam": None, "zaehler_intervall": None, "je_merkmal": False}],
+    pruefarten_dazu=[("elt", "Elektroprüfung")], **darf())
 FORM = dict(zeile=None, titel_form="Neues Stück", gruppen=[("baumaschinen", "Baumaschinen")], gruppe_gewaehlt=1,
             felder=[{"schluessel": "gewicht", "bezeichnung": "Gewicht", "typ": "zahl", "einheit": "t", "auswahl": [], "pflicht": True, "wert": ""},
                     {"schluessel": "klasse", "bezeichnung": "Klasse", "typ": "auswahl", "einheit": "", "auswahl": ["a", "b"], "pflicht": False, "wert": "a"},
@@ -83,7 +103,7 @@ KONTEXT = {
         angekuendigt=[{"id": 9, "stueck_id": 2, "nummer": "BM-00002", "bezeichnung": "Löffel", "art": "menge", "menge": 4, "von": "79800 Nord", "abgang_am": JETZT}],
         vor_ort=[{"stueck_id": 1, "nummer": "BM-00001", "bezeichnung": "Bagger", "menge": 1, "seit": JETZT, "hat_zaehler": True, "status": "aktiv"}], **darf()),
     "inventar_scannen.html": dict(kostenstellen=[(5, "79795 Husum"), (6, "79800 Nord")], gewaehlt=5, **darf()),
-    "inventar_faellig.html": dict(hinweis="später"),
+    "inventar_faellig.html": FAELLIG,
     "inventar_verwaltung.html": dict(kacheln=[("gruppen", "/inventar/verwaltung/gruppen", 12), ("import", "/inventar/verwaltung/import", None)]),
     "inventar_verwaltung_gruppen.html": dict(KATALOG_FERTIG, eintrag=LEER_EINTRAG, zeilen=[
         {"schluessel": "bm", "bezeichnung": "Baumaschinen", "kuerzel": "BM", "oben": "", "sortierung": 1, "aktiv": True, "startwert": True}]),
@@ -93,9 +113,9 @@ KONTEXT = {
         eintrag={"schluessel": "", "bezeichnung": "", "typ": "text", "einheit": "", "auswahl": "", "pflicht": False, "sortierung": 0, "aktiv": True}),
     "inventar_verwaltung_pruefarten.html": dict(KATALOG_FERTIG, gruppen=[("bm", "Baumaschinen")], durchfuehrungen=["intern", "extern"], zeilen=[
         {"schluessel": "uvv", "bezeichnung": "UVV", "intervall": 12, "zaehler": "", "rechtsgrund": "DGUV", "durchfuehrung": "intern",
-         "je_merkmal": "klasse=a:24", "gruppen": ["bm"], "aktiv": True, "startwert": True}],
+         "je_merkmal": "klasse=a:24", "gruppen": ["bm"], "gruppen_intervall": {"bm": 6}, "aktiv": True, "startwert": True}],
         eintrag={"schluessel": "", "bezeichnung": "", "intervall": 12, "zaehler": "", "rechtsgrund": "", "durchfuehrung": "intern", "je_merkmal": "",
-                 "gruppen": [], "aktiv": True}),
+                 "gruppen": [], "gruppen_intervall": {}, "aktiv": True}),
     "inventar_verwaltung_bauteile.html": dict(KATALOG_FERTIG, zeigt_preis=True, zeilen=[
         {"nummer": "B1", "bezeichnung": "Filter", "hersteller": "X", "preis": Decimal("9.9"), "hinweis": "", "aktiv": True}],
         eintrag={"nummer": "", "bezeichnung": "", "hersteller": "", "preis": "", "hinweis": "", "aktiv": True}),
@@ -204,3 +224,35 @@ def test_import_zeigt_einspielen_nur_ohne_fehler(umgebung):
     assert "Einspielen" not in mit and "Gruppe ist im Katalog nicht vorhanden" in mit
     ohne = render(umgebung, "inventar_verwaltung_import.html", bericht={**KONTEXT["inventar_verwaltung_import.html"]["bericht"], "fehler": []})
     assert 'value="einspielen"' in ohne
+
+
+def test_scan_tasten_tragen_die_kamera_nur_wenn_sie_im_kontext_steht(umgebung):
+    assert 'name="art" value="kamera"' in render(umgebung, "inventar_stueck.html")
+    assert 'name="art"' not in render(umgebung, "inventar_stueck.html", scan_art="")
+
+
+def test_faellig_zeigt_drei_bloecke_und_die_taste_nur_mit_pruefen(umgebung):
+    html = render(umgebung, "inventar_faellig.html")
+    for kennung in ("ueberfaellig", "faellig", "ohne_nachweis"):
+        assert f'id="faellig-{kennung}"' in html
+    assert "/inventar/stueck/1?pruefart=uvv&amp;weiter=faellig#pruefung-eintragen" in html
+    assert "250" in html and "252" in html, "gekürzt und abgeschnitten werden gesagt"
+    ohne = render(umgebung, "inventar_faellig.html", darf_pruefen=False)
+    assert "pruefart=uvv&amp;weiter" not in ohne and "BM-00001" in ohne
+
+
+def test_pruefung_eintragen_dialog_nur_mit_pruefen_und_mit_datei_und_vorgabe(umgebung):
+    html = render(umgebung, "inventar_stueck.html")
+    assert 'action="/inventar/stueck/1/pruefung"' in html and 'enctype="multipart/form-data"' in html
+    assert 'name="nachweis"' in html and 'id="pruefung-eintragen" open' in html and '<option value="uvv" selected>' in html
+    assert 'name="weiter" value="faellig"' in html and 'name="pruefer_lieferant_id"' in html and "/inventar/pruefung/4/nachweis" in html
+    assert "/inventar/pruefung/5/nachweis" not in html, "ohne Nachweis kein Link"
+    ohne = render(umgebung, "inventar_stueck.html", darf_pruefen=False)
+    assert "/pruefung\"" not in ohne and 'name="nachweis"' not in ohne
+
+
+def test_pruefarten_des_stuecks_nur_mit_pflegen(umgebung):
+    html = render(umgebung, "inventar_stueck.html")
+    assert 'id="pruefarten-stueck"' in html and 'action="/inventar/stueck/1/pruefart"' in html and 'id="pruefart-dazu"' in html
+    ohne = render(umgebung, "inventar_stueck.html", darf_pflegen=False)
+    assert "/pruefart\"" not in ohne

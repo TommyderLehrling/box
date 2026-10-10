@@ -23,7 +23,7 @@ def paare(rechte_):
 
 def test_vertrag_namen_wie_im_auftrag():
     assert (B.schluessel, B.startseite, B.schemata, B.prozesse, B.arbeitsordner) == (
-        "inventar", "/inventar", ("inventar",), (), ("inventar",))
+        "inventar", "/inventar", ("inventar",), ("digiassistenz_inventar.erinnern",), ("inventar",))
     assert B.konfig_schluessel == ("INVENTAR_ETIKETT_URL",) and B.zeilenfilter == () and B.sichtbarkeit == "inventar.sehen"
     assert B.bezeichnung == "inventar.modul" and B.rechte.schluessel == "inventar"
     assert [(e.weg, e.schluessel, e.reihenfolge) for e in B.menuepunkte] == [
@@ -97,9 +97,14 @@ def test_etikett_url_wird_geprueft(angemeldet):
         B.konfig_pruefen(SimpleNamespace(modul_werte={"INVENTAR_ETIKETT_URL": "box.example"}))
 
 
+def test_modulbeschreibung_traegt_die_mindestfassung_des_kerns():
+    """Seit kern-0.15.3: zu alter Kern → das Modul bleibt aus (Satz im Log)."""
+    assert B.kern_mindestens == modul.KERN_MINDESTFASSUNG == "0.15.3"
+
+
 def test_mindestfassung_des_kerns_steht_in_der_pyproject_und_als_konstante():
     daten = tomllib.loads((WURZEL / "pyproject.toml").read_text(encoding="utf-8"))
     assert f"digiassistenz-kern>={modul.KERN_MINDESTFASSUNG}" in daten["project"]["dependencies"]
-    assert modul.KERN_MINDESTFASSUNG == "0.15.2"
+    assert modul.KERN_MINDESTFASSUNG == "0.15.3"
     assert daten["project"]["entry-points"]["digiassistenz.module"]["inventar"] == "digiassistenz_inventar.modul:BESCHREIBUNG"
     assert re.fullmatch(r"\d+\.\d+\.\d+", modul.VERSION)

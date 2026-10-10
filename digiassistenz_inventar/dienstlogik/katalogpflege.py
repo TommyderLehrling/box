@@ -17,11 +17,12 @@ from digiassistenz_kern import protokoll, zeit
 from digiassistenz_kern.web import gemeinsam
 
 from .. import modelle as m
+from ..rein import zeitplan
 from ..rein.nummernformat import pruefe_muster
 from . import katalog
 
-EINSTELLUNGEN_ZAHL = ("transfer_frist_werktage", "tage_je_monat", "werktage", "gelb_ab_tagen", "zaehler_gelb_prozent")
-EINSTELLUNGEN_TEXT = ("nummernmuster", "etikett_layout", "zins_prozent", "auslieferung_am")
+EINSTELLUNGEN_ZAHL = ("transfer_frist_werktage", "tage_je_monat", "werktage", "gelb_ab_tagen", "zaehler_gelb_prozent", "pruefung_erinnern_tage")
+EINSTELLUNGEN_TEXT = ("nummernmuster", "etikett_layout", "zins_prozent", "auslieferung_am", "erinnern_um")
 _SCHLUESSEL = re.compile(r"^[a-z][a-z0-9_]{0,39}$")
 _KUERZEL = re.compile(r"^[A-Z]{2}$")
 
@@ -155,7 +156,7 @@ def je_merkmal_text(tabelle: dict[str, dict[str, int]] | None) -> str:
 
 def pruefart_speichern(sitzung: Any, schluessel: str, bezeichnung: str, intervall_monate: str, zaehler_intervall: str = "",
                        rechtsgrund: str = "", durchfuehrung: str = "intern", je_merkmal: str = "", gruppen: tuple[str, ...] = (),
-                       aktiv: bool = True) -> m.Pruefart:
+                       aktiv: bool = True, gruppen_intervall: dict[str, str] | None = None) -> m.Pruefart:
     _fordern(sitzung)
     db, mid = sitzung.db, sitzung.kontext.mandant_id
     schluessel = _schluessel(schluessel)
@@ -184,13 +185,19 @@ def pruefart_speichern(sitzung: Any, schluessel: str, bezeichnung: str, interval
     db.flush()
     zugeordnet = {int(z.gruppe_id): z for z in db.execute(select(m.GruppePruefart).where(
         m.GruppePruefart.mandant_id == mid, m.GruppePruefart.pruefart_id == zeile.id)).scalars()}
+    eigene_intervalle = gruppen_intervall or {}
     for gruppen_schluessel, g in zeilen_gruppen.items():
         z = zugeordnet.get(int(g.id))
         soll = gruppen_schluessel in gruppen
+        text = eigene_intervalle.get(gruppen_schluessel, "").strip()
+        # je Gruppe darf das Intervall des Katalogs überschrieben werden; leer = das Intervall der Prüfart gilt
+        monate = _zahl(text, "katalog.intervall_ungueltig", ganz=True, minimum=1) if text and soll else None
         if z is None and soll:
-            db.add(m.GruppePruefart(mandant_id=mid, gruppe_id=g.id, pruefart_id=zeile.id, aktiv=True))
-        elif z is not None and z.aktiv != soll:
+            db.add(m.GruppePruefart(mandant_id=mid, gruppe_id=g.id, pruefart_id=zeile.id, intervall_monate=monate, aktiv=True))
+        elif z is not None:
             z.aktiv = soll
+            if gruppen_intervall is not None and soll:
+                z.intervall_monate = monate
     db.flush()
     return zeile
 
@@ -270,6 +277,11 @@ def einstellungen_speichern(sitzung: Any, werte: dict[str, str]) -> list[str]:
                 raise ValueError("katalog.muster_ungueltig")
         elif schluessel == "zins_prozent":
             _zahl(wert, "katalog.prozent_ungueltig")
+        elif schluessel == "erinnern_um":
+            try:
+                zeitplan.uhrzeit(wert)
+            except ValueError as ursache:
+                raise ValueError("katalog.uhrzeit_ungueltig") from ursache
         elif schluessel == "auslieferung_am" and wert:
             try:
                 dt.date.fromisoformat(wert)

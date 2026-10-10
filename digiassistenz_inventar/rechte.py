@@ -20,7 +20,7 @@ VORLAGEN: dict[str, tuple[str, ...]] = {
     "bauleiter": ("sehen", "scannen", "buchen", "melden", "kosten_sehen"),
     "abteilungsleiter": ("sehen", "kosten_sehen"),
     "buero": ("sehen", "pflegen", "pruefen"),
-    "einkauf": ("sehen", "pflegen", "kosten_sehen"),
+    "einkauf": ("sehen", "pflegen", "kosten_sehen", "kosten_pflegen"),
     "abrechner": ("sehen", "kosten_sehen"),
     "buchhaltung": ("sehen", "kosten_sehen", "kosten_pflegen"),
     "geschaeftsfuehrung": ("sehen", "kosten_sehen"),

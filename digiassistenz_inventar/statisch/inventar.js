@@ -10,11 +10,12 @@
     try { return decodeURIComponent(rest).trim(); } catch (e) { return rest.trim(); }
   }
 
-  function weiter(abschnitt, text) {
+  function weiter(abschnitt, text, ausKamera) {
     var nummer = nummerAusText(text);
     if (!nummer) { return false; }
     var ks = abschnitt.getAttribute("data-ks");
-    window.location.href = "/inventar/s/" + encodeURIComponent(nummer) + (ks ? "?ks=" + encodeURIComponent(ks) : "");
+    var abfrage = ks ? "?ks=" + encodeURIComponent(ks) + (ausKamera ? "&art=kamera" : "") : "";
+    window.location.href = "/inventar/s/" + encodeURIComponent(nummer) + abfrage;
     return true;
   }
 
@@ -44,7 +45,7 @@
       function schauen() {
         if (fertig) { return; }
         detektor.detect(video).then(function (treffer) {
-          if (treffer.length && weiter(abschnitt, treffer[0].rawValue)) {
+          if (treffer.length && weiter(abschnitt, treffer[0].rawValue, true)) {
             fertig = true;
             strom.getTracks().forEach(function (spur) { spur.stop(); });
             return;

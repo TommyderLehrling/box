@@ -97,7 +97,7 @@ def test_t_i_5_startdaten_und_vorlagen(box) -> None:
     assert {b for b in polier if b.startswith("inventar.")} == {
         "inventar.sehen", "inventar.scannen", "inventar.buchen", "inventar.melden"}
     assert zahlen == {"gruppe": 12, "merkmal": 45, "pruefart": 19, "gruppe_pruefart": 30, "kostensatz": 12,
-                      "einstellung": 8, "stueck": 0}, "Startdaten ohne Stücke"
+                      "einstellung": 10, "stueck": 0}, "Startdaten ohne Stücke"
 
 
 def test_t_i_5_zweiter_start_aendert_nichts(box) -> None:

@@ -63,6 +63,8 @@ def anlegen(
         raise gemeinsam.KeinRecht("inventar", "pflegen")
     if kostenstelle_id is not None and not sitzung.darf("inventar", "buchen", kostenstelle_id):
         raise gemeinsam.KeinRecht("inventar", "buchen")
+    if (kaufdatum is not None or kaufpreis is not None) and not sitzung.darf("inventar", "kosten_pflegen"):
+        raise gemeinsam.KeinRecht("inventar", "kosten_pflegen")  # Kaufdaten trägt nur ein, wer Kosten pflegen darf
     if not bezeichnung.strip():
         raise ValueError("stueck.bezeichnung_fehlt")
     if art not in m.ART:

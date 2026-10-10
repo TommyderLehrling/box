@@ -86,3 +86,17 @@ def foto_pruefen(inhalt_typ: str, groesse: int, inhalt: bytes | None = None) -> 
     if inhalt is not None and not inhalt.startswith(KENNUNG[endung]):
         raise DateiFehler("dateien.foto_typ")
     return endung
+
+
+NACHWEIS_HOECHSTENS = 10 * 1024 * 1024
+NACHWEIS_KENNUNG = {".pdf": b"%PDF-", **KENNUNG}
+
+
+def nachweis_pruefen(inhalt: bytes) -> str:
+    """Nachweise sind PDF, JPG oder PNG bis 10 MB; es zählt der Anfang der Datei, nicht der Name. Liefert die Endung."""
+    if len(inhalt) > NACHWEIS_HOECHSTENS:
+        raise DateiFehler("dateien.nachweis_gross")
+    for endung, kopf in NACHWEIS_KENNUNG.items():
+        if inhalt.startswith(kopf):
+            return endung
+    raise DateiFehler("dateien.nachweis_typ")

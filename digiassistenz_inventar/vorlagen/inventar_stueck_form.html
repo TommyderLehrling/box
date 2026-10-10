@@ -46,7 +46,7 @@
     <input type="number" id="inv-baujahr" name="baujahr" min="1950" max="2100" size="6" value="{{ zeile.baujahr if zeile and zeile.baujahr else "" }}">
   </p>
   <p>{% with wahl = wahl_lieferant %}{% include "teil_wahl.html" %}{% endwith %}</p>
-  {% if darf_kosten_sehen %}
+  {% if darf_kosten_pflegen %}
   <p>
     <label for="inv-kaufdatum">{{ t("inventar.feld.kaufdatum") }}</label>
     <input type="date" id="inv-kaufdatum" name="kaufdatum" value="{{ zeile.kaufdatum.isoformat() if zeile and zeile.kaufdatum else "" }}">

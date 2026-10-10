@@ -18,11 +18,12 @@ from .. import dateien
 from .. import modelle as m
 from .. import rechte
 from ..dienstlogik import liste, nummer as nummernvergabe, pflege, stueck as fachstueck, stueckseite
-from . import helfer
+from . import helfer, pruefdialog
 
 router = APIRouter()
 WEG = "/inventar/stueck"
-FERTIG = ("angelegt", "geaendert", "status", "zubehoer", "bauteil", "zaehlerstand", "meldung", "abgang", "eingang", "zurueck", "scan")
+FERTIG = ("angelegt", "geaendert", "status", "zubehoer", "bauteil", "zaehlerstand", "meldung", "abgang", "eingang", "zurueck", "scan",
+          "pruefung", "pruefart")
 
 
 async def formular(request: Request) -> dict[str, Any]:
@@ -106,8 +107,8 @@ def _form_seite(request: Request, sitzung: Sitzung, zeile: m.Stueck | None, wert
         merkmal_werte = {s: w for s, w in sitzung.db.execute(
             select(m.Merkmal.schluessel, m.StueckMerkmal.wert).join(m.Merkmal, m.Merkmal.id == m.StueckMerkmal.merkmal_id)
             .where(m.StueckMerkmal.stueck_id == zeile.id)).all()}
-    wahl_ks = wahlfeld.kostenstelle(sitzung, feld="kostenstelle", modul="inventar", aktion="buchen", leer="inventar.kein_startort",
-                                    beschriftung="inventar.feld.startstandort", kennung="wahl-start-ks")
+    wahl_ks = wahlfeld.kostenstelle(sitzung, feld="kostenstelle", modul="inventar", aktion="buchen", leer="inventar.waehlen",
+                                    beschriftung="inventar.feld.startstandort", kennung="wahl-start-ks", pflicht=True)
     wahl_lieferant = wahlfeld.lieferant(sitzung, feld="lieferant_id", leer="inventar.kein_lieferant",
                                         gewaehlt=None if zeile is None else zeile.lieferant_id, kennung="wahl-lieferant")
     titel = t("inventar.stueck_neu") if zeile is None else t("inventar.taste.bearbeiten")
@@ -128,7 +129,7 @@ def neu_form(
 
 def _kaufpreis(sitzung: Sitzung, f: dict[str, Any]) -> Decimal | None:
     text = _text(f, "kaufpreis").replace(",", ".")
-    if not text or not sitzung.darf("inventar", "kosten_sehen"):
+    if not text or not sitzung.darf("inventar", "kosten_pflegen"):
         return None
     try:
         preis = Decimal(text)
@@ -149,12 +150,15 @@ def neu_speichern(
         werte = _merkmale_aus(f)
         if _pflicht_fehlt(sitzung, int(gruppe.id), werte):
             raise ValueError("web.merkmal_pflicht")
+        start_ks = liste.kostenstelle_id(sitzung, _text(f, "kostenstelle"))
+        if start_ks is None:
+            raise ValueError("web.startstandort_fehlt")  # der Startstandort ist Pflicht: kein Stück ohne offenen Standort
         zeile = fachstueck.anlegen(
             sitzung, bezeichnung=_text(f, "bezeichnung"), gruppe=gruppe.schluessel, art=_text(f, "art"),
             inventarnummer=_text(f, "inventarnummer") or None, hersteller=_text(f, "hersteller"), typ=_text(f, "typ"),
             seriennummer=_text(f, "seriennummer"), baujahr=helfer.ganzzahl(_text(f, "baujahr")),
             lieferant_id=helfer.ganzzahl(_text(f, "lieferant_id")), kaufdatum=helfer.datum(_text(f, "kaufdatum")),
-            kaufpreis=_kaufpreis(sitzung, f), kostenstelle_id=liste.kostenstelle_id(sitzung, _text(f, "kostenstelle")),
+            kaufpreis=_kaufpreis(sitzung, f), kostenstelle_id=start_ks,
             menge=helfer.ganzzahl(_text(f, "menge"), 1) or 1, merkmale=werte, besonderheiten=_text(f, "besonderheiten"), quelle="web")
         foto = _datei(f, "foto")
         if foto is not None:
@@ -184,7 +188,7 @@ def aendern_speichern(
             "bezeichnung": _text(f, "bezeichnung"), "hersteller": _text(f, "hersteller"), "typ": _text(f, "typ"),
             "seriennummer": _text(f, "seriennummer"), "baujahr": helfer.ganzzahl(_text(f, "baujahr")),
             "lieferant_id": helfer.ganzzahl(_text(f, "lieferant_id")), "besonderheiten": _text(f, "besonderheiten")}
-        if sitzung.darf("inventar", "kosten_sehen"):
+        if sitzung.darf("inventar", "kosten_pflegen"):
             angaben["kaufdatum"] = helfer.datum(_text(f, "kaufdatum"))
             angaben["kaufpreis"] = _kaufpreis(sitzung, f)
         werte = _merkmale_aus(f)
@@ -202,7 +206,7 @@ def aendern_speichern(
 
 @router.get(WEG + "/{stueck_id}", response_class=HTMLResponse)
 def stueck_seite(
-    stueck_id: int, request: Request, ks: str = "", fertig: str = "", sitzung: Sitzung = Depends(gemeinsam.angemeldet),
+    stueck_id: int, request: Request, ks: str = "", art: str = "", fertig: str = "", pruefart: str = "", weiter: str = "", sitzung: Sitzung = Depends(gemeinsam.angemeldet),
     _recht=Depends(gemeinsam.verlangt("inventar", "sehen")),
 ) -> HTMLResponse:
     zeile = stueckseite.holen(sitzung, stueck_id)
@@ -221,9 +225,9 @@ def stueck_seite(
     antwort = gemeinsam.seite(
         request, sitzung, "inventar_stueck.html", aktiv="inventar", brotkrumen=_krumen(zeile), fertig=fertig, wahl_nach=wahl_nach,
         von_ks=von_ks, melde_ks=melde_ks, bauteile_katalog=bauteile_katalog, status_moeglich=status_moeglich, hauptlage=hauptlage,
-        buchung=helfer.neuer_schluessel(), scan_ks=ks if ks.isdigit() else "",
+        buchung=helfer.neuer_schluessel(), scan_ks=ks if ks.isdigit() else "", scan_art="kamera" if art == "kamera" else "",
         scan_ok=ks.isdigit() and bool(sitzung.darf("inventar", "scannen", int(ks))), rueckmeldung_objekt=("inventar.stueck", stueck_id),
-        **d, **rechte.darf_alle(sitzung))
+        **pruefdialog.werte(sitzung, zeile, pruefart, weiter), **d, **rechte.darf_alle(sitzung))
     return antwort
 
 

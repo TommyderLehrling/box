@@ -26,7 +26,10 @@
   <p><label for="p-grund">{{ t("inventar.pruefung.feld.rechtsgrund") }}</label> <input id="p-grund" name="rechtsgrund" size="40" value="{{ eintrag.rechtsgrund }}"></p>
   <p><label for="p-je">{{ t("inventar.katalog.je_merkmal") }}</label><br><textarea id="p-je" name="je_merkmal" rows="3" cols="40">{{ eintrag.je_merkmal }}</textarea><br><span class="klein leise">{{ t("inventar.katalog.je_merkmal_hinweis") }}</span></p>
   <fieldset><legend>{{ t("inventar.katalog.gruppen") }}</legend>
-    {% for schluessel, bezeichnung in gruppen %}<label><input type="checkbox" name="g_{{ schluessel }}" value="{{ schluessel }}"{% if schluessel in eintrag.gruppen %} checked{% endif %}> {{ bezeichnung }}</label> {% endfor %}
+    {% for schluessel, bezeichnung in gruppen %}<span class="nowrap"><label><input type="checkbox" name="g_{{ schluessel }}" value="{{ schluessel }}"{% if schluessel in eintrag.gruppen %} checked{% endif %}> {{ bezeichnung }}</label>
+      <label class="klein leise" for="gi-{{ schluessel }}">{{ t("inventar.pruefung.gruppe_intervall") }}</label>
+      <input type="number" min="1" id="gi-{{ schluessel }}" name="gi_{{ schluessel }}" size="4" value="{{ eintrag.gruppen_intervall.get(schluessel, "") }}"></span> {% endfor %}
+    <p class="klein leise">{{ t("inventar.pruefung.gruppe_intervall_hinweis") }}</p>
   </fieldset>
   <p><label><input type="checkbox" name="aktiv" value="1"{% if eintrag.aktiv %} checked{% endif %}> {{ t("inventar.katalog.aktiv") }}</label></p>
   <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.taste.speichern") }}</button><a class="taste" data-abbrechen href="/inventar/verwaltung/pruefarten">{{ t("inventar.taste.abbrechen") }}</a></p>

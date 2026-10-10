@@ -30,6 +30,8 @@ EINSTELLUNGEN: dict[str, str] = {
     "zaehler_gelb_prozent": "10",
     "etikett_layout": "70x36_3x8",
     "zins_prozent": "4.0",
+    "erinnern_um": "06:00",
+    "pruefung_erinnern_tage": "14",
 }
 
 

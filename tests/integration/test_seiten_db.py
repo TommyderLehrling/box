@@ -210,6 +210,7 @@ def test_abgang_eingang_scan_und_zurueckziehen_bis_zur_hier_seite(box) -> None:
 def test_verwaltung_kataloge_einstellungen_und_rechte(box) -> None:
     k = box.klient
     anmelden(k)
+    _ks(k, "70101")
     kacheln = k.get("/inventar/verwaltung")
     assert kacheln.status_code == 200 and "/inventar/verwaltung/import" in kacheln.text and "/inventar/verwaltung/testdaten" in kacheln.text
     for seite in ("gruppen", "merkmale", "pruefarten", "bauteile", "kostensaetze", "einstellungen", "import", "etiketten", "testdaten"):
@@ -232,7 +233,7 @@ def test_verwaltung_kataloge_einstellungen_und_rechte(box) -> None:
     assert ok(k.post("/inventar/verwaltung/einstellungen", data={"transfer_frist_werktage": "5", "nummernmuster": "{gruppe}-{jahr}-{nr:4}"}, follow_redirects=False))
     assert _db_ein("SELECT wert FROM inventar.einstellung WHERE schluessel = 'transfer_frist_werktage'")[0][0] == "5"
     assert k.post("/inventar/verwaltung/einstellungen", data={"nummernmuster": "{nr}"}).status_code == 409
-    neu_nr = _neu(k, "Rahmen", "", ks="", gruppe="geruest", art="klein", m_feldlaenge="3")
+    neu_nr = _neu(k, "Rahmen", "", gruppe="geruest", art="klein", m_feldlaenge="3")
     assert re.fullmatch(r"GR-\d{4}-\d{4}", _db_ein("SELECT inventarnummer FROM inventar.stueck WHERE id = :i", i=neu_nr)[0][0])
     # Polier: keine Verwaltung, keine Preise
     k.post("/abmelden")

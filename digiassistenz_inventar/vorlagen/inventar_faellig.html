@@ -2,5 +2,42 @@
 {% block titel %}{{ t("inventar.menue_faellig") }} — {{ t("web.titel") }}{% endblock %}
 {% block inhalt %}
 {% with seite = "inventar_faellig", titel = t("inventar.menue_faellig") %}{% include "teil_seitenkopf.html" %}{% endwith %}
-<p class="leise">{{ hinweis }}</p>
+{% if fertig %}<p class="gut" role="status">✓ {{ t("inventar.fertig.pruefung") }}</p>{% endif %}
+
+<form method="get" action="/inventar/faellig" class="filterzeile" id="faellig-filter">
+  <label for="f-pruefart">{{ t("inventar.pruefung.feld.pruefart") }}</label>
+  <select id="f-pruefart" name="pruefart" onchange="this.form.submit()">
+    <option value="">{{ t("inventar.alle") }}</option>
+    {% for schluessel, bezeichnung in arten %}<option value="{{ schluessel }}"{% if filter.pruefart == schluessel %} selected{% endif %}>{{ bezeichnung }}</option>{% endfor %}
+  </select>
+  <label for="f-gruppe">{{ t("inventar.spalte_gruppe") }}</label>
+  <select id="f-gruppe" name="gruppe" onchange="this.form.submit()">
+    <option value="">{{ t("inventar.alle") }}</option>
+    {% for schluessel, bezeichnung in gruppen %}<option value="{{ schluessel }}"{% if filter.gruppe == schluessel %} selected{% endif %}>{{ bezeichnung }}</option>{% endfor %}
+  </select>
+  {% with wahl = wahl_ks %}{% include "teil_wahl.html" %}{% endwith %}
+  <button type="submit">{{ t("web.suchen") }}</button>
+</form>
+{% if uebersicht.abgeschnitten %}<p class="warnung" role="status">{{ t("inventar.faellig.abgeschnitten", anzahl=uebersicht.gelesen) }}</p>{% endif %}
+
+{% for kennung, block, farbe in (("ueberfaellig", uebersicht.ueberfaellig, "rot"), ("faellig", uebersicht.faellig, "gelb"), ("ohne_nachweis", uebersicht.ohne_nachweis, "unbekannt")) %}
+<section id="faellig-{{ kennung }}" class="faellig-{{ farbe }}">
+  <h2>{{ t("inventar.faellig.block." ~ kennung) }} ({{ block.gesamt }})</h2>
+  {% if not block.zeilen %}
+  <p class="leise">{{ t("inventar.faellig.leer." ~ kennung) }}</p>
+  {% else %}
+  <table class="liste">
+    <tr><th>{{ t("web.nummer") }}</th><th>{{ t("web.bezeichnung") }}</th><th>{{ t("inventar.pruefung.feld.pruefart") }}</th><th>{{ t("inventar.spalte_steht_auf") }}</th><th>{{ t("inventar.spalte_pruefstand") }}</th><th>{{ t("inventar.pruefung.feld.faellig_am") }}</th>{% if darf_pruefen %}<th></th>{% endif %}</tr>
+    {% for z in block.zeilen %}
+    <tr>
+      <td><a href="/inventar/stueck/{{ z.id }}">{{ z.nummer }}</a></td><td>{{ z.bezeichnung }}</td><td>{{ z.pruefart_name }}</td><td>{{ z.ort|oder_strich }}</td>
+      <td><span title="{{ t("inventar.pruefung.ampel." ~ z.ampel) }}">{{ z.zeichen }}</span> {{ z.hinweis }}</td><td>{{ z.faellig_am|datum }}</td>
+      {% if darf_pruefen %}<td><a class="taste klein" href="/inventar/stueck/{{ z.id }}?pruefart={{ z.pruefart }}&amp;weiter=faellig#pruefung-eintragen">{{ t("inventar.pruefung.taste") }}</a></td>{% endif %}
+    </tr>
+    {% endfor %}
+  </table>
+  {% if block.gekuerzt %}<p class="klein leise">{{ t("inventar.faellig.gekuerzt", anzahl=block.zeilen|length, gesamt=block.gesamt) }}</p>{% endif %}
+  {% endif %}
+</section>
+{% endfor %}
 {% endblock %}

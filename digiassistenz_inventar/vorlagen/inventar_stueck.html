@@ -15,7 +15,7 @@
   {% if scan_ok %}
   <div class="tastenreihe raster gross" id="scan-tasten">
     <form method="post" action="/inventar/transfer/scan" hx-post="/inventar/transfer/scan" hx-target="#stueck-meldung" hx-swap="innerHTML">
-      <input type="hidden" name="stueck_id" value="{{ stueck.id }}"><input type="hidden" name="kostenstelle" value="{{ scan_ks }}">
+      <input type="hidden" name="stueck_id" value="{{ stueck.id }}"><input type="hidden" name="kostenstelle" value="{{ scan_ks }}">{% if scan_art %}<input type="hidden" name="art" value="{{ scan_art }}">{% endif %}
       <input type="hidden" name="eintrag_schluessel" value="{{ buchung }}">
       <button type="submit" class="haupt gross">{{ t("inventar.transfer.taste.hier") }}</button>
     </form>
@@ -170,18 +170,92 @@
   {% else %}<p class="leise">{{ t("inventar.leer") }}</p>{% endif %}
 </details>
 
-<details>
+<details id="abschnitt-pruefungen"{% if pruefen_offen %} open{% endif %}>
   <summary>{{ t("inventar.abschnitt.pruefungen") }} ({{ pruefungen|length }})</summary>
   {% if pruefstaende %}
   <table class="liste"><tr><th>{{ t("inventar.pruefung.feld.pruefart") }}</th><th>{{ t("inventar.spalte_pruefstand") }}</th><th>{{ t("inventar.pruefung.feld.faellig_am") }}</th></tr>
     {% for p in pruefstaende %}<tr><td>{{ p.art }}</td><td>{{ p.zeichen }} {{ p.hinweis }}</td><td>{{ p.faellig_am|datum }}</td></tr>{% endfor %}
   </table>
   {% endif %}
+  {% if darf_pruefen and pruefen_arten %}
+  <details class="dialog" id="pruefung-eintragen"{% if pruefen_offen %} open{% endif %}>
+    <summary class="taste">{{ t("inventar.pruefung.taste") }}</summary>
+    <form method="post" action="/inventar/stueck/{{ stueck.id }}/pruefung" enctype="multipart/form-data" hx-post="/inventar/stueck/{{ stueck.id }}/pruefung"
+          hx-encoding="multipart/form-data" hx-target="#stueck-meldung" hx-swap="innerHTML">
+      <input type="hidden" name="weiter" value="{{ pruefen_weiter }}">
+      <p>
+        <label for="pr-art">{{ t("inventar.pruefung.feld.pruefart") }}</label>
+        <select id="pr-art" name="pruefart" required>
+          {% if not pruefen_vorgabe %}<option value="">{{ t("inventar.waehlen") }}</option>{% endif %}
+          {% for a in pruefen_arten %}<option value="{{ a.schluessel }}"{% if a.schluessel == pruefen_vorgabe %} selected{% endif %}>{{ a.bezeichnung }}</option>{% endfor %}
+        </select>
+        <label for="pr-datum">{{ t("inventar.pruefung.feld.durchgefuehrt_am") }}</label>
+        <input type="date" id="pr-datum" name="durchgefuehrt_am" value="{{ heute_iso }}" max="{{ heute_iso }}" required>
+      </p>
+      <p>
+        <label for="pr-ergebnis">{{ t("inventar.pruefung.feld.ergebnis") }}</label>
+        <select id="pr-ergebnis" name="ergebnis">{% for e in ("bestanden", "maengel", "nicht_bestanden") %}<option value="{{ e }}">{{ t("inventar.pruefung.ergebnis." ~ e) }}</option>{% endfor %}</select>
+        <label for="pr-durch">{{ t("inventar.katalog.durchfuehrung") }}</label>
+        <select id="pr-durch" name="durchfuehrung">{% for d in ("intern", "extern") %}<option value="{{ d }}">{{ t("inventar.pruefung.durchfuehrung." ~ d) }}</option>{% endfor %}</select>
+      </p>
+      <fieldset>
+        <legend>{{ t("inventar.pruefung.feld.pruefer") }}</legend>
+        <p>
+          <label for="pr-benutzer">{{ t("inventar.pruefung.pruefer_intern") }}</label>
+          <select id="pr-benutzer" name="pruefer_benutzer_id">
+            {% for bid, name in benutzer_auswahl %}<option value="{{ bid }}"{% if bid == benutzer_ich %} selected{% endif %}>{{ name }}</option>{% endfor %}
+          </select>
+          <label for="pr-text">{{ t("inventar.pruefung.pruefer_name") }}</label>
+          <input type="text" id="pr-text" name="pruefer_text" size="24">
+        </p>
+        <p>{% with wahl = wahl_pruefer_lieferant %}{% include "teil_wahl.html" %}{% endwith %}<span class="klein leise"> {{ t("inventar.pruefung.pruefer_extern_hinweis") }}</span></p>
+      </fieldset>
+      {% if stueck.zaehler_einheit %}
+      <p><label for="pr-zaehler">{{ t("inventar.feld.zaehlerstand") }} ({{ stueck.zaehler_einheit }})</label> <input type="text" inputmode="decimal" id="pr-zaehler" name="zaehlerstand" size="10"></p>
+      {% endif %}
+      <p><label for="pr-nachweis">{{ t("inventar.nachweis") }}</label> <input type="file" id="pr-nachweis" name="nachweis" accept="application/pdf,image/jpeg,image/png">
+         <span class="klein leise">{{ t("inventar.pruefung.nachweis_hinweis") }}</span></p>
+      <p><label for="pr-bemerkung">{{ t("inventar.pruefung.feld.bemerkung") }}</label><br><textarea id="pr-bemerkung" name="bemerkung" rows="2" cols="40"></textarea></p>
+      <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.taste.speichern") }}</button><button type="button" data-abbrechen>{{ t("inventar.taste.abbrechen") }}</button></p>
+    </form>
+  </details>
+  {% endif %}
   {% if pruefungen %}
-  <table class="liste"><tr><th>{{ t("inventar.pruefung.feld.pruefart") }}</th><th>{{ t("inventar.pruefung.feld.durchgefuehrt_am") }}</th><th>{{ t("inventar.pruefung.feld.ergebnis") }}</th><th>{{ t("inventar.pruefung.feld.pruefer") }}</th><th>{{ t("inventar.nachweis") }}</th></tr>
-    {% for p in pruefungen %}<tr><td>{{ p.art }}</td><td>{{ p.am|datum }}</td><td>{{ t("inventar.pruefung.ergebnis." ~ p.ergebnis) }}</td><td>{{ p.pruefer|oder_strich }}</td><td>{{ "✓" if p.nachweis else "◌" }}</td></tr>{% endfor %}
+  <table class="liste"><tr><th>{{ t("inventar.pruefung.feld.pruefart") }}</th><th>{{ t("inventar.pruefung.feld.durchgefuehrt_am") }}</th><th>{{ t("inventar.pruefung.feld.ergebnis") }}</th><th>{{ t("inventar.pruefung.feld.pruefer") }}</th><th>{{ t("inventar.pruefung.feld.naechste") }}</th><th>{{ t("inventar.nachweis") }}</th></tr>
+    {% for p in pruefungen %}<tr><td>{{ p.art }}</td><td>{{ p.am|datum }}</td><td>{{ t("inventar.pruefung.ergebnis." ~ p.ergebnis) }}</td><td>{{ p.pruefer|oder_strich }}</td><td>{{ p.naechste|datum }}</td>
+      <td>{% if p.nachweis %}<a href="/inventar/pruefung/{{ p.id }}/nachweis">✓ {{ t("inventar.pruefung.nachweis_ansehen") }}</a>{% else %}◌{% endif %}</td></tr>{% endfor %}
   </table>
   {% elif not pruefstaende %}<p class="leise">{{ t("inventar.leer") }}</p>{% endif %}
+  {% if darf_pflegen %}
+  <h3>{{ t("inventar.pruefung.arten_dieses_stuecks") }}</h3>
+  {% if pruefarten_stueck %}
+  <table class="liste" id="pruefarten-stueck">
+    <tr><th>{{ t("inventar.pruefung.feld.pruefart") }}</th><th>{{ t("inventar.pruefung.herkunft") }}</th><th>{{ t("inventar.pruefung.wirksam") }}</th><th>{{ t("inventar.pruefung.fuer_dieses_stueck") }}</th></tr>
+    {% for a in pruefarten_stueck %}
+    <tr{% if not a.aktiv %} class="leise"{% endif %}>
+      <td>{{ a.bezeichnung }}</td><td>{{ t("inventar.pruefung.herkunft." ~ a.herkunft) }}</td>
+      <td class="zahl">{% if a.aktiv and a.wirksam %}{{ t("inventar.pruefung.monate", monate=a.wirksam) }}{% else %}{{ t("inventar.pruefung.abgeschaltet") }}{% endif %}</td>
+      <td><form method="post" action="/inventar/stueck/{{ stueck.id }}/pruefart" hx-post="/inventar/stueck/{{ stueck.id }}/pruefart" hx-target="#stueck-meldung" hx-swap="innerHTML">
+        <input type="hidden" name="pruefart" value="{{ a.schluessel }}">
+        <label class="klein" for="pa-{{ a.schluessel }}">{{ t("inventar.pruefung.feld.intervall") }}</label>
+        <input type="number" min="1" id="pa-{{ a.schluessel }}" name="intervall_monate" size="4" value="{{ a.stueck_intervall if a.stueck_intervall else "" }}">
+        <label><input type="checkbox" name="aktiv" value="1"{% if a.aktiv %} checked{% endif %}> {{ t("inventar.katalog.aktiv") }}</label>
+        <button type="submit">{{ t("inventar.taste.speichern") }}</button>
+      </form></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+  {% if pruefarten_dazu %}
+  <form method="post" action="/inventar/stueck/{{ stueck.id }}/pruefart" hx-post="/inventar/stueck/{{ stueck.id }}/pruefart" hx-target="#stueck-meldung" hx-swap="innerHTML" id="pruefart-dazu">
+    <input type="hidden" name="aktiv" value="1">
+    <label for="pd-art">{{ t("inventar.pruefung.art_dazu") }}</label>
+    <select id="pd-art" name="pruefart" required><option value="">{{ t("inventar.waehlen") }}</option>{% for schluessel, bezeichnung in pruefarten_dazu %}<option value="{{ schluessel }}">{{ bezeichnung }}</option>{% endfor %}</select>
+    <label for="pd-monate">{{ t("inventar.pruefung.feld.intervall") }}</label> <input type="number" min="1" id="pd-monate" name="intervall_monate" size="4">
+    <button type="submit">{{ t("inventar.taste.speichern") }}</button>
+  </form>
+  {% endif %}
+  {% endif %}
 </details>
 
 <details>

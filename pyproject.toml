@@ -3,7 +3,7 @@ name = "digiassistenz-inventar"
 version = "0.1.0"
 description = "DOKON Inventar — Geräteverwaltung einer Baufirma als Modul des Kerns"
 requires-python = ">=3.12"
-dependencies = ["digiassistenz-kern>=0.15.2", "openpyxl", "segno", "weasyprint"]
+dependencies = ["digiassistenz-kern>=0.15.3", "openpyxl", "segno", "weasyprint"]
 
 [project.optional-dependencies]
 pruefung = ["pytest", "httpx"]

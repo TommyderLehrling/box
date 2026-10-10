@@ -50,7 +50,7 @@ def aktion_text(aktion: str) -> str:
     return aktion if text == schluessel else text
 
 
-def _ampel_hinweis(stand: Any) -> str:
+def ampel_hinweis(stand: Any) -> str:
     if stand.ampel == "unbekannt":
         return t("inventar.pruefung.ohne_nachweis")
     if stand.grund == "zaehler" and stand.faellig_bei_zaehler is not None:
@@ -60,6 +60,15 @@ def _ampel_hinweis(stand: Any) -> str:
     if stand.tage < 0:
         return t("inventar.pruefung.ueberfaellig_seit", tage=-stand.tage)
     return t("inventar.pruefung.faellig_in", tage=stand.tage)
+
+
+def _lieferanten(db: Any, mid: int, ids: set[int]) -> dict[int, str]:
+    if not ids:
+        return {}
+    from digiassistenz_kern import Lieferant
+
+    return {int(z.id): (z.kurzname or z.name_gedruckt) for z in db.execute(
+        select(Lieferant).where(Lieferant.mandant_id == mid, Lieferant.id.in_(ids))).scalars()}
 
 
 def daten(sitzung: Any, stueck: m.Stueck) -> dict[str, Any]:
@@ -94,16 +103,21 @@ def daten(sitzung: Any, stueck: m.Stueck) -> dict[str, Any]:
     staende = pruefstand.staende(db, mid, [stueck], zeit.heute()).get(stueck.inventarnummer, [])
     arten = {p.schluessel: p.bezeichnung for p in db.execute(select(m.Pruefart).where(m.Pruefart.mandant_id == mid)).scalars()}
     stand_zeilen = [{"art": arten.get(s.pruefart, s.pruefart), "ampel": s.ampel, "zeichen": AMPEL_ZEICHEN[s.ampel],
-                     "faellig_am": s.faellig_am, "hinweis": _ampel_hinweis(s)} for s in staende]
+                     "faellig_am": s.faellig_am, "hinweis": ampel_hinweis(s)} for s in staende]
     schlimmster = max(staende, key=lambda s: AMPEL_RANG[s.ampel], default=None)
     ampel = gesamt_ampel(staende)
 
     arten_id = {int(p.id): p.bezeichnung for p in db.execute(select(m.Pruefart).where(m.Pruefart.mandant_id == mid)).scalars()}
-    pruefungen = [{"art": arten_id.get(int(p.pruefart_id), ""), "am": p.durchgefuehrt_am, "ergebnis": p.ergebnis,
-                   "durchfuehrung": p.durchfuehrung, "pruefer": p.pruefer_text, "naechste": p.naechste_am,
-                   "nachweis": bool(p.nachweis_sha256)}
-                  for p in db.execute(select(m.Pruefung).where(m.Pruefung.mandant_id == mid, m.Pruefung.stueck_id == sid)
-                                      .order_by(m.Pruefung.durchgefuehrt_am.desc(), m.Pruefung.id.desc())).scalars()]
+    pruef_zeilen = list(db.execute(select(m.Pruefung).where(m.Pruefung.mandant_id == mid, m.Pruefung.stueck_id == sid)
+                                   .order_by(m.Pruefung.durchgefuehrt_am.desc(), m.Pruefung.id.desc())).scalars())
+    pruefer_namen = namen_benutzer(sitzung, {p.pruefer_benutzer_id for p in pruef_zeilen})
+    pruefer_firmen = _lieferanten(db, mid, {int(p.pruefer_lieferant_id) for p in pruef_zeilen if p.pruefer_lieferant_id})
+    pruefungen = [{"id": int(p.id), "art": arten_id.get(int(p.pruefart_id), ""), "am": p.durchgefuehrt_am, "ergebnis": p.ergebnis,
+                   "durchfuehrung": p.durchfuehrung, "naechste": p.naechste_am, "nachweis": bool(p.nachweis_sha256),
+                   "pruefer": ", ".join(x for x in (
+                       p.pruefer_text, pruefer_namen.get(int(p.pruefer_benutzer_id), "") if p.pruefer_benutzer_id else "",
+                       pruefer_firmen.get(int(p.pruefer_lieferant_id), "") if p.pruefer_lieferant_id else "") if x)}
+                  for p in pruef_zeilen]
     meldungen_zeilen = list(db.execute(sitzung.abfrage(m.Meldung).where(m.Meldung.stueck_id == sid).order_by(m.Meldung.gemeldet_am.desc())).scalars())
     wer = namen_benutzer(sitzung, {z.gemeldet_von for z in meldungen_zeilen})
     meldungen = [{"art": z.art, "beschreibung": z.beschreibung, "status": z.status, "am": z.gemeldet_am,
@@ -155,7 +169,7 @@ def daten(sitzung: Any, stueck: m.Stueck) -> dict[str, Any]:
     return {
         "stueck": stueck, "gruppe": gruppe, "merkmale": merkmale, "offen": offen, "verlauf_orte": verlauf_orte, "transfers": transfers,
         "pruefstaende": stand_zeilen, "ampel": ampel, "ampel_zeichen": AMPEL_ZEICHEN[ampel],
-        "ampel_hinweis": "" if schlimmster is None else _ampel_hinweis(schlimmster), "pruefungen": pruefungen, "meldungen": meldungen,
+        "ampel_hinweis": "" if schlimmster is None else ampel_hinweis(schlimmster), "pruefungen": pruefungen, "meldungen": meldungen,
         "reparaturen": reparaturen, "zaehlerstaende": zaehler, "zubehoer": zubehoer, "haupt": haupt, "bauteile": bauteile, "kosten": kosten,
         "verlauf": verlauf, "lieferant": lieferant,
         "steht_auf": ", ".join(o["kostenstelle"] for o in offen), "seit": min((o["seit"] for o in offen), default=None),

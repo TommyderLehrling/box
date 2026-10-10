@@ -65,7 +65,7 @@ def scan(
     zeile = stueckseite.holen(sitzung, stueck_id)
     try:
         transfer.scan_ist_hier(sitzung, zeile.inventarnummer, helfer.ganzzahl(_text(f, "kostenstelle"), 0) or 0,
-                               _text(f, "eintrag_schluessel"), None, "handy")
+                               _text(f, "eintrag_schluessel"), None, "handy" if _text(f, "art") == "kamera" else "web")
     except ValueError as fehler:
         sitzung.db.rollback()
         return helfer.fehlerteil(fehler)

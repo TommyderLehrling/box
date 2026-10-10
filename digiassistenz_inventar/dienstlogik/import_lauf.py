@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -26,7 +26,7 @@ class Bericht:
     lieferanten_unbekannt: tuple[str, ...] = ()  # Namen, die der Kern nicht kennt: es wird kein Lieferant angelegt
 
 
-def _vorhanden(db: Any, mid: int, gelesen: dict[str, ImportZeile]) -> dict[str, ImportZeile]:
+def _vorhanden(db: Any, mid: int, gelesen: dict[str, ImportZeile], mit_kosten: bool = True) -> dict[str, ImportZeile]:
     gruppen = {int(g.id): g.schluessel for g in db.execute(select(m.Gruppe).where(m.Gruppe.mandant_id == mid)).scalars()}
     werte: dict[int, dict[str, str]] = {}
     for sid, schluessel, wert in db.execute(select(m.StueckMerkmal.stueck_id, m.Merkmal.schluessel, m.StueckMerkmal.wert)
@@ -38,7 +38,7 @@ def _vorhanden(db: Any, mid: int, gelesen: dict[str, ImportZeile]) -> dict[str, 
     for s in db.execute(select(m.Stueck).where(m.Stueck.mandant_id == mid)).scalars():
         ergebnis[s.inventarnummer] = ImportZeile(
             0, s.inventarnummer, s.bezeichnung, gruppen[int(s.gruppe_id)], s.art, s.hersteller, s.typ, s.seriennummer,
-            s.baujahr, s.kaufdatum, s.kaufpreis,
+            s.baujahr, s.kaufdatum if mit_kosten else None, s.kaufpreis if mit_kosten else None,
             lieferanten.get(int(s.lieferant_id), "") if s.lieferant_id else _gelesen_lieferant(gelesen, s.inventarnummer),
             0, 1, s.besonderheiten, werte.get(int(s.id), {}))
     return ergebnis
@@ -73,8 +73,11 @@ def bericht(sitzung: Any, pfad: Path) -> Bericht:
     if gelesen.fehler:
         return Bericht(gelesen, None)
     mid = sitzung.kontext.mandant_id
-    vorhanden = _vorhanden(sitzung.db, mid, {normalisiere(z.inventarnummer): z for z in gelesen.zeilen})
-    return Bericht(gelesen, import_plan.plane(gelesen.zeilen, vorhanden), 0, _unbekannt(sitzung.db, mid, gelesen.zeilen))
+    mit_kosten = bool(sitzung.darf("inventar", "kosten_pflegen"))
+    # Kaufdaten nimmt der Import nur mit `kosten_pflegen` an; sonst bleiben sie außen vor (auch im Vergleich mit dem Bestand)
+    zeilen = gelesen.zeilen if mit_kosten else tuple(replace(z, kaufdatum=None, kaufpreis=None) for z in gelesen.zeilen)
+    vorhanden = _vorhanden(sitzung.db, mid, {normalisiere(z.inventarnummer): z for z in zeilen}, mit_kosten)
+    return Bericht(gelesen, import_plan.plane(zeilen, vorhanden), 0, _unbekannt(sitzung.db, mid, zeilen))
 
 
 def einspielen(sitzung: Any, pfad: Path, quelle: str = "import") -> Bericht:
