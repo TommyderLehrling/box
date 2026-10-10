@@ -1,12 +1,12 @@
-# INTEGRATION_VSC — was VSC mit `digiassistenz_inventar` tut (L10, Box, 09.10.2026)
+# INTEGRATION_VSC — was VSC mit `digiassistenz_inventar` tut (L10–L12, Box, 10.10.2026)
 
 Gebaut gegen **KERN_STECKBRIEF_kern-0.15.2**. Alles hier gilt als Entwurf, bis es auf dem echten Kern läuft.
 
 ## 1. Was Box schon gefahren hat (Python 3.12.3, Wheel 0.15.2 nicht editierbar, PostgreSQL 16.15, Superuser)
 
-* `python -m pytest -q`: 257 passed, 0 skipped (auch mit `-W error`).
+* `python -m pytest -q`: 280 passed, 0 skipped (auch mit `-W error`).
 * Kette `k0001…k0004` → `i0001`, Startdaten, zweiter Start ändert nichts.
-* `tests/integration`: T-I-5 (8), Anwendungsfälle gegen die echte Datenbank (13), Modelle gegen Kette (2) — 23 passed.
+* `tests/integration`: T-I-5 (8), Anwendungsfälle gegen die echte Datenbank (13), Modelle gegen Kette (2), Seiten L11/L12 (5) — 28 passed.
 * Nicht gefahren: **T-I-6** (keine Belegerfassung), Docker (`compose.yml`, `docker/Dockerfile`), Konto ohne Superuser, Browser.
 
 ## 2. Einbauen
