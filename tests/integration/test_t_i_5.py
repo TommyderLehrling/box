@@ -5,7 +5,7 @@ Kern-Aufbau mit eigener Datenbank (`tests/integration/laufen.md`).
 
 ===================== ====================================================
 Installation          genau Kern + Inventar; `digiassistenz` nicht findbar
-Migration             `kern.` und `inventar.alembic_version`; 18 Tabellen; Konto ohne fremde Schemata
+Migration             `kern.` und `inventar.alembic_version`; 19 Tabellen; Konto ohne fremde Schemata
 Startdaten            9 + 11 Bausteine; Ergänzung wirkt; Kataloge da; zweiter Start ändert nichts
 Anmeldung             anmelden → `/inventar`; abmelden
 Menü                  Inventar, Hier, Fällig; kein toter Link; Verwaltungszeile in der zweiten Kopfzeile
@@ -77,7 +77,7 @@ def test_t_i_5_migration_nur_kern_und_inventar(box) -> None:
     finally:
         motor.dispose()
     assert {"kern", "inventar"} <= schemata and "beleg" not in schemata
-    assert tabellen == set(modelle.TABELLEN) | {"alembic_version"} and len(modelle.TABELLEN) == 18
+    assert tabellen == set(modelle.TABELLEN) | {"alembic_version"} and len(modelle.TABELLEN) == 19
     assert "inventar_nutzer" in rollen and erbt and "beleg_nutzer" not in rollen
     assert fremd == [], f"inventar_nutzer kommt an fremde Schemata: {fremd}"
 
