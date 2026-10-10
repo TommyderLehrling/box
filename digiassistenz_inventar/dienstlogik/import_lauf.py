@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,7 @@ from ..rein import import_plan, import_vorlage
 from ..rein.import_vorlage import ImportZeile, Leseergebnis
 from ..rein.nummernformat import normalisiere
 from . import katalog, nummer as nummernvergabe, stueck
+from . import zaehler as fachzaehler
 
 
 @dataclass(frozen=True)
@@ -26,6 +28,8 @@ class Bericht:
     lieferanten_unbekannt: tuple[str, ...] = ()  # Namen, die der Kern nicht kennt: es wird kein Lieferant angelegt
     ohne_recht: tuple[str, ...] = ()  # "<Nummer> (<Kostenstelle>)": Zeilen auf einer Kostenstelle ohne `pflegen`, nicht angelegt
     kaufdaten_uebersprungen: int = 0  # Zeilen mit Kaufpreis/-datum, die ohne `kosten_pflegen` nicht übernommen werden
+    zaehlerstaende: tuple[tuple[str, Decimal], ...] = ()  # (Nummer, Stand), die eingetragen werden (nach dem Einspielen: wurden)
+    zaehler_hinweise: tuple[tuple[str, str], ...] = ()  # (Text, Detail): Stand zu niedrig oder Stück ohne Zähler — nur vermerkt
 
 
 def _vorhanden(db: Any, mid: int, gelesen: dict[str, ImportZeile], mit_kosten: bool = True) -> dict[str, ImportZeile]:
@@ -59,6 +63,36 @@ def _unbekannt(db: Any, mid: int, zeilen: tuple[ImportZeile, ...]) -> tuple[str,
     return tuple(sorted({z.lieferant for z in zeilen if z.lieferant.strip() and z.lieferant.casefold() not in bekannt}))
 
 
+def _zahl(wert: Decimal) -> str:
+    """Eine Dezimalzahl ohne überzählige Nullen (120.000 → 120)."""
+    return format(wert.normalize(), "f")
+
+
+def _zaehlerplan(db: Any, mid: int, zeilen: tuple[ImportZeile, ...]) -> tuple[tuple[tuple[str, Decimal], ...], tuple[tuple[str, str], ...]]:
+    """Welche Zählerstände der Datei eingetragen werden und welche nur einen Hinweis bekommen (gleiche Plausibilität wie bei der Prüfung)."""
+    mit_stand = [z for z in zeilen if z.zaehlerstand is not None]
+    if not mit_stand:
+        return (), ()
+    nummern = {normalisiere(z.inventarnummer) for z in mit_stand}
+    bestand = {normalisiere(s.inventarnummer): s for s in db.execute(
+        select(m.Stueck).where(m.Stueck.mandant_id == mid, m.Stueck.inventarnummer.in_(nummern))).scalars()}
+    eintragen: list[tuple[str, Decimal]] = []
+    hinweise: list[tuple[str, str]] = []
+    for z in mit_stand:
+        nummer = normalisiere(z.inventarnummer)
+        zeile = bestand.get(nummer)
+        hat_zaehler = z.art == "gross" if zeile is None else zeile.zaehler_einheit is not None
+        if not hat_zaehler:
+            hinweise.append(("import.hinweis.zaehlerstand_ohne_zaehler", nummer))
+            continue
+        letzter = None if zeile is None else fachzaehler.letzter_stand(db, mid, int(zeile.id))
+        if letzter is not None and z.zaehlerstand < letzter:
+            hinweise.append(("import.hinweis.zaehlerstand_zu_niedrig", f"{nummer}: {_zahl(z.zaehlerstand)} < {_zahl(letzter)}"))
+        elif letzter is None or z.zaehlerstand > letzter:
+            eintragen.append((nummer, z.zaehlerstand))
+    return tuple(eintragen), tuple(hinweise)
+
+
 def pruefen(sitzung: Any, pfad: Path) -> Leseergebnis:
     """Liest die Datei gegen die Kataloge und Kostenstellen dieses Mandanten; Fehler stehen je Zeile im Ergebnis."""
     if not sitzung.darf("inventar", "pflegen"):
@@ -84,7 +118,9 @@ def bericht(sitzung: Any, pfad: Path) -> Bericht:
     uebersprungen = 0 if mit_kosten else sum(1 for z in erlaubt if z.kaufdatum is not None or z.kaufpreis is not None)
     zeilen = tuple(erlaubt) if mit_kosten else tuple(replace(z, kaufdatum=None, kaufpreis=None) for z in erlaubt)
     vorhanden = _vorhanden(sitzung.db, mid, {normalisiere(z.inventarnummer): z for z in zeilen}, mit_kosten)
-    return Bericht(gelesen, import_plan.plane(zeilen, vorhanden), 0, _unbekannt(sitzung.db, mid, zeilen), ohne_recht, uebersprungen)
+    staende, hinweise = _zaehlerplan(sitzung.db, mid, zeilen)
+    return Bericht(gelesen, import_plan.plane(zeilen, vorhanden), 0, _unbekannt(sitzung.db, mid, zeilen), ohne_recht, uebersprungen,
+                   staende, hinweise)
 
 
 def einspielen(sitzung: Any, pfad: Path, quelle: str = "import") -> Bericht:
@@ -92,7 +128,19 @@ def einspielen(sitzung: Any, pfad: Path, quelle: str = "import") -> Bericht:
     erg = bericht(sitzung, pfad)
     if erg.plan is None:
         raise ValueError("import_lauf.fehler_in_datei")
-    return replace(erg, angelegt=anlegen(sitzung, erg.plan.neu, quelle))
+    angelegt = anlegen(sitzung, erg.plan.neu, quelle)
+    # Zählerstände erst nach dem Anlegen (die neuen Stücke brauchen ihre Zeile); ein Stand unter dem letzten wird nicht geführt, nur vermerkt
+    hinweise = list(erg.zaehler_hinweise)
+    eingetragen = []
+    for nummer, stand in erg.zaehlerstaende:
+        zeile = sitzung.db.execute(select(m.Stueck).where(m.Stueck.mandant_id == sitzung.kontext.mandant_id,
+                                                          m.Stueck.inventarnummer == nummer)).scalar_one()
+        satz, letzter = fachzaehler.eintragen(sitzung, zeile, stand, quelle, protokollieren=True)
+        if satz is None:
+            hinweise.append(("import.hinweis.zaehlerstand_zu_niedrig", f"{nummer}: {_zahl(stand)} < {_zahl(letzter)}"))
+        else:
+            eingetragen.append((nummer, stand))
+    return replace(erg, angelegt=angelegt, zaehlerstaende=tuple(eingetragen), zaehler_hinweise=tuple(hinweise))
 
 
 def anlegen(sitzung: Any, zeilen: tuple[ImportZeile, ...] | list[ImportZeile], quelle: str = "import") -> int:

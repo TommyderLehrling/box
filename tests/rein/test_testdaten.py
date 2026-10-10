@@ -77,7 +77,7 @@ def test_T5_stuecke_bestehen_den_import(tmp_path: Path):
     for z in d.stuecke:
         ws.append([z.inventarnummer, z.bezeichnung, z.gruppe, z.art, z.hersteller, z.typ, z.seriennummer, z.baujahr,
                    z.kaufdatum.strftime("%d.%m.%Y"), str(z.kaufpreis), z.lieferant, z.kostenstelle, z.menge,
-                   z.besonderheiten] + [z.merkmale.get(k) for k in namen])
+                   z.besonderheiten, z.zaehlerstand] + [z.merkmale.get(k) for k in namen])
     datei = tmp_path / "test.xlsx"
     wb.save(datei)
     zeilen, fehler = lies(datei, GRUPPEN, MERKMALE, KS, MUSTER, STICHTAG)

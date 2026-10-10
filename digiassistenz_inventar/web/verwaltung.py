@@ -313,7 +313,9 @@ def _bericht_zeilen(erg: import_lauf.Bericht) -> dict[str, Any]:
         "je_gruppe": [] if plan is None else [{"gruppe": z.gruppe, "art": z.art, "neu": z.neu, "unveraendert": z.unveraendert,
                                                 "abweichend": z.abweichend} for z in plan.bericht],
         "abweichungen": ([] if plan is None else [{"text": h.text_schluessel, "detail": h.detail} for h in plan.hinweise])
-                        + [{"text": "import.hinweis.kostenstelle_ohne_recht", "detail": d} for d in erg.ohne_recht],
+                        + [{"text": "import.hinweis.kostenstelle_ohne_recht", "detail": d} for d in erg.ohne_recht]
+                        + [{"text": text, "detail": d} for text, d in erg.zaehler_hinweise],
+        "zaehlerstaende": len(erg.zaehlerstaende),
         "kaufdaten_uebersprungen": erg.kaufdaten_uebersprungen,
         "neu": 0 if plan is None else len(plan.neu), "angelegt": erg.angelegt, "unbekannte_lieferanten": list(erg.lieferanten_unbekannt),
     }

@@ -933,5 +933,9 @@
   "inventar.land.SH": "Schleswig-Holstein (SH)",
   "inventar.land.TH": "Thüringen (TH)",
   "inventar.inventur.menge_vor_ort": "Menge vor Ort",
-  "inventar.inventur.menge_hinweis": "Gebucht sind {buch}. Die Zahl wird nur für die Inventur gemerkt, gebucht wird nichts; was fehlt, erscheint als Fehlmenge."
+  "inventar.inventur.menge_hinweis": "Gebucht sind {buch}. Die Zahl wird nur für die Inventur gemerkt, gebucht wird nichts; was fehlt, erscheint als Fehlmenge.",
+  "inventar.import.fehler.zaehlerstand_ungueltig": "Der Zählerstand ist keine Zahl oder negativ",
+  "inventar.import.hinweis.zaehlerstand_zu_niedrig": "Stück {detail}: Zählerstand liegt unter dem letzten und wurde nicht eingetragen",
+  "inventar.import.hinweis.zaehlerstand_ohne_zaehler": "Stück {detail}: das Stück hat keinen Zähler, der Zählerstand wurde nicht eingetragen",
+  "inventar.import.zaehlerstaende": "Zählerstände aus der Datei: {anzahl}"
 }

@@ -17,10 +17,12 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from .kataloge import Gruppe, Merkmal
 from .nummernformat import Muster, entspricht, normalisiere
 
-SPALTEN = (
+SPALTEN_ALT = (
     "Inventarnummer", "Bezeichnung", "Gruppe", "Art", "Hersteller", "Typ", "Seriennummer",
     "Baujahr", "Kaufdatum", "Kaufpreis", "Lieferant", "Kostenstelle", "Menge", "Besonderheiten",
 )
+ZAEHLERSTAND = "Zählerstand"
+SPALTEN = SPALTEN_ALT + (ZAEHLERSTAND,)  # Dateien ohne die letzte Spalte (bis L15) werden weiter gelesen
 ARTEN = ("gross", "klein", "menge")
 BLATT = "Inventar"
 LISTEN = "Listen"
@@ -33,7 +35,7 @@ FEHLER_SCHLUESSEL = (
     "import.fehler.baujahr_bereich", "import.fehler.nummer_doppelt", "import.fehler.nummer_muster",
     "import.fehler.merkmal_unbekannt_fuer_gruppe", "import.fehler.merkmal_pflicht_fehlt",
     "import.fehler.merkmal_zahl", "import.fehler.merkmal_datum", "import.fehler.merkmal_ja_nein",
-    "import.fehler.merkmal_auswahl",
+    "import.fehler.merkmal_auswahl", "import.fehler.zaehlerstand_ungueltig",
 )
 HINWEIS_BEISPIEL = "import.hinweis.beispiel_uebersprungen"
 BEISPIEL_MARKE = "BEISPIEL"  # Besonderheiten beginnt damit: Zeile wird ignoriert
@@ -73,6 +75,7 @@ class ImportZeile:
     menge: int
     besonderheiten: str
     merkmale: dict[str, str]
+    zaehlerstand: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -240,10 +243,14 @@ def lies_mit_hinweisen(
     while kopf and not kopf[-1]:
         kopf.pop()
     fehler: list[ImportFehler] = []
-    if tuple(kopf[: len(SPALTEN)]) != SPALTEN:
+    if tuple(kopf[: len(SPALTEN)]) == SPALTEN:
+        festes = len(SPALTEN)
+    elif tuple(kopf[: len(SPALTEN_ALT)]) == SPALTEN_ALT:
+        festes = len(SPALTEN_ALT)
+    else:
         return Leseergebnis((), (ImportFehler(1, "", "import.fehler.kopf_ungueltig", ";".join(kopf)),), ())
     fehler += [ImportFehler(1, name, "import.fehler.spalte_unbekannt", name)
-               for name in kopf[len(SPALTEN):] if not name.startswith("m:") or len(name) == 2]
+               for name in kopf[festes:] if not name.startswith("m:") or len(name) == 2]
     ok: dict[int, ImportZeile] = {}
     hinweise: list[ImportHinweis] = []
     beispiele: set[int] = set()
@@ -312,9 +319,15 @@ def lies_mit_hinweisen(
                 fehl("Kaufpreis", "import.fehler.kaufpreis_ungueltig")
             elif kaufpreis < 0:
                 fehl("Kaufpreis", "import.fehler.kaufpreis_negativ")
+        zaehlerstand = None
+        if _text(werte.get(ZAEHLERSTAND)) != "":
+            zaehlerstand = _zahl(werte[ZAEHLERSTAND])
+            if zaehlerstand is None or zaehlerstand < 0:
+                zaehlerstand = None
+                fehl(ZAEHLERSTAND, "import.fehler.zaehlerstand_ungueltig")
         werte_m: dict[str, str] = {}
         erlaubt = je_gruppe.get(gruppe, {})
-        for name in kopf[len(SPALTEN):]:
+        for name in kopf[festes:]:
             if not name.startswith("m:") or _text(werte[name]) == "":
                 continue
             m = erlaubt.get(name[2:])
@@ -336,7 +349,7 @@ def lies_mit_hinweisen(
             ok[nr] = ImportZeile(
                 nr, nummer, _text(werte["Bezeichnung"]), gruppe, art, _text(werte["Hersteller"]),
                 _text(werte["Typ"]), _text(werte["Seriennummer"]), baujahr, kaufdatum, kaufpreis,
-                _text(werte["Lieferant"]), ks or 0, menge, _text(werte["Besonderheiten"]), werte_m)
+                _text(werte["Lieferant"]), ks or 0, menge, _text(werte["Besonderheiten"]), werte_m, zaehlerstand)
     nummern: dict[str, list[int]] = {}
     for z in _nummern(ws, beispiele):
         nummern.setdefault(z[1], []).append(z[0])

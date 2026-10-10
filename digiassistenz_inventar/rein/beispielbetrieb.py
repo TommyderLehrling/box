@@ -199,5 +199,5 @@ def schreibe_importdatei(b: Beispielbetrieb, pfad: Path, merkmale: Iterable[Merk
         z = s.zeile
         ws.append([z.inventarnummer, z.bezeichnung, z.gruppe, z.art, z.hersteller, z.typ, z.seriennummer, z.baujahr,
                    z.kaufdatum, float(z.kaufpreis) if z.kaufpreis is not None else None, z.lieferant, z.kostenstelle,
-                   z.menge, z.besonderheiten] + [z.merkmale.get(k) for k in schluessel])
+                   z.menge, z.besonderheiten, z.zaehlerstand] + [z.merkmale.get(k) for k in schluessel])
     wb.save(pfad)
