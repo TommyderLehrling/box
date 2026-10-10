@@ -108,4 +108,3 @@ def faellig_seite(
     _recht=Depends(gemeinsam.verlangt_eines(("inventar", "pruefen"), ("inventar", "werkstatt"))),
 ) -> HTMLResponse:
     return gemeinsam.seite(request, sitzung, "inventar_faellig.html", aktiv="inventar_faellig", hinweis=t("inventar.kommt_mit_g3"))
-

@@ -9,6 +9,7 @@ from __future__ import annotations
 import io
 import re
 import uuid
+from decimal import Decimal
 
 import pytest
 from openpyxl import Workbook
@@ -130,7 +131,7 @@ def test_stueck_anlegen_aendern_foto_status_zubehoer_zaehler_meldung_verlauf(box
     # Zählerstand: aufsteigend, Einheit vom Stück
     assert k.post(f"/inventar/stueck/{sid}/zaehlerstand", data={"stand": "120,5"}, follow_redirects=False).status_code == 303
     assert k.post(f"/inventar/stueck/{sid}/zaehlerstand", data={"stand": "100"}).status_code == 409
-    assert _db_ein("SELECT stand, einheit, quelle FROM inventar.zaehlerstand")[0] == (120.5, "h", "web") or str(_db_ein("SELECT stand FROM inventar.zaehlerstand")[0][0]) == "120.500"
+    assert _db_ein("SELECT stand, einheit, quelle FROM inventar.zaehlerstand")[0] == (Decimal("120.500"), "h", "web")
     # Schaden melden
     ks_id = _db_ein("SELECT kostenstelle_id FROM inventar.standort WHERE stueck_id = :i AND bis IS NULL", i=sid)[0][0]
     buchung = str(uuid.uuid4())
