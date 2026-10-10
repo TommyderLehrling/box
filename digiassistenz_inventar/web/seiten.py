@@ -1,4 +1,4 @@
-"""Die Inventarliste, ihr HTMX-Teil, das QR-Ziel und die Fällig-Seite (L13 füllt sie)."""
+"""Die Inventarliste, ihr HTMX-Teil und das QR-Ziel (die Fällig-Seite steht in `pruefungen.py`)."""
 
 from __future__ import annotations
 

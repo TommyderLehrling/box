@@ -191,13 +191,13 @@ def pruefart_speichern(sitzung: Any, schluessel: str, bezeichnung: str, interval
         soll = gruppen_schluessel in gruppen
         text = eigene_intervalle.get(gruppen_schluessel, "").strip()
         # je Gruppe darf das Intervall des Katalogs überschrieben werden; leer = das Intervall der Prüfart gilt
-        monate = _zahl(text, "katalog.intervall_ungueltig", ganz=True, minimum=1) if text and soll else None
+        gruppen_monate = _zahl(text, "katalog.intervall_ungueltig", ganz=True, minimum=1) if text and soll else None
         if z is None and soll:
-            db.add(m.GruppePruefart(mandant_id=mid, gruppe_id=g.id, pruefart_id=zeile.id, intervall_monate=monate, aktiv=True))
+            db.add(m.GruppePruefart(mandant_id=mid, gruppe_id=g.id, pruefart_id=zeile.id, intervall_monate=gruppen_monate, aktiv=True))
         elif z is not None:
             z.aktiv = soll
             if gruppen_intervall is not None and soll:
-                z.intervall_monate = monate
+                z.intervall_monate = gruppen_monate
     db.flush()
     return zeile
 

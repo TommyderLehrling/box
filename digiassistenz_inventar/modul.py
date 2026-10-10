@@ -1,4 +1,4 @@
-"""Die Modulbeschreibung des Inventars — Muster: die Attrappe des Kerns (Steckbrief 0.15.2, Abschnitt 2 und 10).
+"""Die Modulbeschreibung des Inventars — Muster: die Attrappe des Kerns (Steckbrief 0.15.3, Abschnitt 2 und 10).
 
 Was hier steht, sagt das Modul dem Kern über sich. Vertrag: Namen und Wege sind wörtlich Auftrag 03, Abschnitt 4.
 Kein Import eines anderen Moduls; der Schlüssel der Baustelle steht nur als Konstante `MODUL_BAUSTELLE` in der

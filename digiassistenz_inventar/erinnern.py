@@ -13,8 +13,8 @@ import logging
 import signal
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
 from contextlib import AbstractContextManager
+from dataclasses import dataclass
 from typing import Any
 
 from digiassistenz_kern import hochlauf, zeit
