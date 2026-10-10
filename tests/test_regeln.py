@@ -127,3 +127,15 @@ def test_kein_fremdschluessel_in_ein_anderes_modulschema():
 def test_modul_und_rechte_nennen_keinen_fremden_baustein(datei):
     for _, wert in texte_im_code(PAKET / datei):
         assert not wert.startswith(("beleg.", "rechnung.", "baustelle.", "app.")) or wert == "app.modul", wert
+
+
+def test_pyflakes_findet_keine_ungenutzten_importe_und_keine_toten_namen():
+    """Der Lauf von GER (Auftrag 07): rot bei ungenutzten Importen, damit sie nicht wiederkommen. Braucht das Paket `pyflakes`."""
+    import io
+
+    from pyflakes import api, reporter
+
+    aus, fehler = io.StringIO(), io.StringIO()
+    for p in DATEIEN:
+        api.checkPath(str(p), reporter.Reporter(aus, fehler))
+    assert aus.getvalue() == "" and fehler.getvalue() == "", aus.getvalue() + fehler.getvalue()

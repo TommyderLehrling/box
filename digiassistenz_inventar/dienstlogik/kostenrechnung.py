@@ -178,6 +178,7 @@ class StueckKosten:
     reparaturen_belegt: Decimal
     reparaturen_geschaetzt: Decimal
     gesamt: Decimal | None
+    reparaturen_geplant: Decimal | None  # kalkulatorisch: volle Monate seit Kauf × Reparaturanteil je Monat
     hat_zaehler: bool = False
 
 
@@ -203,8 +204,11 @@ def stueck_kosten(db: Any, mandant_id: int, stuecke: list[m.Stueck], heute: dt.d
         if satz.satz_monat is not None and s.kaufdatum is not None and satz.nutzungsdauer_monate:
             kalk = rein_kosten.kalkulatorisch_aus_satz(satz.satz_monat, satz.nutzungsdauer_monate, s.kaufdatum, heute)
         gesamt = None if s.kaufpreis is None else rein_kosten.gesamtkosten(s.kaufpreis, [belegt, geschaetzt])
+        geplant = None
+        if s.kaufdatum is not None and satz.kaufpreis is not None and satz.reparatur_prozent_jahr is not None:
+            geplant = rein_kosten.reparatur_geplant(satz.kaufpreis, satz.reparatur_prozent_jahr, s.kaufdatum, heute)
         ergebnis.append(StueckKosten(int(s.id), s.inventarnummer, s.bezeichnung, gruppen.get(int(s.gruppe_id), ""), s.kaufdatum, s.kaufpreis,
-                                     satz, kalk, belegt, geschaetzt, gesamt, s.zaehler_einheit is not None))
+                                     satz, kalk, belegt, geschaetzt, gesamt, geplant, s.zaehler_einheit is not None))
     return ergebnis
 
 
@@ -453,6 +457,23 @@ def exportieren(sitzung: Any, block: str, von: dt.date, bis: dt.date, arbeitsord
     if block not in kostenexport.BLOECKE:
         raise ValueError("kosten.block_unbekannt")
     return schreibe_csv(sitzung, block, zeilen_fuer_export(sitzung, block, von, bis, kostenstelle, gruppe, vergleich), arbeitsordner)
+
+
+def auszug_lesen(sitzung: Any, dateiname: str, arbeitsordner: Path) -> tuple[str, bytes]:
+    """Eine CSV aus dem Exportordner zum Herunterladen — Recht `kosten_sehen`.
+
+    Nur eine Datei **direkt** in `export/` mit der Endung `.csv`; ein Pfad, ein Punkt am Anfang oder ein Weg aus dem Ordner heraus gilt als unbekannt.
+    Die Datei bleibt im Ordner liegen.
+    """
+    _fordern(sitzung, "kosten_sehen")
+    ordnername = sitzung.db.execute(select(Mandant.ordnername).where(Mandant.id == sitzung.kontext.mandant_id)).scalar_one()
+    ordner = dateien.exportordner(arbeitsordner, ordnername).resolve()
+    if not dateiname or dateiname != Path(dateiname).name or dateiname.startswith(".") or not dateiname.endswith(".csv"):
+        raise ValueError("kosten.auszug_unbekannt")
+    datei = (ordner / dateiname).resolve()
+    if datei.parent != ordner or not datei.is_file():
+        raise ValueError("kosten.auszug_unbekannt")
+    return datei.name, datei.read_bytes()
 
 
 def exportierte_dateien(sitzung: Any, arbeitsordner: Path, hoechstens: int = 20) -> list[str]:

@@ -130,6 +130,17 @@ def kalkulatorisch_aus_satz(satz_monat: Decimal, nutzungsdauer_monate: int, kauf
     return _runde(satz_monat * _volle_monate(kaufdatum, heute, nutzungsdauer_monate))
 
 
+def reparatur_geplant(kaufpreis: Decimal, reparatur_prozent_jahr: Decimal, kaufdatum: date, heute: date) -> Decimal:
+    """Volle Monate seit dem Kauf mal der Reparaturanteil je Monat (Kaufpreis mal Prozent je Jahr durch zwölf) — **ohne** Grenze bei der Nutzungsdauer.
+
+    Das ist die kalkulatorische Seite der Vergleichszeile; die echte (angefallene) Seite ist die Summe der erledigten Reparaturen.
+    """
+    if kaufpreis < 0 or reparatur_prozent_jahr < 0:
+        raise ValueError("kosten.prozent_ungueltig")
+    monate = _volle_monate(kaufdatum, heute, 10 ** 6)
+    return _runde(kaufpreis * reparatur_prozent_jahr / 100 / 12 * monate)
+
+
 def satz_aus_monat(satz_monat: Decimal, tage_je_monat: Decimal = Decimal("30")) -> tuple[Decimal, Decimal]:
     """Tages- und Wochensatz zu einem gegebenen Monatssatz; gerundet wird erst am Ende (Woche aus dem ungerundeten Tagessatz)."""
     if satz_monat < 0 or tage_je_monat <= 0:

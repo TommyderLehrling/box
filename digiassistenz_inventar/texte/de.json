@@ -827,7 +827,7 @@
   "inventar.kosten.herkunft.stueck": "Satz dieses Stücks",
   "inventar.kosten.herkunft.gruppe": "Satz der Gruppe",
   "inventar.kosten.herkunft.keiner": "kein Satz",
-  "inventar.kosten.gerechnet_am": "Gerechnet am",
+  "inventar.kosten.gerechnet_am": "Stand der Parameter",
   "inventar.kosten.satz_ueberschreiben": "Kostensatz überschreiben",
   "inventar.kosten.kaufpreis_basis": "Kaufpreisbasis",
   "inventar.kosten.satz_von_hand_hinweis": "Ohne Monatssatz rechnet die Box aus Nutzungsdauer, Zins, Reparaturanteil und Restwert; ein hier eingetragener Monatssatz gilt statt der Rechnung. Die Kaufpreisbasis gilt nur, wenn das Stück keinen Kaufpreis hat.",
@@ -874,5 +874,13 @@
   "hilfe.inventar_inventur.danach": "Gesehen heißt gescannt oder angekommen seit dem Stichtag. Nichts wird von selbst als vermisst eingetragen; wer es tut, nennt den Grund, und der Verlauf des Stücks hält es fest.",
   "inventar.einstellung.inventur_stichtag": "Stichtag der Inventur",
   "inventar.code.kosten.block_unbekannt": "Diesen Auszug gibt es nicht",
-  "inventar.code.kosten.spaltenzahl": "Eine Zeile des Auszugs passt nicht zur Kopfzeile"
+  "inventar.code.kosten.spaltenzahl": "Eine Zeile des Auszugs passt nicht zur Kopfzeile",
+  "inventar.werkstatt.nicht_zugestellt.keine_adresse": "✉ nicht zugestellt (keine Adresse)",
+  "inventar.werkstatt.nicht_zugestellt.fehler": "✉ nicht zugestellt (Fehler beim Einreihen)",
+  "inventar.kosten.reparaturen_vergleich": "Reparaturen: geplant (kalkulatorisch) / angefallen (echt)",
+  "inventar.kosten.reparaturen_geplant": "Reparaturen geplant (kalkulatorisch)",
+  "inventar.kosten.reparaturen_angefallen": "Reparaturen angefallen (echt)",
+  "inventar.kosten.reparaturen_hinweis": "Geplant: volle Monate seit Kauf mal Reparaturanteil je Monat. Angefallen: Summe der erledigten Reparaturen. Beides wird nicht addiert.",
+  "inventar.kosten.herunterladen": "Herunterladen",
+  "inventar.code.kosten.auszug_unbekannt": "Diesen Auszug gibt es nicht"
 }

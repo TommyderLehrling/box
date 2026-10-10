@@ -14,7 +14,7 @@ from digiassistenz_kern.web import gemeinsam
 from .. import modelle as m
 from ..rein import stueck_status
 from ..rein.nummernformat import normalisiere
-from . import katalog, laden, nummer as nummernvergabe
+from . import laden, nummer as nummernvergabe
 
 OBJEKT_TYP = "inventar.stueck"
 

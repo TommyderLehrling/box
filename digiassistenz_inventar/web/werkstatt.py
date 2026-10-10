@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import select
-from digiassistenz_kern import Benutzer, Lieferant
+from digiassistenz_kern import Lieferant
 from digiassistenz_kern.sitzung import Sitzung
 from digiassistenz_kern.web import gemeinsam, wahlfeld
 
@@ -66,8 +66,7 @@ def werkstatt_seite(
 ) -> HTMLResponse:
     ziel = _ziel_meldung(sitzung, neu_meldung) or _ziel_stueck(sitzung, neu_stueck)
     ziel_abschluss = _ziel_abschluss(sitzung, abschluss)
-    benutzer = [(int(b.id), b.name) for b in sitzung.db.execute(sitzung.abfrage(Benutzer).where(Benutzer.aktiv).order_by(Benutzer.name)).scalars()] \
-        if ziel_abschluss is not None and ziel_abschluss["durchfuehrung"] == "intern" else []
+    benutzer = werkstatt.personen_auswahl(sitzung) if ziel_abschluss is not None and ziel_abschluss["durchfuehrung"] == "intern" else []
     return gemeinsam.seite(
         request, sitzung, "inventar_werkstatt.html", aktiv="inventar_werkstatt", p=werkstatt.posteingang(sitzung),
         fertig=fertig if fertig in FERTIG else "", ziel=ziel, abschluss=ziel_abschluss, benutzer_auswahl=benutzer,

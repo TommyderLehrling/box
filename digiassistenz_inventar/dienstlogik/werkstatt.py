@@ -18,7 +18,8 @@ from typing import Any
 
 from sqlalchemy import select
 
-from digiassistenz_kern import Lieferant, protokoll, zeit
+from digiassistenz_kern import Benutzer, BenutzerRecht, Lieferant, Protokoll, protokoll, zeit
+from digiassistenz_kern import rechte as kern_rechte
 from digiassistenz_kern.texte import t
 from digiassistenz_kern.web import gemeinsam
 
@@ -34,6 +35,9 @@ OBJEKT_TYP = "inventar.stueck"
 ERLEDIGTE_ZEIGEN = 30
 MELDUNG_NEU = ("angenommen", "in_arbeit", "erledigt", "zurueckgezogen")
 REPARATUR_AKTIONEN = ("beginnen", "abschliessen", "zurueckziehen", "rechnung")
+#: Vermerke im Verlauf des Stücks, die sagen, dass die Mail an den Melder nicht zugestellt wurde (Wert: Schlüssel des Hinweistexts)
+MAIL_VERMERK = {"inventar.mail_ohne_adresse": "keine_adresse", "inventar.mail_nicht_eingereiht": "fehler"}
+ERLEDIGUNG = ("inventar.meldung_erledigt", "inventar.meldung_zurueckgezogen")
 
 
 @dataclass(frozen=True)
@@ -108,6 +112,51 @@ def _vermerk(sitzung: Any, stueck: m.Stueck, aktion: str, neu_wert: str) -> None
 
 # ---- Posteingang -------------------------------------------------------------------------------------------------
 
+def personen_auswahl(sitzung: Any) -> list[tuple[int, str]]:
+    """Die aktiven Konten für „Durchgeführt von“: zuerst die mit dem Baustein `inventar.werkstatt`, dann die übrigen — je Gruppe nach Name.
+
+    Zwei Abfragen für alle (Konten, Rechtesätze), keine je Konto. Ein Entzug schlägt die Gewährung; befristete Sätze zählen nur, solange sie gelten.
+    """
+    db, heute = sitzung.db, zeit.heute()
+    konten = list(db.execute(sitzung.abfrage(Benutzer).where(Benutzer.aktiv).order_by(Benutzer.name, Benutzer.id)).scalars())
+    if not konten:
+        return []
+    saetze = db.execute(select(BenutzerRecht).where(
+        BenutzerRecht.modul == "inventar", BenutzerRecht.aktion == "werkstatt", BenutzerRecht.beendet_am.is_(None),
+        BenutzerRecht.benutzer_id.in_([int(b.id) for b in konten]))).scalars()
+    gewaehrt: set[int] = set()
+    entzogen: set[int] = set()
+    for s in saetze:
+        if kern_rechte.gilt_heute(s, heute):
+            (gewaehrt if s.gewaehrt else entzogen).add(int(s.benutzer_id))
+    werkstatt_konten = gewaehrt - entzogen
+    erst = [(int(b.id), b.name) for b in konten if int(b.id) in werkstatt_konten]
+    dann = [(int(b.id), b.name) for b in konten if int(b.id) not in werkstatt_konten]
+    return erst + dann
+
+
+def _nicht_zugestellt(sitzung: Any, meldungen: list[m.Meldung]) -> dict[int, str]:
+    """Meldung → Schlüssel des Hinweises „nicht zugestellt“, wenn der letzte Vermerk am Stück ein Mail-Vermerk ist.
+
+    Gilt für die jüngste erledigte Meldung je Stück (der Vermerk trägt nur das Stück). Eine Abfrage für alle Stücke.
+    """
+    erledigte = [z for z in meldungen if z.status == "erledigt"]
+    if not erledigte:
+        return {}
+    ids = {int(z.stueck_id) for z in erledigte}
+    letzte: dict[int, str] = {}
+    for sid, aktion in sitzung.db.execute(select(Protokoll.objekt_id, Protokoll.aktion).where(
+            Protokoll.mandant_id == sitzung.kontext.mandant_id, Protokoll.objekt_typ == OBJEKT_TYP, Protokoll.objekt_id.in_(ids),
+            Protokoll.aktion.in_(ERLEDIGUNG + tuple(MAIL_VERMERK))).order_by(Protokoll.id)).all():
+        letzte[int(sid)] = aktion
+    juengste: dict[int, m.Meldung] = {}
+    for z in erledigte:
+        alt = juengste.get(int(z.stueck_id))
+        if alt is None or (z.erledigt_am, z.id) > (alt.erledigt_am, alt.id):
+            juengste[int(z.stueck_id)] = z
+    return {int(z.id): MAIL_VERMERK[letzte[sid]] for sid, z in juengste.items() if letzte.get(sid) in MAIL_VERMERK}
+
+
 def posteingang(sitzung: Any) -> Posteingang:
     """Was bei der Werkstatt liegt: Meldungen nach Stand, Reparaturen und die Stücke, die in Reparatur sind."""
     db, mid = sitzung.db, sitzung.kontext.mandant_id
@@ -138,6 +187,8 @@ def posteingang(sitzung: Any) -> Posteingang:
         if any(r.lieferant_id for r in offene_rep + fertige_rep) else {}
     laufende_je_stueck = {int(r.stueck_id) for r in offene_rep if r.status == "in_arbeit"}
 
+    nicht_zugestellt = _nicht_zugestellt(sitzung, zeilen)
+
     def meldung_zeile(z: m.Meldung) -> dict[str, Any]:
         s = stuecke.get(int(z.stueck_id))
         return {
@@ -146,7 +197,7 @@ def posteingang(sitzung: Any) -> Posteingang:
             "beschreibung": z.beschreibung, "ort": orte.get(int(z.kostenstelle_id), ""), "status": z.status, "am": z.gemeldet_am,
             "von": personen.get(int(z.gemeldet_von), "") if z.gemeldet_von else "",
             "bearbeiter": personen.get(int(z.bearbeitet_von), "") if z.bearbeitet_von else "", "erledigt_am": z.erledigt_am,
-            "rueckmeldung": z.rueckmeldung, "hat_foto": bool(z.foto_sha256)}
+            "rueckmeldung": z.rueckmeldung, "hat_foto": bool(z.foto_sha256), "nicht_zugestellt": nicht_zugestellt.get(int(z.id), "")}
 
     def reparatur_zeile(r: m.Reparatur) -> dict[str, Any]:
         s = stuecke.get(int(r.stueck_id))

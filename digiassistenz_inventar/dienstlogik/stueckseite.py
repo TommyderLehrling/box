@@ -163,7 +163,7 @@ def daten(sitzung: Any, stueck: m.Stueck) -> dict[str, Any]:
             "miete": stueck.miete, "mietkosten": stueck.mietkosten, "miet_von": stueck.miet_von, "miet_bis": stueck.miet_bis,
             "satz_monat": satz.satz_monat, "satz_tag": satz.satz_tag, "satz_woche": satz.satz_woche, "satz_quelle": satz.quelle,
             "satz_herkunft": satz.herkunft, "gerechnet_am": satz.gerechnet_am, "hinweis": satz.hinweis, "kalkulatorisch": k.kalkulatorisch,
-            "reparaturen_belegt": k.reparaturen_belegt, "reparaturen_geschaetzt": k.reparaturen_geschaetzt, "gesamt": k.gesamt,
+            "reparaturen_belegt": k.reparaturen_belegt, "reparaturen_geschaetzt": k.reparaturen_geschaetzt, "reparaturen_geplant": k.reparaturen_geplant, "gesamt": k.gesamt,
             "form": {"nutzungsdauer": satz.nutzungsdauer_monate or "", "zins": satz.zins_prozent if satz.zins_prozent is not None else "",
                      "reparatur": satz.reparatur_prozent_jahr if satz.reparatur_prozent_jahr is not None else "",
                      "restwert": satz.restwert if satz.restwert is not None else "", "restwert_prozent": satz.restwert_prozent if satz.restwert_prozent is not None else ""}}

@@ -6,7 +6,7 @@ requires-python = ">=3.12"
 dependencies = ["digiassistenz-kern>=0.15.3", "openpyxl", "segno", "weasyprint"]
 
 [project.optional-dependencies]
-pruefung = ["pytest", "httpx"]
+pruefung = ["pytest", "httpx", "pyflakes"]
 
 [project.entry-points."digiassistenz.module"]
 inventar = "digiassistenz_inventar.modul:BESCHREIBUNG"

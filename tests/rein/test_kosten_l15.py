@@ -11,6 +11,7 @@ from digiassistenz_inventar.rein.kosten import (
     kalkulatorisch_aus_satz,
     kalkulatorisch_bis,
     kostensatz,
+    reparatur_geplant,
     satz_aus_monat,
     vorhaltung,
 )
@@ -151,3 +152,22 @@ def test_L15_13_alle_bloecke_haben_einen_kopf_und_der_dateiname_traegt_den_zeits
         dateiname("gibtsnicht", zeit)
     assert csv_text("anlagenbuch", [("BM-1", "Bagger", "Baumaschinen", date(2020, 3, 15), D("1000"), "Händler", None, "")]).split("\r\n")[1] == \
         "BM-1;Bagger;Baumaschinen;2020-03-15;1000;Händler;;"
+
+
+# ---- L15a: Vergleichszeile „geplant / angefallen“ -------------------------------------------------------------------
+
+def test_L15a_1_reparatur_geplant_ist_volle_monate_mal_anteil_je_monat():
+    """Bagger 150.000 EUR, 12 % je Jahr = 1.500,00 je Monat; Kauf am 15.01.2024, am 15.01.2026 sind es 24 volle Monate: 36.000,00."""
+    kauf = date(2024, 1, 15)
+    assert reparatur_geplant(D("150000"), D("12"), kauf, date(2026, 1, 15)) == D("36000.00")
+    assert reparatur_geplant(D("150000"), D("12"), kauf, date(2026, 1, 14)) == D("34500.00"), "23 volle Monate"
+    assert reparatur_geplant(D("150000"), D("12"), kauf, date(2023, 6, 1)) == D("0.00"), "vor dem Kauf nichts"
+    assert reparatur_geplant(D("1200"), D("2.5"), kauf, date(2026, 1, 15)) == D("60.00"), "24 Monate mal 2,50"
+
+
+def test_L15a_2_geplant_hat_keine_grenze_bei_der_nutzungsdauer_im_gegensatz_zu_kalkulatorisch():
+    kauf = date(2020, 1, 1)
+    assert reparatur_geplant(D("1200"), D("12"), kauf, date(2030, 1, 1)) == D("1440.00"), "120 Monate mal 12,00, obwohl die Nutzungsdauer kürzer ist"
+    assert kalkulatorisch_aus_satz(D("10"), 12, kauf, date(2030, 1, 1)) == D("120.00")
+    with pytest.raises(ValueError, match="prozent_ungueltig"):
+        reparatur_geplant(D("100"), D("-1"), kauf, date(2026, 1, 1))

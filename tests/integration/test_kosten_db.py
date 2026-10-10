@@ -152,6 +152,14 @@ def test_miete_gegen_eigen_und_zaehlerverlauf(box) -> None:
     monate = (HEUTE.year - 2024) * 12 + HEUTE.month - 1 - (1 if HEUTE.day < 15 else 0)
     erwartet = (Decimal("3156.25") * monate).quantize(Decimal("0.01"))
     assert f"{erwartet:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") in zeile
+    # Vergleichszeile (L15a): geplant = volle Monate × Reparaturanteil je Monat (12 % von 150.000 = 1.500), angefallen = erledigte Reparaturen (hier keine)
+    geplant = (Decimal("1500") * monate).quantize(Decimal("0.01"))
+    deutsch = lambda wert: f"{wert:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")  # noqa: E731
+    assert deutsch(geplant) in zeile.split("Reparaturen geplant", 1)[0] or deutsch(geplant) in zeile
+    vergleich = k.get(f"/inventar/stueck/{eigen}").text.split('id="kosten-reparaturen-vergleich"', 1)[1].split("</tr>", 1)[0]
+    assert "Reparaturen: geplant (kalkulatorisch) / angefallen (echt)" in vergleich and f"{deutsch(geplant)} / 0,00" in vergleich
+    ohne_kaufdatum = _stueck(k, "Ohne Kaufdatum", kaufpreis="1000")
+    assert "— / 0,00" in k.get(f"/inventar/stueck/{ohne_kaufdatum}").text.split('id="kosten-reparaturen-vergleich"', 1)[1].split("</tr>", 1)[0]
     # Zählerstände mit Quelle im Verlauf des Stücks
     assert k.post(f"/inventar/stueck/{eigen}/zaehlerstand", data={"stand": "1000"}, follow_redirects=False).status_code == 303
     assert k.post(f"/inventar/stueck/{eigen}/zaehlerstand", data={"stand": "900"}).status_code == 409, "unter dem letzten Stand: abgelehnt, mit Hinweis"
@@ -188,6 +196,20 @@ def test_csv_auszug_liegt_im_exportordner_und_wird_nie_ueberschrieben(box) -> No
     seite = k.get("/inventar/kosten").text.split('id="exporte"', 1)[1]
     assert "kosten_stueck_" in seite and "kosten_anlagenbuch_" in seite
     assert _db("SELECT count(*) FROM kern.protokoll WHERE aktion = 'inventar.kosten_export'")[0][0] == 5
+    # Download (L15a): nur CSV direkt aus export/, als Anhang, die Datei bleibt liegen
+    name = erste[0].name
+    laden = k.get(f"/inventar/kosten/auszug/{name}")
+    assert laden.status_code == 200 and laden.content == inhalt and laden.headers["content-type"].startswith("text/csv")
+    assert laden.headers["content-disposition"] == f'attachment; filename="{name}"' and laden.headers["x-content-type-options"] == "nosniff"
+    assert erste[0].exists() and f"/inventar/kosten/auszug/{name}" in k.get("/inventar/kosten").text
+    (ordner / "etiketten_x.pdf").write_bytes(b"%PDF-1.4")
+    (ordner / ".versteckt.csv").write_bytes(b"x")
+    (ordner.parent / "import").mkdir(exist_ok=True)
+    (ordner.parent / "import" / "geheim.csv").write_bytes(b"geheim")
+    for falsch in ("etiketten_x.pdf", ".versteckt.csv", "gibtsnicht.csv", "kosten_stueck_x.txt", "..%2Fimport%2Fgeheim.csv", "%2E%2E%2Fimport%2Fgeheim.csv"):
+        antwort = k.get(f"/inventar/kosten/auszug/{falsch}")
+        assert antwort.status_code in (404, 409) and b"geheim" not in antwort.content, (falsch, antwort.status_code)
+    assert "auszug/etiketten_x.pdf" not in k.get("/inventar/kosten").text, "ein PDF bekommt keinen Download-Link"
 
 
 def test_poliere_sehen_keine_preise_und_aendern_nichts(box) -> None:
@@ -201,6 +223,7 @@ def test_poliere_sehen_keine_preise_und_aendern_nichts(box) -> None:
     _tun("INSERT INTO kern.benutzer_kostenstelle (benutzer_id, kostenstelle_id) SELECT id, :a FROM kern.benutzer WHERE anmeldename = :n", a=a, n=POLIER)
     assert k.get("/inventar/kosten").status_code == 403
     assert k.post("/inventar/kosten/export", data={"block": "stueck"}).status_code == 403
+    assert k.get("/inventar/kosten/auszug/kosten_stueck_20260101-000000.csv").status_code == 403
     assert k.post(f"/inventar/stueck/{sid}/kostensatz", data={"nutzungsdauer": "60", "zins": "4", "reparatur": "1"}).status_code == 403
     assert k.post(f"/inventar/stueck/{sid}/miete", data={"miete": "1"}).status_code == 403
     seite = k.get(f"/inventar/stueck/{sid}")
@@ -247,7 +270,8 @@ def test_kostensatz_je_stueck_ueberschreibt_den_der_gruppe(box) -> None:
     k.post("/inventar/verwaltung/kostensaetze", data={"gruppe": "elektro", "nutzungsdauer": "36", "zins": "4", "reparatur": "2", "satz_monat": "10", "ab": "2026-01-01"})
     quellen = dict(_db("SELECT g.schluessel, ks.quelle FROM inventar.kostensatz ks JOIN inventar.gruppe g ON g.id = ks.gruppe_id WHERE ks.gueltig_ab = '2026-01-01'"))
     assert quellen == {"it": "gerechnet", "elektro": "manuell"}
-    assert "Gerechnet am" in k.get("/inventar/verwaltung/kostensaetze").text
+    seite_saetze = k.get("/inventar/verwaltung/kostensaetze").text
+    assert "Stand der Parameter" in seite_saetze and "Gerechnet am" not in seite_saetze
 
 
 def test_stichtags_inventur_schlaegt_nur_vor_und_setzt_nichts_von_selbst(box) -> None:

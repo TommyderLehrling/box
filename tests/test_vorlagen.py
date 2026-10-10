@@ -75,7 +75,7 @@ STUECK_SEITE = dict(
     kosten={"kaufpreis": Decimal("1000"), "kaufdatum": HEUTE, "buchwert_extern": None, "afa_hinweis": "", "miete": False, "mietkosten": None,
             "miet_von": None, "miet_bis": None, "satz_monat": Decimal("5"), "satz_tag": Decimal("0.17"), "satz_woche": Decimal("1.17"),
             "satz_quelle": "gerechnet", "satz_herkunft": "gruppe", "gerechnet_am": JETZT, "hinweis": "", "kalkulatorisch": Decimal("60"),
-            "reparaturen_belegt": Decimal("10"), "reparaturen_geschaetzt": Decimal("5"), "gesamt": Decimal("1015"),
+            "reparaturen_belegt": Decimal("10"), "reparaturen_geschaetzt": Decimal("5"), "reparaturen_geplant": Decimal("42"), "gesamt": Decimal("1015"),
             "form": {"nutzungsdauer": 96, "zins": Decimal("4"), "reparatur": Decimal("2"), "restwert": Decimal("100"), "restwert_prozent": ""}},
     verlauf=[{"am": JETZT, "text": "Stück angelegt", "alt": None, "neu": "BM-00001", "wer": "Eins", "fuer": "Zwei"}],
     lieferant="Händler", steht_auf="79795 Husum", seit=JETZT, angekuendigt_auf="79800 Nord", fertig="angelegt", wahl_nach=wahl("nach"),
@@ -92,7 +92,7 @@ STUECK_SEITE = dict(
 def _meldung_zeile(nr: int, status: str, **mehr):
     return {"id": nr, "stueck_id": 1, "nummer": "BM-00001", "bezeichnung": "Bagger", "stueck_status": "aktiv", "art": "schaden",
             "beschreibung": "Schlauch undicht", "ort": "79795 Husum", "status": status, "am": JETZT, "von": "Eins", "bearbeiter": "",
-            "erledigt_am": None, "rueckmeldung": "", "hat_foto": True, **mehr}
+            "erledigt_am": None, "rueckmeldung": "", "hat_foto": True, "nicht_zugestellt": "", **mehr}
 
 
 def _reparatur_zeile(nr: int, status: str, **mehr):
@@ -115,7 +115,7 @@ WERKSTATT = dict(
 KOSTEN_ZEILE = SimpleNamespace(
     id=1, nummer="BM-00001", bezeichnung="Bagger", gruppe="Baumaschinen", kaufdatum=HEUTE, kaufpreis=Decimal("1000"), hat_zaehler=True,
     satz=SimpleNamespace(satz_tag=Decimal("0.17"), satz_monat=Decimal("5"), quelle="gerechnet", hinweis=""), kalkulatorisch=Decimal("60"),
-    reparaturen_belegt=Decimal("10"), reparaturen_geschaetzt=Decimal("5"), gesamt=Decimal("1015"))
+    reparaturen_belegt=Decimal("10"), reparaturen_geschaetzt=Decimal("5"), reparaturen_geplant=Decimal("55.5"), gesamt=Decimal("1015"))
 KOSTEN_OHNE = SimpleNamespace(**{**vars(KOSTEN_ZEILE), "id": 2, "nummer": "BM-00002", "satz": SimpleNamespace(satz_tag=None, satz_monat=None, quelle="gerechnet", hinweis="kaufpreis_fehlt")})
 KOSTEN = dict(
     von="2026-10-01", bis="2026-10-31", zeitraum_ersetzt=False, kostenstelle="", gruppe="", vergleich="", gruppen=[("bm", "Baumaschinen")], wahl_ks=wahl(),
@@ -436,3 +436,38 @@ def test_stueck_seite_zeigt_kosten_nur_mit_recht_und_die_formulare_nur_mit_koste
     assert 'id="kosten-satz"' in ohne_pflegen and "/kostensatz" not in ohne_pflegen and "/miete" not in ohne_pflegen
     polier = render(umgebung, "inventar_stueck.html", kosten=None, **{**darf(False)})
     assert 'id="abschnitt-kosten"' not in polier and 'id="kosten-satz"' not in polier
+
+
+def test_werkstatt_zeigt_den_hinweis_nicht_zugestellt_nur_wo_der_vermerk_es_sagt(umgebung):
+    p = SimpleNamespace(**{**vars(WERKSTATT["p"]), "erledigt": [
+        _meldung_zeile(4, "erledigt", rueckmeldung="Schlauch getauscht", nicht_zugestellt="keine_adresse"),
+        _meldung_zeile(5, "erledigt", rueckmeldung="Lack", nicht_zugestellt="fehler"), _meldung_zeile(6, "erledigt")]})
+    html = render(umgebung, "inventar_werkstatt.html", p=p)
+    assert "✉ nicht zugestellt (keine Adresse)" in html.split('id="nicht-zugestellt-4"', 1)[1][:80]
+    assert "✉ nicht zugestellt (Fehler beim Einreihen)" in html.split('id="nicht-zugestellt-5"', 1)[1][:90]
+    assert 'id="nicht-zugestellt-6"' not in html and 'id="nicht-zugestellt-1"' not in render(umgebung, "inventar_werkstatt.html")
+
+
+def test_kosten_seite_hat_die_vergleichszeile_den_download_und_die_beschriftung(umgebung):
+    html = render(umgebung, "inventar_kosten.html")
+    block = html.split('id="kosten-stueck"', 1)[1].split("</section>", 1)[0]
+    assert "Reparaturen geplant (kalkulatorisch)" in block and "Reparaturen angefallen (echt)" in block and "55,50" in block
+    assert 'href="/inventar/kosten/auszug/kosten_stueck_20261010-101010.csv"' in html and "Herunterladen" in html
+    assert "Beides wird nicht addiert" in html
+
+
+def test_stueck_seite_hat_die_vergleichszeile_und_stand_der_parameter(umgebung):
+    html = render(umgebung, "inventar_stueck.html")
+    zeile = html.split('id="kosten-reparaturen-vergleich"', 1)[1].split("</tr>", 1)[0]
+    assert "Reparaturen: geplant (kalkulatorisch) / angefallen (echt)" in zeile and "42,00 / 15,00" in zeile
+    assert "Stand der Parameter" in html and "Gerechnet am" not in html
+    assert "Stand der Parameter" in render(umgebung, "inventar_verwaltung_kostensaetze.html") and "Gerechnet am" not in render(umgebung, "inventar_verwaltung_kostensaetze.html")
+
+
+def test_inventur_seite_verlinkt_den_download_nur_mit_kosten_sehen(umgebung):
+    mit = render(umgebung, "inventar_verwaltung_inventur.html", exporte=["inventar/x/export/inventur_20261010-101010.csv", "inventar/x/export/etiketten_1.pdf"])
+    assert 'href="/inventar/kosten/auszug/inventur_20261010-101010.csv"' in mit and "etiketten_1.pdf</code></li>" in mit
+    assert "auszug/etiketten_1.pdf" not in mit
+    ohne = render(umgebung, "inventar_verwaltung_inventur.html", exporte=["inventar/x/export/inventur_20261010-101010.csv"],
+                  **{**darf(False), "darf_sehen": True, "darf_stilllegen": True})
+    assert "/inventar/kosten/auszug/" not in ohne

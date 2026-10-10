@@ -53,6 +53,6 @@
 
 {% if exporte %}
 <section id="exporte"><h2>{{ t("inventar.kosten.exportiert") }}</h2>
-  <ul>{% for pfad in exporte %}<li><code>{{ pfad }}</code></li>{% endfor %}</ul></section>
+  <ul>{% for pfad in exporte %}{% set name = pfad.split("/")[-1] %}<li><code>{{ pfad }}</code>{% if darf_kosten_sehen and name.endswith(".csv") %} · <a href="/inventar/kosten/auszug/{{ name|urlencode }}">{{ t("inventar.kosten.herunterladen") }}</a>{% endif %}</li>{% endfor %}</ul></section>
 {% endif %}
 {% endblock %}

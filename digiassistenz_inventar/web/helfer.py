@@ -81,6 +81,12 @@ def datum(text: str) -> dt.date | None:
         raise ValueError("web.datum_ungueltig") from None
 
 
+def csv_download(name: str, inhalt: bytes) -> Response:
+    """Eine CSV als Download (`attachment`), ohne Raten durch den Browser."""
+    return Response(inhalt, media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="{name}"', "X-Content-Type-Options": "nosniff"})
+
+
 def datei_antwort(name: str, inhalt: bytes) -> Response:
     """Ein Foto zum Ansehen: im Browser (`inline`), der Typ aus dem Anfang der Datei, ohne Raten durch den Browser."""
     typ = "image/png" if inhalt.startswith(b"\x89PNG") else "image/jpeg"

@@ -309,12 +309,13 @@
     <tr><td>{{ t("inventar.kosten.satz_monat") }}</td><td class="zahl">{% if kosten.satz_monat is not none %}{{ kosten.satz_monat|betrag }}{% else %}{{ ""|oder_strich }}{% endif %}</td></tr>
     <tr><td>{{ t("inventar.kosten.kalkulatorisch_bis") }}</td><td class="zahl">{{ kosten.kalkulatorisch|betrag }}</td></tr>
     <tr><td>{{ t("inventar.kosten.reparaturen") }}</td><td class="zahl">{{ kosten.reparaturen_belegt|betrag }} <span class="klein leise">{{ t("inventar.reparatur.kostenquelle.rechnung") }}</span><br>{{ kosten.reparaturen_geschaetzt|betrag }} <span class="klein leise">{{ t("inventar.reparatur.kostenquelle.geschaetzt") }}</span></td></tr>
+    <tr id="kosten-reparaturen-vergleich"><td>{{ t("inventar.kosten.reparaturen_vergleich") }}</td><td class="zahl">{{ kosten.reparaturen_geplant|betrag }} / {{ (kosten.reparaturen_belegt + kosten.reparaturen_geschaetzt)|betrag }}</td></tr>
     <tr><td>{{ t("inventar.kosten.gesamtkosten") }}</td><td class="zahl">{{ kosten.gesamt|betrag }}</td></tr>
     <tr><td>{{ t("inventar.kosten.restbuchwert") }}</td><td class="zahl">{{ kosten.buchwert_extern|betrag }}</td></tr>
     {% if kosten.afa_hinweis %}<tr><td>{{ t("inventar.kosten.afa_hinweis") }}</td><td>{{ kosten.afa_hinweis }}</td></tr>{% endif %}
     <tr><td>{{ t("inventar.kosten.miete") }}</td><td class="zahl">{% if kosten.miete %}{{ kosten.mietkosten|betrag }} <span class="klein leise">{{ kosten.miet_von|datum }} – {{ kosten.miet_bis|datum }}</span>{% else %}{{ ""|oder_strich }}{% endif %}</td></tr>
   </table>
-  <p class="klein leise">{{ t("inventar.kosten.hinweis") }}
+  <p class="klein leise">{{ t("inventar.kosten.hinweis") }} · {{ t("inventar.kosten.reparaturen_hinweis") }}
     {% if kosten.satz_monat is not none %} · {{ t("inventar.katalog.satzquelle." ~ kosten.satz_quelle) }} · {{ t("inventar.kosten.herkunft." ~ kosten.satz_herkunft) }}{% if kosten.gerechnet_am %} · {{ t("inventar.kosten.gerechnet_am") }} {{ kosten.gerechnet_am|datum }}{% endif %}
     {% elif kosten.hinweis %} · {{ t("inventar.kosten.hinweis_satz." ~ kosten.hinweis) }}
     {% else %} · {{ t("inventar.kosten.hinweis_satz.keiner") }}{% endif %}</p>

@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import modelle as m
-from ..rein.transfer import Aenderung, Ergebnis, Standort, Transfer, Zustand
+from ..rein.transfer import Ergebnis, Standort, Transfer, Zustand
 
 SYSTEM = "system"
 

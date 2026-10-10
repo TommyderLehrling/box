@@ -8,7 +8,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 from digiassistenz_kern.sitzung import Sitzung
 from digiassistenz_kern.web import gemeinsam, wahlfeld
@@ -94,6 +94,18 @@ def exportieren(
         return helfer.fehlerteil(fehler)
     weg = _filterweg(anfang, ende, _text(f, "kostenstelle"), _text(f, "gruppe"), _text(f, "vergleich"))
     return gemeinsam.umleiten(f"{WEG}?fertig=export&{weg}#exporte", request)
+
+
+@router.get(WEG + "/auszug/{dateiname}")
+def auszug_laden(
+    dateiname: str, sitzung: Sitzung = Depends(gemeinsam.angemeldet), _recht=Depends(gemeinsam.verlangt("inventar", "kosten_sehen")),
+) -> Response:
+    """Ein Auszug aus `export/` zum Herunterladen; die Datei bleibt im Ordner."""
+    try:
+        name, inhalt = kostenrechnung.auszug_lesen(sitzung, dateiname, helfer.arbeitsordner())
+    except ValueError as fehler:
+        return helfer.fehlerteil(fehler)
+    return helfer.csv_download(name, inhalt)
 
 
 __all__ = ["router"]

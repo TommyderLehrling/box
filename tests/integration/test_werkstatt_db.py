@@ -464,3 +464,70 @@ def test_foto_am_stueck_ist_abrufbar_mit_pruefsumme_und_recht(box) -> None:
     k.post("/abmelden")
     anmelden(k, "polier@integration.invalid")
     assert k.get(f"/inventar/stueck/{sid}/foto").status_code == 403
+
+
+def _hinweise(html: str) -> set[int]:
+    return {int(n) for n in re.findall(r'id="nicht-zugestellt-(\d+)"', html)}
+
+
+def test_werkstatt_zeigt_nicht_zugestellt_wenn_der_letzte_vermerk_ein_mailvermerk_ist(box, monkeypatch) -> None:
+    k = box.klient
+    a = _ks(k, "70101")
+    s_stumm, s_laut, s_fehler = _stueck(k, "Stumm"), _stueck(k, "Laut"), _stueck(k, "Fehler")
+    _konto_mit("stumm@l15a.invalid", "polier", a)  # keine Adresse
+    _konto_mit("laut@l15a.invalid", "polier", a, email="laut@werkstatt.invalid")
+    _konto_mit("werkstatt@l15a.invalid", "polier", a, werkstatt=True)
+    k.post("/abmelden")
+    anmelden(k, "stumm@l15a.invalid")
+    m_stumm = _melden(k, s_stumm, a, "Ohne Adresse", foto=False)
+    k.post("/abmelden")
+    anmelden(k, "laut@l15a.invalid")
+    m_laut, m_fehler = _melden(k, s_laut, a, "Mit Adresse", foto=False), _melden(k, s_fehler, a, "Einreihen scheitert", foto=False)
+    k.post("/abmelden")
+    anmelden(k, "werkstatt@l15a.invalid")
+    for meldung in (m_stumm, m_laut):
+        assert _weiter(k, meldung, "angenommen").status_code == 303
+        assert _weiter(k, meldung, "erledigt", rueckmeldung="erledigt").status_code == 303
+    seite = k.get("/inventar/werkstatt").text
+    assert _hinweise(seite) == {m_stumm}, "nur wo die Mail nicht zugestellt wurde"
+    assert "✉ nicht zugestellt (keine Adresse)" in seite.split(f'id="nicht-zugestellt-{m_stumm}"', 1)[1][:80]
+    # das Einreihen scheitert: anderer Satz
+    def kaputt(*_a, **_k):
+        raise RuntimeError("Warteschlange kaputt")
+
+    monkeypatch.setattr(mail, "einreihen", kaputt)
+    assert _weiter(k, m_fehler, "angenommen").status_code == 303
+    assert _weiter(k, m_fehler, "erledigt", rueckmeldung="erledigt").status_code == 303
+    seite = k.get("/inventar/werkstatt").text
+    assert _hinweise(seite) == {m_stumm, m_fehler}
+    assert "✉ nicht zugestellt (Fehler beim Einreihen)" in seite.split(f'id="nicht-zugestellt-{m_fehler}"', 1)[1][:90]
+    monkeypatch.undo()
+    # eine zweite, zugestellte Erledigung am selben Stück: der jüngste Vermerk ist keine Mail-Panne mehr
+    k.post("/abmelden")
+    anmelden(k, "stumm@l15a.invalid")
+    nochmal = _melden(k, s_laut, a, "Noch etwas", foto=False)
+    k.post("/abmelden")
+    anmelden(k, "werkstatt@l15a.invalid")
+    _weiter(k, nochmal, "angenommen")
+    _weiter(k, nochmal, "erledigt", rueckmeldung="auch erledigt")
+    assert m_laut not in _hinweise(k.get("/inventar/werkstatt").text)
+
+
+def test_personen_auswahl_im_abschluss_dialog_zuerst_die_konten_mit_werkstatt(box) -> None:
+    k = box.klient
+    a = _ks(k, "70101")
+    sid = _stueck(k)
+    _konto_mit("aaa@l15a.invalid", "polier", a)  # ohne Werkstatt, vorn im Alphabet
+    _konto_mit("zzz@l15a.invalid", "polier", a, werkstatt=True)  # mit Werkstatt, hinten im Alphabet
+    _konto_mit("ent@l15a.invalid", "verwalter", a)
+    with systemsitzung("pruefung.l15a") as db:  # der Verwalter-Baustein wird einem Konto wieder entzogen: der Entzug schlägt die Gewährung
+        konto = db.execute(select(Benutzer).where(Benutzer.anmeldename == "ent@l15a.invalid")).scalar_one()
+        kern_rechte.setzen(db, benutzer=konto, schluessel="inventar.werkstatt", gewaehrt=False, grund="Prüffall")
+    k.post("/inventar/werkstatt/reparatur", data={"stueck_id": str(sid), "durchfuehrung": "intern"})
+    rid = int(_db("SELECT max(id) FROM inventar.reparatur")[0][0])
+    _rep(k, rid, "beginnen", datum=HEUTE.isoformat())
+    auswahl = k.get("/inventar/werkstatt", params={"abschluss": str(rid)}).text.split('id="ab-durch"', 1)[1].split("</select>", 1)[0]
+    namen = re.findall(r"<option value=\"\d+\"[^>]*>([^<]+)</option>", auswahl)
+    assert namen.index("Verwalter") < namen.index("Zzz") < namen.index("Aaa") < namen.index("Ent"), namen
+    assert namen.index("Zzz") < namen.index("Polier"), "Konten ohne den Baustein folgen danach"
+    assert 'selected' in auswahl.split("Verwalter", 1)[0].rsplit("<option", 1)[1], "die Abschließende ist vorbelegt"

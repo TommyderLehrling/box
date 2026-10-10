@@ -1,7 +1,6 @@
 """Die Dienste bestand und stueck des Inventars als reine Funktionen (Rechte filtert VSC vorher)."""
 from __future__ import annotations
 
-from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date

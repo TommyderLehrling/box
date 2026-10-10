@@ -24,7 +24,8 @@
     <td><a href="/inventar/stueck/{{ z.stueck_id }}">{{ z.nummer }}</a><br><span class="klein leise">{{ z.bezeichnung }}</span></td>
     <td>{{ t("inventar.meldung.art." ~ z.art) }}</td>
     <td>{{ z.beschreibung }}{% if z.hat_foto %} · <a href="/inventar/meldung/{{ z.id }}/foto" target="_blank" rel="noopener">{{ t("inventar.werkstatt.foto") }}</a>{% endif %}
-      {% if z.rueckmeldung %}<br><span class="klein"><strong>{{ t("inventar.meldung.rueckmeldung") }}:</strong> {{ z.rueckmeldung }}</span>{% endif %}</td>
+      {% if z.rueckmeldung %}<br><span class="klein"><strong>{{ t("inventar.meldung.rueckmeldung") }}:</strong> {{ z.rueckmeldung }}</span>{% endif %}
+      {% if z.nicht_zugestellt %}<br><span class="klein warnung" id="nicht-zugestellt-{{ z.id }}">{{ t("inventar.werkstatt.nicht_zugestellt." ~ z.nicht_zugestellt) }}</span>{% endif %}</td>
     <td>{{ z.ort|oder_strich }}</td>
     <td>{{ z.am|zeitpunkt }}<br><span class="klein leise">{{ z.von|oder_strich }}</span>
       {% if z.bearbeiter %}<br><span class="klein leise">{{ t("inventar.werkstatt.bearbeitet") }}: {{ z.bearbeiter }}{% if z.erledigt_am %}, {{ z.erledigt_am|zeitpunkt }}{% endif %}</span>{% endif %}</td>

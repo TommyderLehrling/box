@@ -51,13 +51,14 @@
   <h2>{{ t("inventar.kosten.block.stueck") }} ({{ stuecke_gesamt }})</h2>
   {% if not stuecke %}<p class="leise">{{ t("inventar.leer") }}</p>{% else %}
   <table class="liste">
-    <tr><th>{{ t("web.nummer") }}</th><th>{{ t("web.bezeichnung") }}</th><th>{{ t("inventar.kosten.kaufpreis") }}</th><th>{{ t("inventar.kosten.satz_tag") }}</th><th>{{ t("inventar.kosten.kalkulatorisch_bis") }}</th><th>{{ t("inventar.kosten.reparaturen") }}</th><th>{{ t("inventar.kosten.gesamtkosten") }}</th><th>{{ t("inventar.quelle") }}</th></tr>
+    <tr><th>{{ t("web.nummer") }}</th><th>{{ t("web.bezeichnung") }}</th><th>{{ t("inventar.kosten.kaufpreis") }}</th><th>{{ t("inventar.kosten.satz_tag") }}</th><th>{{ t("inventar.kosten.kalkulatorisch_bis") }}</th><th>{{ t("inventar.kosten.reparaturen_geplant") }}</th><th>{{ t("inventar.kosten.reparaturen_angefallen") }}</th><th>{{ t("inventar.kosten.gesamtkosten") }}</th><th>{{ t("inventar.quelle") }}</th></tr>
     {% for k in stuecke %}
     <tr>
       <td><a href="/inventar/stueck/{{ k.id }}">{{ k.nummer }}</a></td><td>{{ k.bezeichnung }}<br><span class="klein leise">{{ k.gruppe }}</span></td>
       <td class="zahl">{{ k.kaufpreis|betrag }}</td>
       <td class="zahl">{% if k.satz.satz_tag is not none %}{{ k.satz.satz_tag|betrag }}{% else %}{{ ""|oder_strich }}{% endif %}</td>
       <td class="zahl">{{ k.kalkulatorisch|betrag }}</td>
+      <td class="zahl">{{ k.reparaturen_geplant|betrag }}</td>
       <td class="zahl">{{ k.reparaturen_belegt|betrag }} <span class="klein leise">{{ t("inventar.reparatur.kostenquelle.rechnung") }}</span><br>{{ k.reparaturen_geschaetzt|betrag }} <span class="klein leise">{{ t("inventar.reparatur.kostenquelle.geschaetzt") }}</span></td>
       <td class="zahl">{{ k.gesamt|betrag }}</td>
       <td>{% if k.satz.satz_monat is not none %}{{ t("inventar.katalog.satzquelle." ~ k.satz.quelle) }}{% elif k.satz.hinweis %}<span class="warnung">{{ t("inventar.kosten.hinweis_satz." ~ k.satz.hinweis) }}</span>{% else %}<span class="leise">{{ t("inventar.kosten.hinweis_satz.keiner") }}</span>{% endif %}
@@ -65,6 +66,7 @@
     </tr>
     {% endfor %}
   </table>
+  <p class="klein leise">{{ t("inventar.kosten.reparaturen_hinweis") }}</p>
   {% if stuecke|length < stuecke_gesamt %}<p class="klein leise">{{ t("inventar.faellig.gekuerzt", anzahl=stuecke|length, gesamt=stuecke_gesamt) }}</p>{% endif %}
   {% endif %}
   <p>{{ export("stueck") }}</p>
@@ -109,7 +111,7 @@
 <section id="exporte">
   <h2>{{ t("inventar.kosten.exportiert") }}</h2>
   {% if not exporte %}<p class="leise">{{ t("inventar.leer") }}</p>{% else %}
-  <ul>{% for pfad in exporte %}<li><code>{{ pfad }}</code></li>{% endfor %}</ul>
+  <ul>{% for pfad in exporte %}{% set name = pfad.split("/")[-1] %}<li><code>{{ pfad }}</code>{% if name.endswith(".csv") %} · <a href="/inventar/kosten/auszug/{{ name|urlencode }}">{{ t("inventar.kosten.herunterladen") }}</a>{% endif %}</li>{% endfor %}</ul>
   <p class="klein leise">{{ t("inventar.kosten.exportiert_hinweis") }}</p>
   {% endif %}
 </section>
