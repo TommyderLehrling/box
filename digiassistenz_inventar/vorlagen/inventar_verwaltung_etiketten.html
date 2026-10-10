@@ -1,0 +1,12 @@
+{% extends "rahmen.html" %}
+{% block titel %}{{ t("inventar.verwaltung.etiketten") }} — {{ t("web.titel") }}{% endblock %}
+{% block inhalt %}
+{% with seite = "inventar_etiketten", titel = t("inventar.verwaltung.etiketten") %}{% include "teil_seitenkopf.html" %}{% endwith %}
+<form method="post" action="/inventar/verwaltung/etiketten">
+  <p><label for="et-gruppe">{{ t("inventar.feld.gruppe") }}</label>
+     <select id="et-gruppe" name="gruppe"><option value="">{{ t("inventar.alle") }}</option>{% for schluessel, bezeichnung in gruppen %}<option value="{{ schluessel }}">{{ bezeichnung }}</option>{% endfor %}</select></p>
+  <p>{% with wahl = wahl_ks %}{% include "teil_wahl.html" %}{% endwith %}</p>
+  <p><label for="et-nummern">{{ t("inventar.etiketten.nummern") }}</label><br><textarea id="et-nummern" name="nummern" rows="3" cols="40"></textarea><br><span class="klein leise">{{ t("inventar.etiketten.nummern_hinweis") }}</span></p>
+  <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.taste.bogen_erstellen") }}</button><a class="taste" data-abbrechen href="/inventar/verwaltung">{{ t("inventar.taste.abbrechen") }}</a></p>
+</form>
+{% endblock %}

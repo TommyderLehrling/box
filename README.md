@@ -1,13 +1,13 @@
-# DOKON Inventar — `digiassistenz_inventar` (Modul `inventar`, Entwurf L10)
+# DOKON Inventar — `digiassistenz_inventar` (Modul `inventar`, Entwurf L12)
 
 Geräteverwaltung einer Baufirma als Modul des Kerns `digiassistenz_kern` ≥ 0.15.2: Schema `inventar`, Konto `inventar_nutzer`,
 Kette `i0001…`, Bausteine `inventar.*`. Die Fachlogik liegt in `digiassistenz_inventar/rein/` (reine Module, keine Datenbank).
-**Entwurf**, bis VSC das Modul auf dem echten Kern fährt (Aufträge 01–03, Lieferungen L1–L10).
+**Entwurf**, bis VSC das Modul auf dem echten Kern fährt (Aufträge 01–03, Lieferungen L1–L12).
 
 ## Prüfen
 
 ```
-python -m pytest -q                    # im Ordner Inventar; ohne Datenbank; erwartet: 257 passed, skipped = 0
+python -m pytest -q                    # im Ordner Inventar; ohne Datenbank; erwartet: 280 passed, skipped = 0
 ```
 
 Mit Datenbank (Kern 0.15.2 als Wheel, PostgreSQL 16 mit contrib, `pg_dump` 16; Anleitung `tests/integration/laufen.md`):
@@ -17,7 +17,7 @@ cd <wurzel mit konfig.env> && DIGIASSISTENZ_WURZEL=$PWD python -m pytest <pfad>/
     <pfad>/tests/integration/test_dienstlogik_db.py <pfad>/tests/integration/test_migration_gegen_modelle.py
 ```
 
-Stand Box (Python 3.12.3, Kern-Wheel 0.15.2, PostgreSQL 16.15): `tests` 257 passed, `tests/integration` 23 passed (T-I-5, Anwendungsfälle,
+Stand Box (Python 3.12.3, Kern-Wheel 0.15.2, PostgreSQL 16.15): `tests` 280 passed, `tests/integration` 28 passed (T-I-5, Anwendungsfälle,
 Modelle gegen Kette), jeweils `skipped = 0`. **T-I-6** (mit Belegerfassung) hat Box nicht gefahren — sie fehlt ihr.
 
 ## Aufbau

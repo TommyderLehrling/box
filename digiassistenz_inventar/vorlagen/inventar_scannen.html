@@ -1,0 +1,27 @@
+{% extends "rahmen.html" %}
+{% block titel %}{{ t("inventar.taste.scannen") }} — {{ t("web.titel") }}{% endblock %}
+{% block inhalt %}
+{% with seite = "inventar_scannen", titel = t("inventar.taste.scannen") %}{% include "teil_seitenkopf.html" %}{% endwith %}
+<section id="scan" data-ks="{{ gewaehlt if gewaehlt is not none else "" }}"
+         data-text-kamera-fehlt="{{ t("inventar.scan.kamera_fehlt") }}" data-text-kein-treffer="{{ t("inventar.scan.kein_treffer") }}">
+  {% if kostenstellen|length > 1 %}
+  <form method="get" action="/inventar/scannen" class="filterzeile">
+    <label for="scan-ks">{{ t("inventar.feld.kostenstelle") }}</label>
+    <select id="scan-ks" name="ks" onchange="this.form.submit()">
+      {% for id, name in kostenstellen %}<option value="{{ id }}"{% if id == gewaehlt %} selected{% endif %}>{{ name }}</option>{% endfor %}
+    </select>
+  </form>
+  {% endif %}
+  <div id="scan-kamera" hidden>
+    <video id="scan-video" playsinline muted style="max-width:100%"></video>
+    <p class="klein leise" id="scan-status" role="status">{{ t("inventar.scan.suche") }}</p>
+  </div>
+  <form id="scan-eingabe" method="get" action="/inventar/s">
+    <input type="hidden" name="ks" value="{{ gewaehlt if gewaehlt is not none else "" }}">
+    <p><label for="scan-nummer">{{ t("inventar.feld.inventarnummer") }}</label>
+       <input type="text" id="scan-nummer" name="nummer" size="20" autocomplete="off" autofocus>
+       <button type="submit" class="haupt">{{ t("inventar.scan.weiter") }}</button></p>
+  </form>
+</section>
+<script src="{{ statisch("inventar.js") }}" defer></script>
+{% endblock %}

@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from digiassistenz_kern.konfig import KonfigFehler
 from digiassistenz_kern.modul import (
@@ -72,7 +73,7 @@ def _suche(sitzung: Any, begriff: str) -> Suchergebnis:
     zeilen, mehr = sicht.suchen(sitzung, begriff, SUCHE_HOECHSTENS)
     return Suchergebnis(
         spalten=("inventar.suche.spalte_nummer", "inventar.suche.spalte_bezeichnung", "inventar.suche.spalte_steht_auf"),
-        treffer=tuple(Suchtreffer(f"/inventar?q={nummer}", (nummer, bezeichnung, ort)) for nummer, bezeichnung, ort in zeilen),
+        treffer=tuple(Suchtreffer(f"/inventar/s/{quote(nummer, safe='')}", (nummer, bezeichnung, ort)) for nummer, bezeichnung, ort in zeilen),
         mehr=mehr,
     )
 

@@ -1,0 +1,13 @@
+{% extends "rahmen.html" %}
+{% block titel %}{{ t("inventar.verwaltung.testdaten") }} — {{ t("web.titel") }}{% endblock %}
+{% block inhalt %}
+{% with seite = "inventar_testdaten", titel = t("inventar.verwaltung.testdaten") %}{% include "teil_seitenkopf.html" %}{% endwith %}
+{% if erlaubt %}
+<form method="post" action="/inventar/verwaltung/testdaten" hx-post="/inventar/verwaltung/testdaten" hx-target="#katalog-meldung" hx-swap="innerHTML">
+  <p><label for="td-seed">{{ t("inventar.testdaten.seed") }}</label> <input id="td-seed" name="seed" type="number" min="1" size="6" value="1">
+     <label for="td-anzahl">{{ t("inventar.testdaten.anzahl") }}</label> <input id="td-anzahl" name="anzahl" type="number" min="1" max="2500" size="6" value="200"></p>
+  <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.taste.testdaten_erzeugen") }}</button></p>
+</form>
+<div id="katalog-meldung"></div>
+{% else %}<p class="leise">{{ t("inventar.code.testdaten.nach_auslieferung") }}</p>{% endif %}
+{% endblock %}

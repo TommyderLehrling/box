@@ -1,0 +1,16 @@
+{% extends "rahmen.html" %}
+{% block titel %}{{ t("inventar.verwaltung.einstellungen") }} — {{ t("web.titel") }}{% endblock %}
+{% block inhalt %}
+{% with seite = "inventar_einstellungen", titel = t("inventar.verwaltung.einstellungen") %}{% include "teil_seitenkopf.html" %}{% endwith %}
+{% if fertig %}<p class="gut" role="status">✓ {{ t("inventar.fertig.gespeichert") }}</p>{% endif %}
+<form method="post" action="/inventar/verwaltung/einstellungen" hx-post="/inventar/verwaltung/einstellungen" hx-target="#katalog-meldung" hx-swap="innerHTML">
+  {% for schluessel, wert in felder %}
+  <p><label for="e-{{ schluessel }}">{{ t("inventar.einstellung." ~ schluessel) }}</label> <input id="e-{{ schluessel }}" name="{{ schluessel }}" size="24" value="{{ wert }}"></p>
+  {% endfor %}
+  <p><label for="e-auslieferung">{{ t("inventar.einstellung.auslieferung_am") }}</label>
+     <input id="e-auslieferung" name="auslieferung_am" type="date" value="{{ auslieferung }}"{% if auslieferung %} readonly{% endif %}>
+     <span class="klein leise">{{ t("inventar.einstellung.auslieferung_hinweis") }}</span></p>
+  <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.taste.speichern") }}</button><a class="taste" data-abbrechen href="/inventar/verwaltung">{{ t("inventar.taste.abbrechen") }}</a></p>
+</form>
+<div id="katalog-meldung"></div>
+{% endblock %}

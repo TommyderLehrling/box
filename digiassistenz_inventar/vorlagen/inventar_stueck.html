@@ -1,0 +1,237 @@
+{% extends "rahmen.html" %}
+{% block titel %}{{ stueck.bezeichnung }} — {{ t("web.titel") }}{% endblock %}
+{% block inhalt %}
+{% with seite = "inventar_stueck", titel = stueck.bezeichnung %}{% include "teil_seitenkopf.html" %}{% endwith %}
+
+<section class="statuszeile" id="statuszeile" aria-label="{{ t("inventar.statuszeile") }}">
+  <p>
+    <strong>{{ stueck.bezeichnung }}</strong> · {{ stueck.inventarnummer }} · {{ gruppe.bezeichnung }} ·
+    {% if offen %}{{ t("inventar.steht_auf_seit", ort=steht_auf, seit=(seit|datum)) }}{% elif transfers %}{{ t("inventar.angekuendigt_auf", ziel=angekuendigt_auf) }}{% else %}{{ t("inventar.nirgends") }}{% endif %}
+    {% if offen and transfers %} · {{ t("inventar.angekuendigt_auf", ziel=angekuendigt_auf) }}{% endif %}
+    · <span title="{{ t("inventar.pruefung.ampel." ~ ampel) }}">{{ ampel_zeichen }}</span> {{ ampel_hinweis }}
+    {% if stueck.status != "aktiv" %} · <span class="warnung">{{ t("inventar.status." ~ stueck.status) }}</span>{% endif %}
+  </p>
+  {% if fertig %}<p class="gut" role="status">✓ {{ t("inventar.fertig." ~ fertig) }}</p>{% endif %}
+  {% if scan_ok %}
+  <div class="tastenreihe raster gross" id="scan-tasten">
+    <form method="post" action="/inventar/transfer/scan" hx-post="/inventar/transfer/scan" hx-target="#stueck-meldung" hx-swap="innerHTML">
+      <input type="hidden" name="stueck_id" value="{{ stueck.id }}"><input type="hidden" name="kostenstelle" value="{{ scan_ks }}">
+      <input type="hidden" name="eintrag_schluessel" value="{{ buchung }}">
+      <button type="submit" class="haupt gross">{{ t("inventar.transfer.taste.hier") }}</button>
+    </form>
+    {% if von_ks %}<a class="taste gross" href="#abgang-von">{{ t("inventar.transfer.taste.abgang_nach") }}</a>{% endif %}
+    {% if darf_melden and melde_ks %}<a class="taste gross" href="#meldung-text">{{ t("inventar.meldung.taste_schaden") }}</a>{% endif %}
+  </div>
+  {% endif %}
+  <div class="tastenreihe raster" id="haupttasten">
+    {% if hauptlage == "eingang" %}
+      {% for x in transfers %}{% if x.darf_eingang %}
+      <form method="post" action="/inventar/transfer/{{ x.id }}/eingang" hx-post="/inventar/transfer/{{ x.id }}/eingang" hx-target="#stueck-meldung" hx-swap="innerHTML">
+        <input type="hidden" name="stueck_id" value="{{ stueck.id }}">
+        {% if stueck.art == "menge" %}
+        <label for="menge-{{ x.id }}">{{ t("inventar.transfer.feld.menge") }}</label>
+        <input type="number" id="menge-{{ x.id }}" name="menge" min="1" max="{{ x.menge }}" value="{{ x.menge }}" size="5">
+        {% endif %}
+        <button type="submit" class="haupt">{{ t("inventar.transfer.taste.eingang") }}</button>
+      </form>
+      {% endif %}{% endfor %}
+    {% endif %}
+    {% if von_ks %}
+    <details class="dialog{% if hauptlage == "abgang" %} haupt{% endif %}" id="dialog-abgang">
+      <summary class="taste{% if hauptlage == "abgang" %} haupt{% endif %}">{{ t("inventar.transfer.taste.abgang") }}</summary>
+      <form method="post" action="/inventar/transfer/abgang" hx-post="/inventar/transfer/abgang" hx-target="#stueck-meldung" hx-swap="innerHTML">
+        <input type="hidden" name="stueck_id" value="{{ stueck.id }}">
+        <input type="hidden" name="eintrag_schluessel" value="{{ buchung }}">
+        <p>
+          <label for="abgang-von">{{ t("inventar.transfer.feld.von") }}</label>
+          <select id="abgang-von" name="von">
+            {% for o in von_ks %}<option value="{{ o.kostenstelle_id }}"{% if scan_ks and scan_ks == o.kostenstelle_id|string %} selected{% endif %}>{{ o.kostenstelle }}{% if stueck.art == "menge" %} ({{ o.menge }}){% endif %}</option>{% endfor %}
+          </select>
+        </p>
+        <p>{% with wahl = wahl_nach %}{% include "teil_wahl.html" %}{% endwith %}</p>
+        {% if stueck.art == "menge" %}
+        <p><label for="abgang-menge">{{ t("inventar.transfer.feld.menge") }}</label><input type="number" id="abgang-menge" name="menge" min="1" value="1" size="6"></p>
+        {% else %}<input type="hidden" name="menge" value="1">{% endif %}
+        <p><label for="abgang-grund">{{ t("inventar.transfer.feld.grund") }}</label><input type="text" id="abgang-grund" name="grund" size="30"></p>
+        <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.transfer.taste.abgang") }}</button><button type="button" data-abbrechen>{{ t("inventar.taste.abbrechen") }}</button></p>
+      </form>
+    </details>
+    {% endif %}
+    {% if darf_melden and melde_ks %}
+    <details class="dialog" id="dialog-meldung">
+      <summary class="taste">{{ t("inventar.meldung.taste_schaden") }}</summary>
+      <form method="post" action="/inventar/stueck/{{ stueck.id }}/meldung" enctype="multipart/form-data" hx-post="/inventar/stueck/{{ stueck.id }}/meldung"
+            hx-encoding="multipart/form-data" hx-target="#stueck-meldung" hx-swap="innerHTML">
+        <input type="hidden" name="buchung" value="{{ buchung }}">
+        <p>
+          <label for="meldung-ks">{{ t("inventar.feld.kostenstelle") }}</label>
+          <select id="meldung-ks" name="kostenstelle_id">{% for o in melde_ks %}<option value="{{ o.kostenstelle_id }}">{{ o.kostenstelle }}</option>{% endfor %}</select>
+        </p>
+        <p><label for="meldung-text">{{ t("inventar.meldung.beschreibung") }}</label><br><textarea id="meldung-text" name="beschreibung" rows="3" cols="40" required></textarea></p>
+        <p><label for="meldung-foto">{{ t("inventar.foto") }}</label> <input type="file" id="meldung-foto" name="foto" accept="image/jpeg,image/png"></p>
+        <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.meldung.taste_schaden") }}</button><button type="button" data-abbrechen>{{ t("inventar.taste.abbrechen") }}</button></p>
+      </form>
+    </details>
+    {% endif %}
+    {% if darf_pflegen %}<a class="taste" href="/inventar/stueck/{{ stueck.id }}/aendern">{{ t("inventar.taste.bearbeiten") }}</a>{% endif %}
+    {% if status_moeglich %}
+    <details class="dialog" id="dialog-status">
+      <summary class="taste">{{ t("inventar.status_aendern") }}</summary>
+      <form method="post" action="/inventar/stueck/{{ stueck.id }}/status" hx-post="/inventar/stueck/{{ stueck.id }}/status" hx-target="#stueck-meldung" hx-swap="innerHTML">
+        <p>
+          <label for="status-neu">{{ t("inventar.feld.status") }}</label>
+          <select id="status-neu" name="status">{% for s in status_moeglich %}<option value="{{ s }}">{{ t("inventar.status." ~ s) }}</option>{% endfor %}</select>
+        </p>
+        <p><label for="status-grund">{{ t("inventar.meldung.grund") }}</label> <input type="text" id="status-grund" name="grund" size="30"></p>
+        <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.taste.speichern") }}</button><button type="button" data-abbrechen>{{ t("inventar.taste.abbrechen") }}</button></p>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+  <div id="stueck-meldung"></div>
+</section>
+
+<details open>
+  <summary>{{ t("inventar.abschnitt.stamm") }}</summary>
+  <table class="liste">
+    <tr><td>{{ t("inventar.feld.art") }}</td><td>{{ t("inventar.art." ~ stueck.art) }}</td></tr>
+    <tr><td>{{ t("inventar.feld.hersteller") }}</td><td>{{ stueck.hersteller|oder_strich }}</td></tr>
+    <tr><td>{{ t("inventar.feld.typ") }}</td><td>{{ stueck.typ|oder_strich }}</td></tr>
+    <tr><td>{{ t("inventar.feld.seriennummer") }}</td><td>{{ stueck.seriennummer|oder_strich }}</td></tr>
+    <tr><td>{{ t("inventar.feld.baujahr") }}</td><td>{{ stueck.baujahr|oder_strich }}</td></tr>
+    <tr><td>{{ t("inventar.feld.lieferant") }}</td><td>{{ lieferant|oder_strich }}</td></tr>
+    <tr><td>{{ t("inventar.feld.besonderheiten") }}</td><td>{{ stueck.besonderheiten|oder_strich }}</td></tr>
+    <tr><td>{{ t("inventar.feld.status") }}</td><td>{{ t("inventar.status." ~ stueck.status) }}{% if stueck.status_grund %} — {{ stueck.status_grund }}{% endif %}</td></tr>
+    <tr><td>{{ t("inventar.quelle") }}</td><td>{{ t("inventar.quelle." ~ stueck.quelle) if stueck.quelle in ("web", "handy", "system") else stueck.quelle }}</td></tr>
+  </table>
+</details>
+
+<details>
+  <summary>{{ t("inventar.feld.merkmale") }} ({{ merkmale|length }})</summary>
+  {% if merkmale %}
+  <table class="liste">{% for mm in merkmale %}<tr><td>{{ mm.bezeichnung }}</td><td>{{ mm.wert }}{% if mm.einheit %} {{ mm.einheit }}{% endif %}</td></tr>{% endfor %}</table>
+  {% else %}<p class="leise">{{ t("inventar.leer") }}</p>{% endif %}
+</details>
+
+<details>
+  <summary>{{ t("inventar.abschnitt.zubehoer") }} ({{ zubehoer|length + bauteile|length }})</summary>
+  {% if haupt %}<p>{{ t("inventar.gehoert_zu") }}: <a href="/inventar/stueck/{{ haupt.id }}">{{ haupt.nummer }}</a> {{ haupt.bezeichnung }}</p>{% endif %}
+  <ul>
+    {% for z in zubehoer %}
+    <li><a href="/inventar/stueck/{{ z.id }}">{{ z.nummer }}</a> {{ z.bezeichnung }}
+      {% if darf_pflegen %}<form class="inline" method="post" action="/inventar/stueck/{{ stueck.id }}/zubehoer" hx-post="/inventar/stueck/{{ stueck.id }}/zubehoer" hx-target="#stueck-meldung" hx-swap="innerHTML"><input type="hidden" name="beenden" value="{{ z.beziehung_id }}"><button type="submit" class="klein">{{ t("inventar.taste.loesen") }}</button></form>{% endif %}</li>
+    {% endfor %}
+    {% for b in bauteile %}
+    <li>{{ b.nummer }} {{ b.bezeichnung }}{% if b.preis is not none %} · {{ b.preis|betrag }}{% endif %}
+      {% if darf_pflegen %}<form class="inline" method="post" action="/inventar/stueck/{{ stueck.id }}/bauteil" hx-post="/inventar/stueck/{{ stueck.id }}/bauteil" hx-target="#stueck-meldung" hx-swap="innerHTML"><input type="hidden" name="beenden" value="{{ b.beziehung_id }}"><button type="submit" class="klein">{{ t("inventar.taste.loesen") }}</button></form>{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% if darf_pflegen %}
+  <form method="post" action="/inventar/stueck/{{ stueck.id }}/zubehoer" hx-post="/inventar/stueck/{{ stueck.id }}/zubehoer" hx-target="#stueck-meldung" hx-swap="innerHTML">
+    <label for="zub-haupt">{{ t("inventar.zubehoer_hauptstueck") }}</label>
+    <input type="text" id="zub-haupt" name="haupt_nummer" size="16" required>
+    <button type="submit">{{ t("inventar.taste.zubehoer_zuordnen") }}</button>
+  </form>
+  {% if bauteile_katalog %}
+  <form method="post" action="/inventar/stueck/{{ stueck.id }}/bauteil" hx-post="/inventar/stueck/{{ stueck.id }}/bauteil" hx-target="#stueck-meldung" hx-swap="innerHTML">
+    <label for="bt-id">{{ t("inventar.bauteil.feld.passt_zu") }}</label>
+    <select id="bt-id" name="bauteil_id">{% for bid, text in bauteile_katalog %}<option value="{{ bid }}">{{ text }}</option>{% endfor %}</select>
+    <button type="submit">{{ t("inventar.bauteil.taste.passt_zu") }}</button>
+  </form>
+  {% endif %}
+  {% endif %}
+</details>
+
+<details>
+  <summary>{{ t("inventar.abschnitt.standorte") }} ({{ verlauf_orte|length }})</summary>
+  {% if verlauf_orte %}
+  <table class="liste"><tr><th>{{ t("inventar.feld.kostenstelle") }}</th><th>{{ t("inventar.feld.menge") }}</th><th>{{ t("inventar.von") }}</th><th>{{ t("inventar.bis") }}</th></tr>
+    {% for o in verlauf_orte %}<tr><td>{{ o.kostenstelle|oder_strich }}</td><td class="zahl">{{ o.menge }}</td><td>{{ o.von|zeitpunkt }}</td><td>{{ o.bis|zeitpunkt }}</td></tr>{% endfor %}
+  </table>
+  {% else %}<p class="leise">{{ t("inventar.leer") }}</p>{% endif %}
+</details>
+
+<details{% if transfers %} open{% endif %}>
+  <summary>{{ t("inventar.abschnitt.transfers") }} ({{ transfers|length }})</summary>
+  {% if transfers %}
+  <table class="liste"><tr><th>{{ t("inventar.transfer.feld.von") }}</th><th>{{ t("inventar.transfer.feld.nach") }}</th><th>{{ t("inventar.transfer.feld.menge") }}</th><th>{{ t("inventar.transfer.feld.abgang_am") }}</th><th></th></tr>
+    {% for x in transfers %}
+    <tr><td>{{ x.von|oder_strich }}</td><td>{{ x.nach|oder_strich }}</td><td class="zahl">{{ x.menge }}</td><td>{{ x.abgang_am|zeitpunkt }}</td>
+      <td>{% if x.darf_zurueck %}
+        <details class="dialog"><summary class="taste klein">{{ t("inventar.transfer.taste.zurueckziehen") }}</summary>
+          <form method="post" action="/inventar/transfer/{{ x.id }}/zurueck" hx-post="/inventar/transfer/{{ x.id }}/zurueck" hx-target="#stueck-meldung" hx-swap="innerHTML">
+            <input type="hidden" name="stueck_id" value="{{ stueck.id }}">
+            <label for="zurueck-{{ x.id }}">{{ t("inventar.transfer.feld.grund") }}</label>
+            <input type="text" id="zurueck-{{ x.id }}" name="grund" size="30" required>
+            <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.transfer.taste.zurueckziehen") }}</button><button type="button" data-abbrechen>{{ t("inventar.taste.abbrechen") }}</button></p>
+          </form></details>{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="leise">{{ t("inventar.leer") }}</p>{% endif %}
+</details>
+
+<details>
+  <summary>{{ t("inventar.abschnitt.pruefungen") }} ({{ pruefungen|length }})</summary>
+  {% if pruefstaende %}
+  <table class="liste"><tr><th>{{ t("inventar.pruefung.feld.pruefart") }}</th><th>{{ t("inventar.spalte_pruefstand") }}</th><th>{{ t("inventar.pruefung.feld.faellig_am") }}</th></tr>
+    {% for p in pruefstaende %}<tr><td>{{ p.art }}</td><td>{{ p.zeichen }} {{ p.hinweis }}</td><td>{{ p.faellig_am|datum }}</td></tr>{% endfor %}
+  </table>
+  {% endif %}
+  {% if pruefungen %}
+  <table class="liste"><tr><th>{{ t("inventar.pruefung.feld.pruefart") }}</th><th>{{ t("inventar.pruefung.feld.durchgefuehrt_am") }}</th><th>{{ t("inventar.pruefung.feld.ergebnis") }}</th><th>{{ t("inventar.pruefung.feld.pruefer") }}</th><th>{{ t("inventar.nachweis") }}</th></tr>
+    {% for p in pruefungen %}<tr><td>{{ p.art }}</td><td>{{ p.am|datum }}</td><td>{{ t("inventar.pruefung.ergebnis." ~ p.ergebnis) }}</td><td>{{ p.pruefer|oder_strich }}</td><td>{{ "✓" if p.nachweis else "◌" }}</td></tr>{% endfor %}
+  </table>
+  {% elif not pruefstaende %}<p class="leise">{{ t("inventar.leer") }}</p>{% endif %}
+</details>
+
+<details>
+  <summary>{{ t("inventar.abschnitt.meldungen") }} ({{ meldungen|length + reparaturen|length }})</summary>
+  {% if meldungen or reparaturen %}
+  <table class="liste">
+    {% for z in meldungen %}<tr><td>{{ t("inventar.meldung.art." ~ z.art) }}</td><td>{{ z.beschreibung }}</td><td>{{ t("inventar.meldung.status." ~ z.status) }}</td><td>{{ z.am|zeitpunkt }} {{ z.von }}</td></tr>{% endfor %}
+    {% for r in reparaturen %}<tr><td>{{ t("inventar.reparatur.werkstatt") }}</td><td>{{ r.beschreibung|oder_strich }}</td><td>{{ t("inventar.reparatur.status." ~ r.status) }}</td><td>{{ r.begonnen|datum }} – {{ r.beendet|datum }}{% if r.kosten is not none %} · {{ r.kosten|betrag }}{% endif %}</td></tr>{% endfor %}
+  </table>
+  {% else %}<p class="leise">{{ t("inventar.leer") }}</p>{% endif %}
+</details>
+
+{% if stueck.zaehler_einheit %}
+<details>
+  <summary>{{ t("inventar.abschnitt.zaehler") }} ({{ zaehlerstaende|length }})</summary>
+  {% if zaehlerstaende %}
+  <table class="liste">{% for z in zaehlerstaende %}<tr><td class="zahl">{{ z.stand|menge }} {{ z.einheit }}</td><td>{{ z.am|zeitpunkt }}</td><td>{{ z.quelle }}</td></tr>{% endfor %}</table>
+  {% endif %}
+  {% if darf_scannen or darf_pflegen %}
+  <form method="post" action="/inventar/stueck/{{ stueck.id }}/zaehlerstand" hx-post="/inventar/stueck/{{ stueck.id }}/zaehlerstand" hx-target="#stueck-meldung" hx-swap="innerHTML">
+    <label for="zaehler-stand">{{ t("inventar.feld.zaehlerstand") }} ({{ stueck.zaehler_einheit }})</label>
+    <input type="text" inputmode="decimal" id="zaehler-stand" name="stand" size="10" required>
+    <button type="submit">{{ t("inventar.taste.speichern") }}</button>
+  </form>
+  {% endif %}
+</details>
+{% endif %}
+
+{% if kosten %}
+<details>
+  <summary>{{ t("inventar.abschnitt.kosten") }}</summary>
+  <table class="liste">
+    <tr><td>{{ t("inventar.kosten.kaufpreis") }}</td><td class="zahl">{{ kosten.kaufpreis|betrag }}</td></tr>
+    <tr><td>{{ t("inventar.feld.kaufdatum") }}</td><td>{{ kosten.kaufdatum|datum }}</td></tr>
+    <tr><td>{{ t("inventar.kosten.restbuchwert") }}</td><td class="zahl">{{ kosten.buchwert_extern|betrag }}</td></tr>
+    <tr><td>{{ t("inventar.kosten.miete") }}</td><td class="zahl">{{ kosten.mietkosten|betrag }}</td></tr>
+    <tr><td>{{ t("inventar.kosten.satz_monat") }}</td><td class="zahl">{{ kosten.satz_monat|betrag }}</td></tr>
+    <tr><td>{{ t("inventar.kosten.satz_tag") }}</td><td class="zahl">{{ kosten.satz_tag|betrag }}</td></tr>
+  </table>
+  <p class="klein leise">{{ t("inventar.kosten.hinweis") }}</p>
+</details>
+{% endif %}
+
+<details>
+  <summary>{{ t("inventar.abschnitt.verlauf") }} ({{ verlauf|length }})</summary>
+  {% if verlauf %}
+  <table class="liste">
+    {% for v in verlauf %}<tr><td>{{ v.am|zeitpunkt }}</td><td>{{ v.text }}{% if v.neu %} — {{ v.neu }}{% endif %}</td>
+      <td>{{ v.wer|oder_strich }}{% if v.fuer %} <span class="leise">{{ t("web.als_vertretung_fuer", name=v.fuer) }}</span>{% endif %}</td></tr>{% endfor %}
+  </table>
+  {% else %}<p class="leise">{{ t("inventar.leer") }}</p>{% endif %}
+</details>
+{% endblock %}

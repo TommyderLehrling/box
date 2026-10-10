@@ -7,6 +7,8 @@ Ergebnis bzw. `None`, nie ein Fehler. Preise, Kosten und Personen stehen nicht i
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy import select
@@ -67,5 +69,19 @@ def stueck(db: Session, sitzung: Any, inventarnummer: str | None = None, serienn
     return rein_bestand.stueck_auskunft(info, z)
 
 
-#: AP-K2: in Modulbeschreibung.dienste eintragen, sobald der Kern das Feld hat (Steckbrief 11: noch nicht vorhanden)
-DIENSTE = (("bestand", 1, bestand), ("stueck", 1, stueck))
+@dataclass(frozen=True)
+class Dienst:
+    """Lokaler Typ mit denselben Feldern wie der künftige Kern-Typ (Brücke 027 Nr. 1, bindend mit AP-K2)."""
+
+    name: str
+    version: int
+    fn: Callable[..., Any]
+    recht: tuple[str, str] | None = None
+    beschreibung: str = ""
+
+
+# AP-K2: Dienst aus digiassistenz_kern.modul importieren und DIENSTE in Modulbeschreibung.dienste eintragen
+DIENSTE = (
+    Dienst("bestand", 1, bestand, ("inventar", "sehen"), "inventar.dienst_bestand"),
+    Dienst("stueck", 1, stueck, ("inventar", "sehen"), "inventar.dienst_stueck"),
+)

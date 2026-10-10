@@ -46,3 +46,12 @@ def naechste_nummer(db: Any, mandant_id: int, gruppen_kuerzel: str, jahr: int) -
         if not db.execute(select(m.Stueck.id).where(m.Stueck.mandant_id == mandant_id, m.Stueck.inventarnummer == nummer)).first():
             return nummer
     raise ValueError("nummer.keine_frei")
+
+
+def vorschlag(db: Any, mandant_id: int, gruppen_kuerzel: str, jahr: int) -> str:
+    """Die Nummer, die das Muster als Nächstes vergäbe — ohne den Zähler zu verbrauchen (nur zur Anzeige)."""
+    vorlage = muster(db, mandant_id)
+    schluessel = zaehler_schluessel(vorlage, jahr, gruppen_kuerzel)
+    stand = db.execute(select(m.Zaehler.stand).where(m.Zaehler.mandant_id == mandant_id, m.Zaehler.schluessel == schluessel)).scalar_one_or_none()
+    nummer, _ = naechste(vorlage, {schluessel: int(stand or 0)}, jahr, gruppen_kuerzel)
+    return nummer

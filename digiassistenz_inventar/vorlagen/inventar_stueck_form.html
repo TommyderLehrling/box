@@ -1,0 +1,80 @@
+{% extends "rahmen.html" %}
+{% block titel %}{{ titel_form }} — {{ t("web.titel") }}{% endblock %}
+{% block inhalt %}
+{% with seite = "inventar_stueck_form", titel = titel_form %}{% include "teil_seitenkopf.html" %}{% endwith %}
+<form id="stueck-form" method="post" enctype="multipart/form-data"
+      hx-post="{% if zeile %}/inventar/stueck/{{ zeile.id }}/aendern{% else %}/inventar/stueck/neu{% endif %}"
+      hx-encoding="multipart/form-data" hx-target="#stueck-meldung" hx-swap="innerHTML">
+  <p>
+    <label for="inv-bezeichnung">{{ t("inventar.feld.bezeichnung") }} *</label>
+    <input type="text" id="inv-bezeichnung" name="bezeichnung" size="40" required value="{{ zeile.bezeichnung if zeile else "" }}">
+  </p>
+  {% if zeile %}
+  <p><span class="leise">{{ t("inventar.feld.inventarnummer") }}:</span> {{ zeile.inventarnummer }} · <span class="leise">{{ t("inventar.feld.art") }}:</span> {{ t("inventar.art." ~ zeile.art) }}</p>
+  {% else %}
+  <p>
+    <label for="inv-gruppe-form">{{ t("inventar.feld.gruppe") }} *</label>
+    <select id="inv-gruppe-form" name="gruppe" required hx-get="/inventar/merkmale" hx-trigger="change"
+            hx-target="#merkmal-felder" hx-swap="innerHTML" hx-vals='{"neu": "1"}'>
+      {% for schluessel, bezeichnung in gruppen %}<option value="{{ schluessel }}">{{ bezeichnung }}</option>{% endfor %}
+    </select>
+    <label for="inv-art">{{ t("inventar.feld.art") }} *</label>
+    <select id="inv-art" name="art" required>
+      {% for a in arten %}<option value="{{ a }}">{{ t("inventar.art." ~ a) }}</option>{% endfor %}
+    </select>
+  </p>
+  <p>
+    <label for="inv-nummer">{{ t("inventar.feld.inventarnummer") }}</label>
+    <input type="text" id="inv-nummer" name="inventarnummer" size="18" placeholder="{{ vorschlag }}">
+    <span class="klein leise">{{ t("inventar.nummer_hinweis") }}</span>
+  </p>
+  <p>
+    <label for="inv-menge">{{ t("inventar.feld.menge") }}</label>
+    <input type="number" id="inv-menge" name="menge" min="1" value="1" size="6">
+  </p>
+  {% endif %}
+  <p>
+    <label for="inv-hersteller">{{ t("inventar.feld.hersteller") }}</label>
+    <input type="text" id="inv-hersteller" name="hersteller" size="20" value="{{ zeile.hersteller if zeile else "" }}">
+    <label for="inv-typ">{{ t("inventar.feld.typ") }}</label>
+    <input type="text" id="inv-typ" name="typ" size="20" value="{{ zeile.typ if zeile else "" }}">
+  </p>
+  <p>
+    <label for="inv-serie">{{ t("inventar.feld.seriennummer") }}</label>
+    <input type="text" id="inv-serie" name="seriennummer" size="24" value="{{ zeile.seriennummer if zeile else "" }}">
+    <label for="inv-baujahr">{{ t("inventar.feld.baujahr") }}</label>
+    <input type="number" id="inv-baujahr" name="baujahr" min="1950" max="2100" size="6" value="{{ zeile.baujahr if zeile and zeile.baujahr else "" }}">
+  </p>
+  <p>{% with wahl = wahl_lieferant %}{% include "teil_wahl.html" %}{% endwith %}</p>
+  {% if darf_kosten_sehen %}
+  <p>
+    <label for="inv-kaufdatum">{{ t("inventar.feld.kaufdatum") }}</label>
+    <input type="date" id="inv-kaufdatum" name="kaufdatum" value="{{ zeile.kaufdatum.isoformat() if zeile and zeile.kaufdatum else "" }}">
+    <label for="inv-kaufpreis">{{ t("inventar.feld.kaufpreis") }}</label>
+    <input type="text" inputmode="decimal" id="inv-kaufpreis" name="kaufpreis" size="12" value="{{ zeile.kaufpreis if zeile and zeile.kaufpreis is not none else "" }}">
+  </p>
+  {% endif %}
+  {% if not zeile %}<p>{% with wahl = wahl_ks %}{% include "teil_wahl.html" %}{% endwith %}</p>{% endif %}
+  <fieldset>
+    <legend>{{ t("inventar.feld.merkmale") }}</legend>
+    <div id="merkmal-felder">
+      {% include "teil_inventar_merkmale.html" %}
+    </div>
+  </fieldset>
+  <p>
+    <label for="inv-besonderheiten">{{ t("inventar.feld.besonderheiten") }}</label><br>
+    <textarea id="inv-besonderheiten" name="besonderheiten" rows="3" cols="50">{{ zeile.besonderheiten if zeile else "" }}</textarea>
+  </p>
+  <p>
+    <label for="inv-foto">{{ t("inventar.foto") }}</label>
+    <input type="file" id="inv-foto" name="foto" accept="image/jpeg,image/png">
+    <span class="klein leise">{{ t("inventar.foto_hinweis") }}</span>
+  </p>
+  <p class="tastenreihe">
+    <button type="submit" class="haupt">{{ t("inventar.taste.speichern") }}</button>
+    <a class="taste" data-abbrechen href="{% if zeile %}/inventar/stueck/{{ zeile.id }}{% else %}/inventar{% endif %}">{{ t("inventar.taste.abbrechen") }}</a>
+  </p>
+</form>
+<div id="stueck-meldung"></div>
+<script src="{{ statisch("inventar.js") }}" defer></script>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "rahmen.html" %}
+{% block titel %}{{ t("inventar.verwaltung.pruefarten") }} — {{ t("web.titel") }}{% endblock %}
+{% block inhalt %}
+{% with seite = "inventar_pruefarten", titel = t("inventar.verwaltung.pruefarten") %}{% include "teil_seitenkopf.html" %}{% endwith %}
+{% if fertig %}<p class="gut" role="status">✓ {{ t("inventar.fertig.gespeichert") }}</p>{% endif %}
+<table class="liste">
+  <tr><th>{{ t("inventar.katalog.schluessel") }}</th><th>{{ t("inventar.feld.bezeichnung") }}</th><th>{{ t("inventar.pruefung.feld.intervall") }}</th><th>{{ t("inventar.pruefung.feld.zaehler_intervall") }}</th><th>{{ t("inventar.pruefung.feld.rechtsgrund") }}</th><th>{{ t("inventar.katalog.gruppen") }}</th><th>{{ t("web.status") }}</th><th></th></tr>
+  {% for z in zeilen %}
+  <tr{% if not z.aktiv %} class="leise"{% endif %}>
+    <td>{{ z.schluessel }}{% if z.startwert %} <span class="klein leise">{{ t("inventar.katalog.startwert") }}</span>{% endif %}</td>
+    <td>{{ z.bezeichnung }}</td><td class="zahl">{{ z.intervall }}</td><td class="zahl">{{ z.zaehler|oder_strich }}</td><td>{{ z.rechtsgrund|oder_strich }}</td>
+    <td>{{ z.gruppen|join(", ")|oder_strich }}</td><td>{{ t("inventar.katalog.aktiv") if z.aktiv else t("inventar.katalog.inaktiv") }}</td>
+    <td><a class="taste klein" href="/inventar/verwaltung/pruefarten?bearbeiten={{ z.schluessel }}#formular">{{ t("inventar.taste.bearbeiten") }}</a></td>
+  </tr>
+  {% if z.je_merkmal %}<tr class="leise klein"><td></td><td colspan="7">{{ t("inventar.katalog.je_merkmal") }}: {{ z.je_merkmal|replace("\n", "; ") }}</td></tr>{% endif %}
+  {% endfor %}
+</table>
+<h2 id="formular">{{ t("inventar.katalog.neu_oder_aendern") }}</h2>
+<form method="post" action="/inventar/verwaltung/pruefarten" hx-post="/inventar/verwaltung/pruefarten" hx-target="#katalog-meldung" hx-swap="innerHTML">
+  <p><label for="p-schluessel">{{ t("inventar.katalog.schluessel") }}</label> <input id="p-schluessel" name="schluessel" size="20" required value="{{ eintrag.schluessel }}"{% if eintrag.schluessel %} readonly{% endif %}>
+     <label for="p-bez">{{ t("inventar.feld.bezeichnung") }}</label> <input id="p-bez" name="bezeichnung" size="30" required value="{{ eintrag.bezeichnung }}"></p>
+  <p><label for="p-monate">{{ t("inventar.pruefung.feld.intervall") }}</label> <input id="p-monate" name="intervall_monate" type="number" min="1" size="5" required value="{{ eintrag.intervall }}">
+     <label for="p-zaehler">{{ t("inventar.pruefung.feld.zaehler_intervall") }}</label> <input id="p-zaehler" name="zaehler_intervall" type="number" min="1" size="6" value="{{ eintrag.zaehler }}">
+     <label for="p-durch">{{ t("inventar.katalog.durchfuehrung") }}</label>
+     <select id="p-durch" name="durchfuehrung">{% for d in durchfuehrungen %}<option value="{{ d }}"{% if d == eintrag.durchfuehrung %} selected{% endif %}>{{ t("inventar.pruefung.durchfuehrung." ~ d) }}</option>{% endfor %}</select></p>
+  <p><label for="p-grund">{{ t("inventar.pruefung.feld.rechtsgrund") }}</label> <input id="p-grund" name="rechtsgrund" size="40" value="{{ eintrag.rechtsgrund }}"></p>
+  <p><label for="p-je">{{ t("inventar.katalog.je_merkmal") }}</label><br><textarea id="p-je" name="je_merkmal" rows="3" cols="40">{{ eintrag.je_merkmal }}</textarea><br><span class="klein leise">{{ t("inventar.katalog.je_merkmal_hinweis") }}</span></p>
+  <fieldset><legend>{{ t("inventar.katalog.gruppen") }}</legend>
+    {% for schluessel, bezeichnung in gruppen %}<label><input type="checkbox" name="g_{{ schluessel }}" value="{{ schluessel }}"{% if schluessel in eintrag.gruppen %} checked{% endif %}> {{ bezeichnung }}</label> {% endfor %}
+  </fieldset>
+  <p><label><input type="checkbox" name="aktiv" value="1"{% if eintrag.aktiv %} checked{% endif %}> {{ t("inventar.katalog.aktiv") }}</label></p>
+  <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.taste.speichern") }}</button><a class="taste" data-abbrechen href="/inventar/verwaltung/pruefarten">{{ t("inventar.taste.abbrechen") }}</a></p>
+</form>
+<div id="katalog-meldung"></div>
+{% endblock %}

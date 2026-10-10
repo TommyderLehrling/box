@@ -1,0 +1,37 @@
+{% extends "rahmen.html" %}
+{% block titel %}{{ t("inventar.verwaltung.merkmale") }} — {{ t("web.titel") }}{% endblock %}
+{% block inhalt %}
+{% with seite = "inventar_merkmale", titel = t("inventar.verwaltung.merkmale") %}{% include "teil_seitenkopf.html" %}{% endwith %}
+{% if fertig %}<p class="gut" role="status">✓ {{ t("inventar.fertig.gespeichert") }}</p>{% endif %}
+<form method="get" action="/inventar/verwaltung/merkmale" class="filterzeile">
+  <label for="m-gruppe">{{ t("inventar.feld.gruppe") }}</label>
+  <select id="m-gruppe" name="gruppe">{% for schluessel, bezeichnung in gruppen %}<option value="{{ schluessel }}"{% if schluessel == gruppe %} selected{% endif %}>{{ bezeichnung }}</option>{% endfor %}</select>
+  <button type="submit">{{ t("web.suchen") }}</button>
+</form>
+<table class="liste">
+  <tr><th>{{ t("inventar.katalog.schluessel") }}</th><th>{{ t("inventar.feld.bezeichnung") }}</th><th>{{ t("inventar.katalog.typ") }}</th><th>{{ t("inventar.katalog.einheit") }}</th><th>{{ t("inventar.katalog.auswahl") }}</th><th>{{ t("inventar.katalog.pflicht") }}</th><th>{{ t("web.status") }}</th><th></th></tr>
+  {% for z in zeilen %}
+  <tr{% if not z.aktiv %} class="leise"{% endif %}>
+    <td>{{ z.schluessel }}{% if z.startwert %} <span class="klein leise">{{ t("inventar.katalog.startwert") }}</span>{% endif %}</td>
+    <td>{{ z.bezeichnung }}</td><td>{{ t("inventar.katalog.typ." ~ z.typ) }}</td><td>{{ z.einheit|oder_strich }}</td><td>{{ z.auswahl|oder_strich }}</td>
+    <td>{{ t("inventar.ja") if z.pflicht else t("inventar.nein") }}</td><td>{{ t("inventar.katalog.aktiv") if z.aktiv else t("inventar.katalog.inaktiv") }}</td>
+    <td><a class="taste klein" href="/inventar/verwaltung/merkmale?gruppe={{ gruppe }}&amp;bearbeiten={{ z.schluessel }}#formular">{{ t("inventar.taste.bearbeiten") }}</a></td>
+  </tr>
+  {% endfor %}
+</table>
+<h2 id="formular">{{ t("inventar.katalog.neu_oder_aendern") }}</h2>
+<form method="post" action="/inventar/verwaltung/merkmale" hx-post="/inventar/verwaltung/merkmale" hx-target="#katalog-meldung" hx-swap="innerHTML">
+  <input type="hidden" name="gruppe" value="{{ gruppe }}">
+  <p><label for="mk-schluessel">{{ t("inventar.katalog.schluessel") }}</label> <input id="mk-schluessel" name="schluessel" size="20" required value="{{ eintrag.schluessel }}"{% if eintrag.schluessel %} readonly{% endif %}>
+     <label for="mk-bez">{{ t("inventar.feld.bezeichnung") }}</label> <input id="mk-bez" name="bezeichnung" size="30" required value="{{ eintrag.bezeichnung }}"></p>
+  <p><label for="mk-typ">{{ t("inventar.katalog.typ") }}</label>
+     <select id="mk-typ" name="typ">{% for typ in typen %}<option value="{{ typ }}"{% if typ == eintrag.typ %} selected{% endif %}>{{ t("inventar.katalog.typ." ~ typ) }}</option>{% endfor %}</select>
+     <label for="mk-einheit">{{ t("inventar.katalog.einheit") }}</label> <input id="mk-einheit" name="einheit" size="8" value="{{ eintrag.einheit }}"></p>
+  <p><label for="mk-auswahl">{{ t("inventar.katalog.auswahl") }}</label> <input id="mk-auswahl" name="auswahl" size="40" value="{{ eintrag.auswahl }}"> <span class="klein leise">{{ t("inventar.katalog.auswahl_hinweis") }}</span></p>
+  <p><label for="mk-sort">{{ t("inventar.katalog.sortierung") }}</label> <input id="mk-sort" name="sortierung" type="number" size="5" value="{{ eintrag.sortierung }}">
+     <label><input type="checkbox" name="pflicht" value="1"{% if eintrag.pflicht %} checked{% endif %}> {{ t("inventar.katalog.pflicht") }}</label>
+     <label><input type="checkbox" name="aktiv" value="1"{% if eintrag.aktiv %} checked{% endif %}> {{ t("inventar.katalog.aktiv") }}</label></p>
+  <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.taste.speichern") }}</button><a class="taste" data-abbrechen href="/inventar/verwaltung/merkmale?gruppe={{ gruppe }}">{{ t("inventar.taste.abbrechen") }}</a></p>
+</form>
+<div id="katalog-meldung"></div>
+{% endblock %}

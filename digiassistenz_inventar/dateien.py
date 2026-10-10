@@ -36,6 +36,11 @@ def exportordner(arbeitsordner: Path, ordnername: str) -> Path:
     return modulordner(arbeitsordner, ordnername) / "export"
 
 
+def importordner(arbeitsordner: Path, ordnername: str) -> Path:
+    """Hochgeladene Importdateien — sie bleiben liegen (nichts wird gelöscht)."""
+    return modulordner(arbeitsordner, ordnername) / "import"
+
+
 def kostenstellenordner(arbeitsordner: Path, ordnername: str, nummer: str) -> Path:
     return modulordner(arbeitsordner, ordnername) / "kostenstellen" / sauber(nummer)
 
@@ -68,11 +73,16 @@ def speichern(ordner: Path, name: str, inhalt: bytes) -> tuple[Path, str]:
     return ziel, pruefsumme(inhalt)
 
 
-def foto_pruefen(inhalt_typ: str, groesse: int) -> str:
-    """Erlaubt sind jpg und png bis 8 MB; liefert die Endung."""
+KENNUNG = {".jpg": b"\xff\xd8\xff", ".png": b"\x89PNG\r\n\x1a\n"}
+
+
+def foto_pruefen(inhalt_typ: str, groesse: int, inhalt: bytes | None = None) -> str:
+    """Erlaubt sind jpg und png bis 8 MB; liefert die Endung. Mit `inhalt` zählt auch der Anfang der Datei, nicht nur die Angabe."""
     endung = FOTO_ENDUNGEN.get(inhalt_typ)
     if endung is None:
         raise DateiFehler("dateien.foto_typ")
     if groesse > FOTO_HOECHSTENS:
         raise DateiFehler("dateien.foto_gross")
+    if inhalt is not None and not inhalt.startswith(KENNUNG[endung]):
+        raise DateiFehler("dateien.foto_typ")
     return endung

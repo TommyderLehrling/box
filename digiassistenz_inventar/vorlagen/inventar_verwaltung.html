@@ -2,10 +2,9 @@
 {% block titel %}{{ t("inventar.menue_verwaltung") }} — {{ t("web.titel") }}{% endblock %}
 {% block inhalt %}
 {% with seite = "inventar_verwaltung", titel = t("inventar.menue_verwaltung") %}{% include "teil_seitenkopf.html" %}{% endwith %}
-<table class="liste">
-  <tr><th>{{ t("web.was") }}</th><th>{{ t("web.wert") }}</th></tr>
-  {% for schluessel, anzahl in zahlen %}
-  <tr><td>{{ t("inventar.verwaltung." ~ schluessel) }}</td><td class="zahl">{{ anzahl }}</td></tr>
+<p class="tastenreihe raster inventar-kacheln">
+  {% for schluessel, weg, zahl in kacheln %}
+  <a class="taste" href="{{ weg }}">{% if zahl is not none %}<span class="zahl">{{ zahl }}</span> {% endif %}{{ t("inventar.verwaltung." ~ schluessel) }}</a>
   {% endfor %}
-</table>
+</p>
 {% endblock %}

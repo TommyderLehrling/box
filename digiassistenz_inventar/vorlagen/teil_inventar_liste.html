@@ -1,0 +1,35 @@
+{# Die Tabelle der Inventarliste samt Seitenwahl — das Stück, das HTMX beim Tippen holt. #}
+{% if not seite_inhalt.zeilen %}
+<p class="leise">{% if filter.q or filter.status or filter.gruppe or filter.kostenstelle or filter.angekuendigt or filter.faellig %}{{ t("inventar.keine_treffer") }}{% else %}{{ t("inventar.keine_stuecke") }}{% endif %}</p>
+{% else %}
+<p class="klein leise">{{ t("inventar.treffer", anzahl=seite_inhalt.gesamt) }}</p>
+<table class="liste">
+  <tr>
+    {% for feld, beschriftung in (("nummer", t("web.nummer")), ("bezeichnung", t("web.bezeichnung")), ("gruppe", t("inventar.spalte_gruppe"))) %}
+    <th aria-sort="{{ ("descending" if absteigend else "ascending") if spalte == feld else "none" }}">
+      {% include "teil_sortierpfeil.html" %}
+    </th>
+    {% endfor %}
+    <th>{{ t("inventar.spalte_steht_auf") }}</th><th>{{ t("inventar.spalte_seit") }}</th><th>{{ t("inventar.spalte_pruefstand") }}</th>
+    <th aria-sort="{{ ("descending" if absteigend else "ascending") if spalte == "status" else "none" }}">
+      {% with feld = "status", beschriftung = t("web.status") %}{% include "teil_sortierpfeil.html" %}{% endwith %}
+    </th>
+  </tr>
+  {% for z in seite_inhalt.zeilen %}
+  <tr>
+    <td><a href="/inventar/stueck/{{ z.id }}">{{ z.nummer }}</a></td><td>{{ z.bezeichnung }}</td><td>{{ z.gruppe }}</td>
+    <td>{% if z.steht_auf %}{{ z.steht_auf }}{% elif z.angekuendigt_auf %}{{ t("inventar.angekuendigt_auf", ziel=z.angekuendigt_auf) }}{% else %}{{ z.steht_auf|oder_strich }}{% endif %}</td>
+    <td>{{ z.seit|datum }}</td>
+    <td><span title="{{ t("inventar.pruefung.ampel." ~ z.ampel) }}">{{ z.ampel_zeichen }}</span> <span class="klein leise">{{ t("inventar.pruefung.ampel." ~ z.ampel) }}</span></td>
+    <td>{{ t("inventar.status." ~ z.status) }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% if seite_inhalt.letzte > 1 %}
+<p class="tastenreihe">
+  {% if seite_inhalt.nummer > 1 %}<a class="taste" href="/inventar?{{ filterweg }}{% if filterweg %}&amp;{% endif %}seite={{ seite_inhalt.nummer - 1 }}">{{ t("inventar.zurueck") }}</a>{% endif %}
+  <span class="leise">{{ t("inventar.seite_n", nr=seite_inhalt.nummer, letzte=seite_inhalt.letzte) }}</span>
+  {% if seite_inhalt.nummer < seite_inhalt.letzte %}<a class="taste" href="/inventar?{{ filterweg }}{% if filterweg %}&amp;{% endif %}seite={{ seite_inhalt.nummer + 1 }}">{{ t("inventar.weiter") }}</a>{% endif %}
+</p>
+{% endif %}
+{% endif %}

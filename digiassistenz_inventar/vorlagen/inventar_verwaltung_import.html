@@ -1,0 +1,31 @@
+{% extends "rahmen.html" %}
+{% block titel %}{{ t("inventar.verwaltung.import") }} — {{ t("web.titel") }}{% endblock %}
+{% block inhalt %}
+{% with seite = "inventar_import", titel = t("inventar.verwaltung.import") %}{% include "teil_seitenkopf.html" %}{% endwith %}
+<p class="tastenreihe"><a class="taste" href="/inventar/verwaltung/import/vorlage">{{ t("inventar.taste.vorlage_laden") }}</a></p>
+<form method="post" action="/inventar/verwaltung/import" enctype="multipart/form-data">
+  <input type="hidden" name="aktion" value="pruefen">
+  <p><label for="import-datei">{{ t("inventar.import.datei") }}</label> <input type="file" id="import-datei" name="datei" accept=".xlsx" required>
+     <button type="submit" class="haupt">{{ t("inventar.taste.datei_pruefen") }}</button></p>
+</form>
+{% if bericht %}
+<h2>{{ t("inventar.import.bericht_titel") }}</h2>
+{% if bericht.angelegt %}<p class="gut" role="status">✓ {{ t("inventar.import.angelegt", anzahl=bericht.angelegt) }}</p>{% endif %}
+<p>{{ t("inventar.import.ergebnis", ok=bericht.gelesen, fehler=bericht.fehler|length) }}</p>
+{% if bericht.fehler %}
+<table class="liste"><tr><th>{{ t("inventar.import.zeile") }}</th><th>{{ t("inventar.import.spalte") }}</th><th>{{ t("inventar.import.wert") }}</th><th></th></tr>
+  {% for z in bericht.fehler %}<tr><td class="zahl">{{ z.zeile }}</td><td>{{ z.spalte }}</td><td>{{ z.wert }}</td><td class="schlimm">{{ t("inventar." ~ z.text) }}</td></tr>{% endfor %}
+</table>
+{% endif %}
+{% if bericht.hinweise %}<ul class="klein leise">{% for h in bericht.hinweise %}<li>{{ t("inventar.import.zeile") }} {{ h.zeile }}: {{ t("inventar." ~ h.text) }}</li>{% endfor %}</ul>{% endif %}
+{% for z in bericht.je_gruppe %}<p>{{ t("inventar.import.bericht.zeile", gruppe=z.gruppe, art=z.art, neu=z.neu, unveraendert=z.unveraendert, abweichend=z.abweichend) }}</p>{% endfor %}
+{% for h in bericht.abweichungen %}<p class="klein leise">{{ t("inventar." ~ h.text, detail=h.detail) }}</p>{% endfor %}
+{% if bericht.unbekannte_lieferanten %}<p class="warnung">{{ t("inventar.import.lieferant_unbekannt", namen=bericht.unbekannte_lieferanten|join(", ")) }}</p>{% endif %}
+{% if not bericht.fehler and not bericht.angelegt and datei %}
+<form method="post" action="/inventar/verwaltung/import">
+  <input type="hidden" name="aktion" value="einspielen"><input type="hidden" name="datei" value="{{ datei }}">
+  <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.taste.einspielen") }} ({{ bericht.neu }})</button></p>
+</form>
+{% endif %}
+{% endif %}
+{% endblock %}

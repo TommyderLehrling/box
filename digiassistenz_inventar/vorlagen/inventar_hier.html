@@ -2,14 +2,65 @@
 {% block titel %}{{ t("inventar.menue_hier") }} — {{ t("web.titel") }}{% endblock %}
 {% block inhalt %}
 {% with seite = "inventar_hier", titel = t("inventar.menue_hier") %}{% include "teil_seitenkopf.html" %}{% endwith %}
-{% if not zeilen %}
-<p class="leise">{{ t("inventar.hier_leer") }}</p>
+{% if fertig %}<p class="gut" role="status" id="hier-fertig">✓ {{ t("inventar.fertig." ~ fertig) }}</p>{% endif %}
+
+{% if gewaehlt is none %}
+<p class="leise">{{ t("inventar.hier_keine_kostenstelle") }}</p>
 {% else %}
-<table class="liste">
-  <tr><th>{{ t("web.kostenstelle") }}</th><th>{{ t("web.nummer") }}</th><th>{{ t("inventar.spalte_menge") }}</th></tr>
-  {% for z in zeilen %}
-  <tr><td>{{ z.kostenstelle }}</td><td>{{ z.nummer }}</td><td class="zahl">{{ z.menge }}</td></tr>
-  {% endfor %}
-</table>
+<section id="hier-kopf">
+  {% if kostenstellen|length > 1 %}
+  <form method="get" action="/inventar/hier" class="filterzeile">
+    <label for="hier-ks">{{ t("inventar.feld.kostenstelle") }}</label>
+    <select id="hier-ks" name="ks" onchange="this.form.submit()">
+      {% for id, name in kostenstellen %}<option value="{{ id }}"{% if id == gewaehlt %} selected{% endif %}>{{ name }}</option>{% endfor %}
+    </select>
+    <noscript><button type="submit">{{ t("web.suchen") }}</button></noscript>
+  </form>
+  {% else %}<p><strong>{{ kostenstellen[0][1] }}</strong></p>{% endif %}
+  {% if darf_scannen %}<p class="tastenreihe"><a class="taste haupt gross" href="/inventar/scannen?ks={{ gewaehlt }}">{{ t("inventar.taste.scannen") }}</a></p>{% endif %}
+</section>
+
+<section id="hier-angekuendigt">
+  <h2>{{ t("inventar.hier.angekuendigt") }} ({{ angekuendigt|length }})</h2>
+  {% if not angekuendigt %}<p class="leise">{{ t("inventar.hier_leer") }}</p>{% else %}
+  <table class="liste">
+    <tr><th>{{ t("web.nummer") }}</th><th>{{ t("web.bezeichnung") }}</th><th>{{ t("inventar.transfer.feld.von") }}</th><th>{{ t("inventar.transfer.feld.menge") }}</th><th>{{ t("inventar.transfer.feld.abgang_am") }}</th><th></th></tr>
+    {% for x in angekuendigt %}
+    <tr>
+      <td><a href="/inventar/stueck/{{ x.stueck_id }}?ks={{ gewaehlt }}">{{ x.nummer }}</a></td><td>{{ x.bezeichnung }}</td><td>{{ x.von|oder_strich }}</td><td class="zahl">{{ x.menge }}</td><td>{{ x.abgang_am|zeitpunkt }}</td>
+      <td>
+        {% if darf_scannen %}
+        <form method="post" action="/inventar/transfer/{{ x.id }}/eingang" hx-post="/inventar/transfer/{{ x.id }}/eingang" hx-target="#hier-meldung" hx-swap="innerHTML">
+          <input type="hidden" name="weiter" value="hier"><input type="hidden" name="eingang_schluessel" value="{{ buchung }}-{{ x.id }}">
+          {% if x.art == "menge" %}<label class="klein" for="menge-{{ x.id }}">{{ t("inventar.transfer.feld.menge") }}</label> <input type="number" id="menge-{{ x.id }}" name="menge" min="1" max="{{ x.menge }}" value="{{ x.menge }}" size="5">{% endif %}
+          <button type="submit" class="haupt">{{ t("inventar.transfer.taste.eingang") }}</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</section>
+
+<section id="hier-vor-ort">
+  <h2>{{ t("inventar.hier.vor_ort") }} ({{ vor_ort|length }})</h2>
+  {% if not vor_ort %}<p class="leise">{{ t("inventar.hier_leer") }}</p>{% else %}
+  <table class="liste">
+    <tr><th>{{ t("web.nummer") }}</th><th>{{ t("web.bezeichnung") }}</th><th>{{ t("inventar.feld.menge") }}</th><th>{{ t("inventar.spalte_seit") }}</th><th></th></tr>
+    {% for o in vor_ort %}
+    <tr>
+      <td><a href="/inventar/stueck/{{ o.stueck_id }}?ks={{ gewaehlt }}">{{ o.nummer }}</a></td><td>{{ o.bezeichnung }}</td><td class="zahl">{{ o.menge }}</td><td>{{ o.seit|datum }}</td>
+      <td class="tastenreihe">
+        {% if darf_buchen %}<a class="taste klein" href="/inventar/stueck/{{ o.stueck_id }}?ks={{ gewaehlt }}#abgang-von">{{ t("inventar.transfer.taste.abgang") }}</a>{% endif %}
+        {% if darf_melden %}<a class="taste klein" href="/inventar/stueck/{{ o.stueck_id }}?ks={{ gewaehlt }}#meldung-text">{{ t("inventar.meldung.taste_schaden") }}</a>{% endif %}
+        {% if o.hat_zaehler and darf_scannen %}<a class="taste klein" href="/inventar/stueck/{{ o.stueck_id }}?ks={{ gewaehlt }}#zaehler-stand">{{ t("inventar.feld.zaehlerstand") }}</a>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</section>
+<div id="hier-meldung"></div>
 {% endif %}
 {% endblock %}

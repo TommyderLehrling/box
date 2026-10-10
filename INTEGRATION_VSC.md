@@ -29,19 +29,24 @@ python -m digiassistenz_kern.start                                             #
 |---|---|---|
 | T-I-5 | Kern + Inventar | `tests/integration/test_t_i_5.py` |
 | Anwendungsfälle, Modelle gegen Kette | Kern + Inventar | `tests/integration/test_dienstlogik_db.py`, `test_migration_gegen_modelle.py` |
+| Seiten L11/L12 durch die Anwendung | Kern + Inventar | `tests/integration/test_seiten_db.py` (5 Fälle) |
 | **T-I-6**, T-K-14 | Kern + Belegerfassung + Inventar | `tests/integration/test_t_i_6.py` (Muster T-I-4; **ungefahren**) |
 
 Aufruf und Stolpersteine: `tests/integration/laufen.md`.
 
-## 4. Browserfälle (Playwright, Chromium + Firefox, Zoom in WebKit) — erst mit L11/L12
+## 4. Browserfälle (Playwright, Chromium + Firefox, Zoom in WebKit) — Seiten aus L11/L12
 
-1. Die Statuszeile ist das erste Element unter dem Kopf der Stück-Seite.
-2. Die Tasten einer Reihe sind gleich hoch.
-3. Kein Link ohne Recht: `Polier.Eins` sieht weder Preise noch „Pflegen“.
-4. Import mit 2.500 Stücken → die Liste öffnet in < 1 s.
+1. Die Statuszeile ist das erste Element unter dem Seitenkopf der Stück-Seite (`#statuszeile`, vor allen `<details>`).
+2. Die Tasten einer Reihe sind gleich hoch (`.tastenreihe`, auch `#haupttasten` und `#scan-tasten`).
+3. Kein Link ohne Recht: `Polier.Eins` sieht weder Preise noch „Bearbeiten“, „Neues Stück“ oder die Verwaltung; ohne `scannen` keine Taste „Ist angekommen“.
+4. Import mit 2.500 Stücken (Excel-Vorlage) → danach öffnet `/inventar` in < 1 s (Seiten à 100).
 5. Etiketten-PDF für 20 Stücke: 1 Bogen, 2 Seiten bei 25–48 Stücken; jeder QR führt auf `/inventar/s/<nummer>`.
-6. Scan-Weg: `/inventar/scannen` mit Kamera-Attrappe und mit Eingabe von Hand; „Ist hier“ bestätigt den angekündigten Transfer.
-7. Probedruck eines Bogens auf Etikettenpapier 70 × 36 mm (24 je A4).
+6. Scan-Weg: `/inventar/scannen` mit Kamera-Attrappe (Chromium `--use-fake-device-for-media-stream`) und mit Eingabe von Hand; „Ist hier“ bestätigt den angekündigten Transfer; `BarcodeDetector` fehlt in Firefox/WebKit → nur das Eingabefeld.
+7. Suchfeld der Liste: 250 ms nach dem Tippen ändert sich nur `#inventar-liste`; Sortierpfeil und Seitenwahl behalten die Filter.
+8. Dialoge (`<details>`): „Abbrechen“ und Esc klappen zu und setzen das Formular zurück; nach „fertig“ steht ✓ und die Seite bleibt.
+9. Merkmalsfelder wechseln mit der Gruppe, der Nummernvorschlag im Nummernfeld mit (`hx-swap-oob`).
+10. Foto-Upload jpg/png ≤ 8 MB; eine umbenannte Textdatei wird abgewiesen.
+11. Probedruck eines Bogens auf Etikettenpapier 70 × 36 mm (24 je A4).
 
 ## 5. Offen / bewusst nicht eingehängt (Steckbrief 11)
 
@@ -50,4 +55,6 @@ Aufruf und Stolpersteine: `tests/integration/laufen.md`.
 * Startseite ist ein fester Weg (`/inventar`), weil der Callable-Weg die Beschriftung nicht findet.
 * `Verbindung(braucht="baustelle", menuepunkte=())`: leer, bis APP den Weg nennt; der Schlüssel (`app` oder `baustelle`) steht nur als `MODUL_BAUSTELLE`.
 * `app.modul` setzt das Inventar nicht; der Titel ist mit dem Inventar allein „DOKON“.
-* Seiten: L10 hat Übersicht, Hier, Fällig (Hinweis), Verwaltung (Zahlen), Reiter an der Kostenstelle, Zeile in der Verwaltungsübersicht, Suche. Der Rest (Stück-Seite, Pflege, Import/Etiketten-Seiten, Hier-Buchungen, Scan) kommt mit L11/L12, die Anwendungsfälle dahinter stehen und sind geprüft.
+* Seiten: L11/L12 bringen Liste, Stück-Seite, Pflege, Verwaltung (Kataloge, Import, Etiketten, Testdaten), Hier-Seite, Buchungen und Scan. Die Fälligkeitsliste mit „Prüfung eintragen“ (L13) und Meldung/Reparatur (G4) fehlen noch; `/inventar/faellig` zeigt einen Hinweis.
+* `DIENSTE` sind jetzt `Dienst`-Objekte (lokale Klasse, gleiche Felder wie der künftige Kern-Typ).
+* Kern-Befund `teil_wahl.html` (`requiredaria-label` bei `pflicht=True`) in `docs/L11/FRAGEN_L11.md` Nr. 3.

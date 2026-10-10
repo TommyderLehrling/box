@@ -297,4 +297,4 @@ def test_dienste_vertrag_rueckgabeschluessel_exakt(box) -> None:
         auskunft = dienste.stueck(s.db, s, inventarnummer="BM-00001")
         assert set(auskunft) == {"inventarnummer", "bezeichnung", "gruppe", "gruppe_text", "art", "status", "seriennummer",
                                  "hersteller", "standort_kostenstelle_id", "standort_seit"}
-        assert dienste.DIENSTE[0][0] == "bestand" and dienste.DIENSTE[1][0] == "stueck"
+        assert dienste.DIENSTE[0].name == "bestand" and dienste.DIENSTE[1].name == "stueck"

@@ -1,0 +1,29 @@
+{% extends "rahmen.html" %}
+{% block titel %}{{ t("inventar.verwaltung.gruppen") }} — {{ t("web.titel") }}{% endblock %}
+{% block inhalt %}
+{% with seite = "inventar_gruppen", titel = t("inventar.verwaltung.gruppen") %}{% include "teil_seitenkopf.html" %}{% endwith %}
+{% if fertig %}<p class="gut" role="status">✓ {{ t("inventar.fertig.gespeichert") }}</p>{% endif %}
+<table class="liste">
+  <tr><th>{{ t("inventar.katalog.schluessel") }}</th><th>{{ t("inventar.feld.bezeichnung") }}</th><th>{{ t("inventar.katalog.kuerzel") }}</th><th>{{ t("inventar.katalog.oben") }}</th><th>{{ t("web.status") }}</th><th></th></tr>
+  {% for z in zeilen %}
+  <tr{% if not z.aktiv %} class="leise"{% endif %}>
+    <td>{{ z.schluessel }}{% if z.startwert %} <span class="klein leise">{{ t("inventar.katalog.startwert") }}</span>{% endif %}</td>
+    <td>{{ z.bezeichnung }}</td><td>{{ z.kuerzel }}</td><td>{{ z.oben|oder_strich }}</td>
+    <td>{{ t("inventar.katalog.aktiv") if z.aktiv else t("inventar.katalog.inaktiv") }}</td>
+    <td><a class="taste klein" href="/inventar/verwaltung/gruppen?bearbeiten={{ z.schluessel }}#formular">{{ t("inventar.taste.bearbeiten") }}</a></td>
+  </tr>
+  {% endfor %}
+</table>
+<h2 id="formular">{{ t("inventar.katalog.neu_oder_aendern") }}</h2>
+<form method="post" action="/inventar/verwaltung/gruppen" hx-post="/inventar/verwaltung/gruppen" hx-target="#katalog-meldung" hx-swap="innerHTML">
+  <p><label for="g-schluessel">{{ t("inventar.katalog.schluessel") }}</label> <input id="g-schluessel" name="schluessel" size="20" required value="{{ eintrag.schluessel }}"{% if eintrag.schluessel %} readonly{% endif %}>
+     <label for="g-bez">{{ t("inventar.feld.bezeichnung") }}</label> <input id="g-bez" name="bezeichnung" size="30" required value="{{ eintrag.bezeichnung }}"></p>
+  <p><label for="g-kuerzel">{{ t("inventar.katalog.kuerzel") }}</label> <input id="g-kuerzel" name="kuerzel" size="3" maxlength="2" required value="{{ eintrag.kuerzel }}">
+     <label for="g-oben">{{ t("inventar.katalog.oben") }}</label>
+     <select id="g-oben" name="oben"><option value=""></option>{% for z in zeilen %}<option value="{{ z.schluessel }}"{% if z.schluessel == eintrag.oben %} selected{% endif %}>{{ z.bezeichnung }}</option>{% endfor %}</select>
+     <label for="g-sort">{{ t("inventar.katalog.sortierung") }}</label> <input id="g-sort" name="sortierung" type="number" size="5" value="{{ eintrag.sortierung }}">
+     <label><input type="checkbox" name="aktiv" value="1"{% if eintrag.aktiv %} checked{% endif %}> {{ t("inventar.katalog.aktiv") }}</label></p>
+  <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.taste.speichern") }}</button><a class="taste" data-abbrechen href="/inventar/verwaltung/gruppen">{{ t("inventar.taste.abbrechen") }}</a></p>
+</form>
+<div id="katalog-meldung"></div>
+{% endblock %}

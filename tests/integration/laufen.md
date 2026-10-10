@@ -7,6 +7,7 @@ falsche Aufbau da, wird die Datei rot (`aufbau_pruefen`), nie übersprungen. Pr�
 | Lauf | Aufbau | Datei |
 |---|---|---|
 | **T-I-5** | Kern + Inventar | `tests/integration/test_t_i_5.py` |
+| Seiten L11/L12, Anwendungsfälle, Modelle gegen Kette | Kern + Inventar | `test_seiten_db.py`, `test_dienstlogik_db.py`, `test_migration_gegen_modelle.py` |
 | **T-I-6**, T-K-14 | Kern + Belegerfassung + Inventar | `tests/integration/test_t_i_6.py` |
 
 ## Ohne Docker (Anleitung VSC `LAUFEN_OHNE_DOCKER.md`, geprüft auf PostgreSQL 16, Konto Superuser)

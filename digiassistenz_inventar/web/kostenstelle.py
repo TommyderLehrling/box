@@ -22,7 +22,8 @@ def reiter(
     _recht=Depends(gemeinsam.verlangt("inventar", "sehen")),
 ) -> HTMLResponse:
     """Vor Ort und angekündigt auf dieser Kostenstelle; eine fremde Kostenstelle gibt es nicht (N7)."""
-    if not sitzung.db.execute(sitzung.abfrage(Kostenstelle).where(Kostenstelle.id == kostenstelle_id)).first():
+    zeile = sitzung.db.execute(sitzung.abfrage(Kostenstelle).where(Kostenstelle.id == kostenstelle_id)).scalars().first()
+    if zeile is None:
         raise gemeinsam.KeinRecht("inventar", "sehen")
     orte = sitzung.db.execute(
         sitzung.abfrage(m.Standort).where(m.Standort.bis.is_(None), m.Standort.kostenstelle_id == kostenstelle_id)).scalars().all()
@@ -30,7 +31,7 @@ def reiter(
         m.Transfer.mandant_id == sitzung.kontext.mandant_id, m.Transfer.status == "angekuendigt",
         m.Transfer.nach_kostenstelle_id == kostenstelle_id)).scalar_one()
     return gemeinsam.teil("teil_inventar_kostenstelle.html", vor_ort=len({int(o.stueck_id) for o in orte}),
-                          angekuendigt=int(kommt), kostenstelle_id=kostenstelle_id)
+                          angekuendigt=int(kommt), kostenstelle_id=kostenstelle_id, nummer=zeile.nummer)
 
 
 @router.get("/inventar/uebersicht", response_class=HTMLResponse)

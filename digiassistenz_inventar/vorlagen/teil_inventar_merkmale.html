@@ -1,0 +1,27 @@
+{# Die Merkmalsfelder einer Gruppe — beim Anlegen kommt der Nummernvorschlag als Platzhalter des Nummernfelds mit (Austausch außer der Reihe). #}
+{% for feld in felder %}
+<p>
+  <label for="m-{{ feld.schluessel }}">{{ feld.bezeichnung }}{% if feld.einheit %} ({{ feld.einheit }}){% endif %}{% if feld.pflicht %} *{% endif %}</label>
+  {% if feld.typ == "auswahl" %}
+  <select id="m-{{ feld.schluessel }}" name="m_{{ feld.schluessel }}"{% if feld.pflicht %} required{% endif %}>
+    <option value=""></option>
+    {% for wert in feld.auswahl %}<option value="{{ wert }}"{% if wert == feld.wert %} selected{% endif %}>{{ wert }}</option>{% endfor %}
+  </select>
+  {% elif feld.typ == "ja_nein" %}
+  <select id="m-{{ feld.schluessel }}" name="m_{{ feld.schluessel }}"{% if feld.pflicht %} required{% endif %}>
+    <option value=""></option>
+    <option value="ja"{% if feld.wert == "ja" %} selected{% endif %}>{{ t("inventar.ja") }}</option>
+    <option value="nein"{% if feld.wert == "nein" %} selected{% endif %}>{{ t("inventar.nein") }}</option>
+  </select>
+  {% elif feld.typ == "datum" %}
+  <input type="date" id="m-{{ feld.schluessel }}" name="m_{{ feld.schluessel }}" value="{{ feld.wert }}"{% if feld.pflicht %} required{% endif %}>
+  {% elif feld.typ == "zahl" %}
+  <input type="text" inputmode="decimal" id="m-{{ feld.schluessel }}" name="m_{{ feld.schluessel }}" value="{{ feld.wert }}" size="10"{% if feld.pflicht %} required{% endif %}>
+  {% else %}
+  <input type="text" id="m-{{ feld.schluessel }}" name="m_{{ feld.schluessel }}" value="{{ feld.wert }}" size="24"{% if feld.pflicht %} required{% endif %}>
+  {% endif %}
+</p>
+{% endfor %}
+{% if ist_neu %}
+<input type="text" id="inv-nummer" name="inventarnummer" size="18" placeholder="{{ vorschlag }}" hx-swap-oob="true">
+{% endif %}

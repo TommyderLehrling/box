@@ -1,0 +1,27 @@
+{% extends "rahmen.html" %}
+{% block titel %}{{ t("inventar.verwaltung.bauteile") }} — {{ t("web.titel") }}{% endblock %}
+{% block inhalt %}
+{% with seite = "inventar_bauteile", titel = t("inventar.verwaltung.bauteile") %}{% include "teil_seitenkopf.html" %}{% endwith %}
+{% if fertig %}<p class="gut" role="status">✓ {{ t("inventar.fertig.gespeichert") }}</p>{% endif %}
+{% if not zeilen %}<p class="leise">{{ t("inventar.leer") }}</p>{% else %}
+<table class="liste">
+  <tr><th>{{ t("inventar.bauteil.feld.bauteilnummer") }}</th><th>{{ t("inventar.bauteil.feld.bezeichnung") }}</th><th>{{ t("inventar.bauteil.feld.hersteller") }}</th>{% if zeigt_preis %}<th>{{ t("inventar.bauteil.feld.preis_zuletzt") }}</th>{% endif %}<th>{{ t("web.status") }}</th><th></th></tr>
+  {% for z in zeilen %}
+  <tr{% if not z.aktiv %} class="leise"{% endif %}><td>{{ z.nummer }}</td><td>{{ z.bezeichnung }}</td><td>{{ z.hersteller|oder_strich }}</td>{% if zeigt_preis %}<td class="zahl">{{ z.preis|betrag }}</td>{% endif %}
+    <td>{{ t("inventar.katalog.aktiv") if z.aktiv else t("inventar.katalog.inaktiv") }}</td>
+    <td><a class="taste klein" href="/inventar/verwaltung/bauteile?bearbeiten={{ z.nummer }}#formular">{{ t("inventar.taste.bearbeiten") }}</a></td></tr>
+  {% endfor %}
+</table>
+{% endif %}
+<h2 id="formular">{{ t("inventar.katalog.neu_oder_aendern") }}</h2>
+<form method="post" action="/inventar/verwaltung/bauteile" hx-post="/inventar/verwaltung/bauteile" hx-target="#katalog-meldung" hx-swap="innerHTML">
+  <p><label for="b-nr">{{ t("inventar.bauteil.feld.bauteilnummer") }}</label> <input id="b-nr" name="bauteilnummer" size="20" required value="{{ eintrag.nummer }}"{% if eintrag.nummer %} readonly{% endif %}>
+     <label for="b-bez">{{ t("inventar.bauteil.feld.bezeichnung") }}</label> <input id="b-bez" name="bezeichnung" size="30" required value="{{ eintrag.bezeichnung }}"></p>
+  <p><label for="b-her">{{ t("inventar.bauteil.feld.hersteller") }}</label> <input id="b-her" name="hersteller" size="20" value="{{ eintrag.hersteller }}">
+     {% if zeigt_preis %}<label for="b-preis">{{ t("inventar.bauteil.feld.preis_zuletzt") }}</label> <input id="b-preis" name="preis" inputmode="decimal" size="10" value="{{ eintrag.preis }}">{% endif %}</p>
+  <p><label for="b-hinweis">{{ t("inventar.bauteil.feld.hinweis") }}</label> <input id="b-hinweis" name="hinweis" size="40" value="{{ eintrag.hinweis }}">
+     <label><input type="checkbox" name="aktiv" value="1"{% if eintrag.aktiv %} checked{% endif %}> {{ t("inventar.katalog.aktiv") }}</label></p>
+  <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.taste.speichern") }}</button><a class="taste" data-abbrechen href="/inventar/verwaltung/bauteile">{{ t("inventar.taste.abbrechen") }}</a></p>
+</form>
+<div id="katalog-meldung"></div>
+{% endblock %}

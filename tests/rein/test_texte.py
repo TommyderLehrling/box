@@ -14,11 +14,11 @@ from digiassistenz_inventar.rein.stueck_status import ALLE as STUECK_STATUS
 PAKET = Path(__file__).resolve().parents[2] / "digiassistenz_inventar"
 SEITEN = ("uebersicht", "hier", "faellig", "werkstatt", "kosten", "stueck", "transfer", "meldung", "pruefung",
           "verwaltung", "gruppen", "merkmale", "pruefarten", "bauteile", "kostensaetze", "einstellungen",
-          "import", "etiketten", "testdaten", "auslieferung", "handy_scannen", "scannen")
+          "import", "etiketten", "testdaten", "auslieferung", "handy_scannen", "scannen", "stueck_form")
 PRAEFIXE = {"gruppe", "merkmal", "pruefart", "muster", "nummernformat", "kataloge", "fristen", "kosten",
             "transfer", "etiketten", "testdaten", "zubehoer", "inventur", "bauteil", "pruefung", "stueck_status",
             "meldung", "reparatur", "werkstatt", "import_plan", "bestand", "beispielbetrieb",
-            "verrechnung", "stueck", "nummer", "dateien", "laden", "import_lauf"}
+            "verrechnung", "stueck", "nummer", "dateien", "laden", "import_lauf", "katalog", "web", "zaehlerstand"}
 
 
 @pytest.fixture(scope="module")

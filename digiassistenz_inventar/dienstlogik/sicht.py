@@ -55,6 +55,21 @@ def standorte_offen(sitzung: Any, stueck_ids: list[int]) -> dict[int, list[tuple
     return ergebnis
 
 
+def transfers_angekuendigt(sitzung: Any, stueck_ids: list[int]) -> dict[int, list[m.Transfer]]:
+    """Die angekündigten Transfers je Stück, soweit die Sitzung das Ziel oder die Herkunft sehen darf."""
+    if not stueck_ids:
+        return {}
+    q = select(m.Transfer).where(m.Transfer.mandant_id == sitzung.kontext.mandant_id, m.Transfer.status == "angekuendigt",
+                                 m.Transfer.stueck_id.in_(stueck_ids)).order_by(m.Transfer.abgang_am, m.Transfer.id)
+    erlaubt = erlaubte_kostenstellen(sitzung)
+    if erlaubt is not None:
+        q = q.where(or_(m.Transfer.nach_kostenstelle_id.in_(erlaubt), m.Transfer.von_kostenstelle_id.in_(erlaubt)))
+    ergebnis: dict[int, list[m.Transfer]] = {}
+    for z in sitzung.db.execute(q).scalars():
+        ergebnis.setdefault(int(z.stueck_id), []).append(z)
+    return ergebnis
+
+
 def kostenstellen_namen(sitzung: Any, ids: set[int]) -> dict[int, str]:
     """`Nummer Bezeichnung` je Kostenstelle — nur der erlaubten (Kostenstelle selbst filtert über `id`)."""
     from digiassistenz_kern import Kostenstelle
