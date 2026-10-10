@@ -59,7 +59,20 @@
     });
   }
 
+  /* Werkstatt: die Rückmeldung an den Melder wird mit dem Text „was gemacht wurde“ vorgefüllt, solange niemand sie selbst ändert. */
+  function vorfuellen() {
+    var quellen = document.querySelectorAll("[data-vorbild-fuer]");
+    Array.prototype.forEach.call(quellen, function (quelle) {
+      var ziel = document.getElementById(quelle.getAttribute("data-vorbild-fuer"));
+      if (!ziel) { return; }
+      var angefasst = false;
+      ziel.addEventListener("input", function () { angefasst = true; });
+      quelle.addEventListener("input", function () { if (!angefasst) { ziel.value = quelle.value; } });
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
+    vorfuellen();
     var abschnitt = document.getElementById("scan");
     if (!abschnitt) { return; }
     eingabe(abschnitt);

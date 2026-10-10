@@ -95,6 +95,7 @@
 
 <details open>
   <summary>{{ t("inventar.abschnitt.stamm") }}</summary>
+  {% if stueck.foto_sha256 %}<p><a href="/inventar/stueck/{{ stueck.id }}/foto" target="_blank" rel="noopener"><img class="stueck-foto" id="stueck-foto" src="/inventar/stueck/{{ stueck.id }}/foto" alt="{{ t("inventar.foto") }}: {{ stueck.bezeichnung }}" loading="lazy"></a></p>{% endif %}
   <table class="liste">
     <tr><td>{{ t("inventar.feld.art") }}</td><td>{{ t("inventar.art." ~ stueck.art) }}</td></tr>
     <tr><td>{{ t("inventar.feld.hersteller") }}</td><td>{{ stueck.hersteller|oder_strich }}</td></tr>
@@ -271,7 +272,10 @@
       <td>{{ t("inventar.meldung.status." ~ z.status) }}</td>
       <td>{{ z.am|zeitpunkt }} {{ z.von }}{% if z.bearbeiter %}<br><span class="klein leise">{{ t("inventar.werkstatt.bearbeitet") }}: {{ z.bearbeiter }}{% if z.erledigt_am %}, {{ z.erledigt_am|zeitpunkt }}{% endif %}</span>{% endif %}</td></tr>{% endfor %}
     {% for r in reparaturen %}<tr><td>{{ t("inventar.reparatur.werkstatt") }} ({{ t("inventar.reparatur.durchfuehrung." ~ r.durchfuehrung) }})</td>
-      <td>{{ r.beschreibung|oder_strich }}{% if r.grund %}<br><span class="klein leise">{{ t("inventar.meldung.grund") }}: {{ r.grund }}</span>{% endif %}</td>
+      <td>{{ r.beschreibung|oder_strich }}
+        {% if r.arbeit %}<br><span class="klein"><strong>{{ t("inventar.werkstatt.feld.arbeit") }}:</strong> {{ r.arbeit }}</span>{% endif %}
+        {% if r.firma or r.durch %}<br><span class="klein leise">{% if r.firma %}{{ t("inventar.werkstatt.feld.firma") }}: {{ r.firma }}{% endif %}{% if r.durch %}{{ t("inventar.werkstatt.feld.durchgefuehrt_von") }}: {{ r.durch }}{% endif %}</span>{% endif %}
+        {% if r.grund %}<br><span class="klein leise">{{ t("inventar.meldung.grund") }}: {{ r.grund }}</span>{% endif %}</td>
       <td>{{ t("inventar.reparatur.status." ~ r.status) }}</td><td>{{ r.begonnen|datum }} – {{ r.beendet|datum }}{% if r.kosten is not none %} · {{ r.kosten|betrag }}{% endif %}</td></tr>{% endfor %}
   </table>
   {% else %}<p class="leise">{{ t("inventar.leer") }}</p>{% endif %}
@@ -283,7 +287,7 @@
 <details>
   <summary>{{ t("inventar.abschnitt.zaehler") }} ({{ zaehlerstaende|length }})</summary>
   {% if zaehlerstaende %}
-  <table class="liste">{% for z in zaehlerstaende %}<tr><td class="zahl">{{ z.stand|menge }} {{ z.einheit }}</td><td>{{ z.am|zeitpunkt }}</td><td>{{ z.quelle }}</td></tr>{% endfor %}</table>
+  <table class="liste">{% for z in zaehlerstaende %}<tr><td class="zahl">{{ z.stand|menge }} {{ z.einheit }}</td><td>{{ z.am|zeitpunkt }}</td><td>{{ t("inventar.zaehler.quelle." ~ z.quelle) }}</td><td>{{ z.wer|oder_strich }}</td></tr>{% endfor %}</table>
   {% endif %}
   {% if darf_scannen or darf_pflegen %}
   <form method="post" action="/inventar/stueck/{{ stueck.id }}/zaehlerstand" hx-post="/inventar/stueck/{{ stueck.id }}/zaehlerstand" hx-target="#stueck-meldung" hx-swap="innerHTML">
@@ -296,17 +300,55 @@
 {% endif %}
 
 {% if kosten %}
-<details>
+<details id="abschnitt-kosten">
   <summary>{{ t("inventar.abschnitt.kosten") }}</summary>
   <table class="liste">
     <tr><td>{{ t("inventar.kosten.kaufpreis") }}</td><td class="zahl">{{ kosten.kaufpreis|betrag }}</td></tr>
     <tr><td>{{ t("inventar.feld.kaufdatum") }}</td><td>{{ kosten.kaufdatum|datum }}</td></tr>
+    <tr id="kosten-satz"><td>{{ t("inventar.kosten.satz_tag") }}</td><td class="zahl">{% if kosten.satz_tag is not none %}{{ kosten.satz_tag|betrag }}{% else %}{{ ""|oder_strich }}{% endif %}</td></tr>
+    <tr><td>{{ t("inventar.kosten.satz_monat") }}</td><td class="zahl">{% if kosten.satz_monat is not none %}{{ kosten.satz_monat|betrag }}{% else %}{{ ""|oder_strich }}{% endif %}</td></tr>
+    <tr><td>{{ t("inventar.kosten.kalkulatorisch_bis") }}</td><td class="zahl">{{ kosten.kalkulatorisch|betrag }}</td></tr>
+    <tr><td>{{ t("inventar.kosten.reparaturen") }}</td><td class="zahl">{{ kosten.reparaturen_belegt|betrag }} <span class="klein leise">{{ t("inventar.reparatur.kostenquelle.rechnung") }}</span><br>{{ kosten.reparaturen_geschaetzt|betrag }} <span class="klein leise">{{ t("inventar.reparatur.kostenquelle.geschaetzt") }}</span></td></tr>
+    <tr><td>{{ t("inventar.kosten.gesamtkosten") }}</td><td class="zahl">{{ kosten.gesamt|betrag }}</td></tr>
     <tr><td>{{ t("inventar.kosten.restbuchwert") }}</td><td class="zahl">{{ kosten.buchwert_extern|betrag }}</td></tr>
-    <tr><td>{{ t("inventar.kosten.miete") }}</td><td class="zahl">{{ kosten.mietkosten|betrag }}</td></tr>
-    <tr><td>{{ t("inventar.kosten.satz_monat") }}</td><td class="zahl">{{ kosten.satz_monat|betrag }}</td></tr>
-    <tr><td>{{ t("inventar.kosten.satz_tag") }}</td><td class="zahl">{{ kosten.satz_tag|betrag }}</td></tr>
+    {% if kosten.afa_hinweis %}<tr><td>{{ t("inventar.kosten.afa_hinweis") }}</td><td>{{ kosten.afa_hinweis }}</td></tr>{% endif %}
+    <tr><td>{{ t("inventar.kosten.miete") }}</td><td class="zahl">{% if kosten.miete %}{{ kosten.mietkosten|betrag }} <span class="klein leise">{{ kosten.miet_von|datum }} – {{ kosten.miet_bis|datum }}</span>{% else %}{{ ""|oder_strich }}{% endif %}</td></tr>
   </table>
-  <p class="klein leise">{{ t("inventar.kosten.hinweis") }}</p>
+  <p class="klein leise">{{ t("inventar.kosten.hinweis") }}
+    {% if kosten.satz_monat is not none %} · {{ t("inventar.katalog.satzquelle." ~ kosten.satz_quelle) }} · {{ t("inventar.kosten.herkunft." ~ kosten.satz_herkunft) }}{% if kosten.gerechnet_am %} · {{ t("inventar.kosten.gerechnet_am") }} {{ kosten.gerechnet_am|datum }}{% endif %}
+    {% elif kosten.hinweis %} · {{ t("inventar.kosten.hinweis_satz." ~ kosten.hinweis) }}
+    {% else %} · {{ t("inventar.kosten.hinweis_satz.keiner") }}{% endif %}</p>
+  <p><a href="/inventar/kosten?stueck={{ stueck.id }}#kosten-stueck">{{ t("inventar.menue_kosten") }}</a></p>
+  {% if darf_kosten_pflegen %}
+  <details class="dialog" id="dialog-kostensatz">
+    <summary class="taste">{{ t("inventar.kosten.satz_ueberschreiben") }}</summary>
+    <form method="post" action="/inventar/stueck/{{ stueck.id }}/kostensatz" hx-post="/inventar/stueck/{{ stueck.id }}/kostensatz" hx-target="#stueck-meldung" hx-swap="innerHTML">
+      <p><label for="ks-dauer">{{ t("inventar.kosten.nutzungsdauer") }}</label> <input type="number" min="1" id="ks-dauer" name="nutzungsdauer" size="6" value="{{ kosten.form.nutzungsdauer }}" required>
+         <label for="ks-zins">{{ t("inventar.kosten.zins_prozent") }}</label> <input type="text" inputmode="decimal" id="ks-zins" name="zins" size="6" value="{{ kosten.form.zins }}" required>
+         <label for="ks-rep">{{ t("inventar.kosten.reparatur_prozent") }}</label> <input type="text" inputmode="decimal" id="ks-rep" name="reparatur" size="6" value="{{ kosten.form.reparatur }}" required></p>
+      <p><label for="ks-rest">{{ t("inventar.kosten.restwert") }}</label> <input type="text" inputmode="decimal" id="ks-rest" name="restwert" size="10" value="{{ kosten.form.restwert }}">
+         <label for="ks-restp">{{ t("inventar.kosten.restwert") }} %</label> <input type="text" inputmode="decimal" id="ks-restp" name="restwert_prozent" size="6" value="{{ kosten.form.restwert_prozent }}">
+         <label for="ks-basis">{{ t("inventar.kosten.kaufpreis_basis") }}</label> <input type="text" inputmode="decimal" id="ks-basis" name="kaufpreis_basis" size="10"></p>
+      <p class="klein leise">{{ t("inventar.kosten.satz_von_hand_hinweis") }}</p>
+      <p><label for="ks-monat">{{ t("inventar.kosten.satz_monat") }}</label> <input type="text" inputmode="decimal" id="ks-monat" name="satz_monat" size="10">
+         <label for="ks-tag">{{ t("inventar.kosten.satz_tag") }}</label> <input type="text" inputmode="decimal" id="ks-tag" name="satz_tag" size="10">
+         <label for="ks-woche">{{ t("inventar.kosten.satz_woche") }}</label> <input type="text" inputmode="decimal" id="ks-woche" name="satz_woche" size="10">
+         <label for="ks-std">{{ t("inventar.katalog.satz_stunde") }}</label> <input type="text" inputmode="decimal" id="ks-std" name="satz_stunde" size="10"></p>
+      <p><label for="ks-ab">{{ t("inventar.katalog.gueltig_ab") }}</label> <input type="date" id="ks-ab" name="ab" value="{{ heute_iso }}" max="{{ heute_iso }}"></p>
+      <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.taste.speichern") }}</button><button type="button" data-abbrechen>{{ t("inventar.taste.abbrechen") }}</button></p>
+    </form>
+  </details>
+  <details class="dialog" id="dialog-miete">
+    <summary class="taste">{{ t("inventar.kosten.miete_eintragen") }}</summary>
+    <form method="post" action="/inventar/stueck/{{ stueck.id }}/miete" hx-post="/inventar/stueck/{{ stueck.id }}/miete" hx-target="#stueck-meldung" hx-swap="innerHTML">
+      <p><label><input type="checkbox" name="miete" value="1"{% if kosten.miete %} checked{% endif %}> {{ t("inventar.kosten.ist_miete") }}</label></p>
+      <p><label for="mi-von">{{ t("inventar.von") }}</label> <input type="date" id="mi-von" name="von" value="{{ kosten.miet_von.isoformat() if kosten.miet_von else "" }}">
+         <label for="mi-bis">{{ t("inventar.bis") }}</label> <input type="date" id="mi-bis" name="bis" value="{{ kosten.miet_bis.isoformat() if kosten.miet_bis else "" }}">
+         <label for="mi-kosten">{{ t("inventar.kosten.mietkosten") }}</label> <input type="text" inputmode="decimal" id="mi-kosten" name="mietkosten" size="10" value="{{ kosten.mietkosten if kosten.mietkosten is not none else "" }}"></p>
+      <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.taste.speichern") }}</button><button type="button" data-abbrechen>{{ t("inventar.taste.abbrechen") }}</button></p>
+    </form>
+  </details>
+  {% endif %}
 </details>
 {% endif %}
 

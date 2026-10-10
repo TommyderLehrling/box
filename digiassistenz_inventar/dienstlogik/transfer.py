@@ -50,6 +50,7 @@ def _protokollieren(sitzung: Any, stueck: m.Stueck, ergebnis: automat.Ergebnis, 
         protokoll.schreiben(
             sitzung.db, mandant_id=sitzung.kontext.mandant_id, aktion=laden.aktion_aus(schluessel),
             objekt_typ=OBJEKT_TYP, objekt_id=int(stueck.id), neu_wert=detail, benutzer_id=_benutzer(sitzung),
+            alt_wert=f"ks:{kostenstelle_id}" if schluessel == "inventur.gesehen" and kostenstelle_id is not None else None,  # die Inventur liest den Ort
             kostenstelle_id=kostenstelle_id)
 
 

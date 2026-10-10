@@ -2,3 +2,4 @@
 .inventar-kacheln .taste { border-color: #8A5A00; }
 .inventar-kacheln .zahl { font-weight: 700; color: #8A5A00; }
 .inventar-reiter p { margin: 0.2rem 0; }
+.stueck-foto { max-width: min(100%, 24rem); height: auto; border-radius: 4px; }

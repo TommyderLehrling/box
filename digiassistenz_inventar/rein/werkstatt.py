@@ -10,6 +10,8 @@ from typing import Literal
 
 MeldungStatus = Literal["offen", "angenommen", "in_arbeit", "erledigt", "zurueckgezogen"]
 ReparaturStatus = Literal["offen", "in_arbeit", "erledigt", "zurueckgezogen"]
+#: Vorsilbe des Statusgrundes, wenn die Automatik `in_reparatur` gesetzt hat (`reparatur:<id>`)
+GRUND_PRAEFIX = "reparatur:"
 MELDUNG_ARTEN = ("schaden", "reparatur", "wartung", "sonstiges")
 _MELDUNG_WEG = MappingProxyType({
     "offen": ("angenommen", "zurueckgezogen"),
@@ -48,6 +50,9 @@ class Reparatur:
     kosten: Decimal | None = None
     kosten_quelle: Literal["geschaetzt", "rechnung"] | None = None
     grund: str = ""
+    lieferant_id: int | None = None
+    arbeit: str = ""
+    durchgefuehrt_von: str | None = None
 
 
 def _zeit(zeit: datetime) -> None:
@@ -86,11 +91,11 @@ def meldung_weiter(
         rueckmeldung=rueckmeldung.strip() or m.rueckmeldung, grund=grund.strip() or m.grund)
 
 
-def neue_reparatur(durchfuehrung: str) -> Reparatur:
-    """Legt eine offene Reparatur an (intern oder extern)."""
+def neue_reparatur(durchfuehrung: str, lieferant_id: int | None = None) -> Reparatur:
+    """Legt eine offene Reparatur an (intern oder extern); beim Anlegen ist alles freiwillig."""
     if durchfuehrung not in ("intern", "extern"):
         raise ValueError("reparatur.durchfuehrung_unbekannt")
-    return Reparatur("offen", durchfuehrung)  # type: ignore[arg-type]
+    return Reparatur("offen", durchfuehrung, lieferant_id=lieferant_id)  # type: ignore[arg-type]
 
 
 def reparatur_beginnen(r: Reparatur, am: date, geschaetzte_kosten: Decimal | None = None) -> Reparatur:
@@ -103,22 +108,36 @@ def reparatur_beginnen(r: Reparatur, am: date, geschaetzte_kosten: Decimal | Non
                    kosten_quelle="geschaetzt" if geschaetzte_kosten is not None else None)
 
 
-def reparatur_abschliessen(r: Reparatur, am: date, kosten: Decimal | None, quelle: str = "geschaetzt") -> Reparatur:
-    """Schliesst die Reparatur ab; Quelle Rechnung ueberschreibt eine Schaetzung.
+def reparatur_abschliessen(
+    r: Reparatur, am: date, kosten: Decimal | None, quelle: str = "geschaetzt", *, arbeit: str = "",
+    lieferant_id: int | None = None, durchgefuehrt_von: str | None = None,
+) -> Reparatur:
+    """Schliesst die Reparatur ab; beim Abschliessen ist Pflicht: wann, was, und wer (extern: die Firma, intern: die Person).
 
-    Ohne Kosten (`None`: wer abschliesst, darf sie nicht eintragen) bleibt eine frueher geschaetzte Angabe stehen.
+    Quelle Rechnung ueberschreibt eine Schaetzung. Ohne Kosten (`None`: wer abschliesst, darf sie nicht eintragen)
+    bleibt eine frueher geschaetzte Angabe stehen.
     """
     if r.status != "in_arbeit" or r.begonnen_am is None:
         raise ValueError("reparatur.wechsel_nicht_erlaubt")
     if am < r.begonnen_am:
         raise ValueError("reparatur.ende_vor_beginn")
+    if not arbeit.strip():
+        raise ValueError("reparatur.arbeit_fehlt")
+    firma = lieferant_id if lieferant_id is not None else r.lieferant_id
+    if r.durchfuehrung == "extern" and firma is None:
+        raise ValueError("reparatur.lieferant_fehlt")
+    person = (durchgefuehrt_von or "").strip() or None
+    if r.durchfuehrung == "intern" and person is None:
+        raise ValueError("reparatur.durchgefuehrt_von_fehlt")
+    fertig = replace(r, status="erledigt", beendet_am=am, arbeit=arbeit.strip(), lieferant_id=firma,
+                     durchgefuehrt_von=person if r.durchfuehrung == "intern" else None)
     if kosten is None:
-        return replace(r, status="erledigt", beendet_am=am)
+        return fertig
     if kosten < 0:
         raise ValueError("reparatur.kosten_ungueltig")
     if quelle not in ("geschaetzt", "rechnung"):
         raise ValueError("reparatur.kostenquelle_unbekannt")
-    return replace(r, status="erledigt", beendet_am=am, kosten=kosten, kosten_quelle=quelle)  # type: ignore[arg-type]
+    return replace(fertig, kosten=kosten, kosten_quelle=quelle)  # type: ignore[arg-type]
 
 
 def kosten_aus_rechnung(r: Reparatur, kosten: Decimal) -> Reparatur:
@@ -139,13 +158,17 @@ def reparatur_zurueckziehen(r: Reparatur, grund: str) -> Reparatur:
     return replace(r, status="zurueckgezogen", grund=grund.strip())
 
 
-def status_folge(stueck_status: str, laufende_reparaturen: int) -> str | None:
-    """Zielstatus des Stuecks nach einer Aenderung: in_reparatur, solange eine Reparatur laeuft; sonst zurueck auf aktiv."""
+def status_folge(stueck_status: str, laufende_reparaturen: int, status_grund: str = "") -> str | None:
+    """Zielstatus des Stuecks nach einer Aenderung: in_reparatur, solange eine Reparatur laeuft.
+
+    Hand bleibt Hand: zurueck auf aktiv geht es nur, wenn die Automatik `in_reparatur` gesetzt hat (Statusgrund beginnt mit
+    `reparatur:`); ein von Hand gesetzter Status bleibt, bis die Werkstatt ihn von Hand aufhebt.
+    """
     if laufende_reparaturen < 0:
         raise ValueError("reparatur.anzahl_ungueltig")
     if stueck_status == "aktiv" and laufende_reparaturen > 0:
         return "in_reparatur"
-    if stueck_status == "in_reparatur" and laufende_reparaturen == 0:
+    if stueck_status == "in_reparatur" and laufende_reparaturen == 0 and status_grund.startswith(GRUND_PRAEFIX):
         return "aktiv"
     return None
 

@@ -15,7 +15,7 @@ from digiassistenz_kern.web import gemeinsam
 from .. import dateien
 from .. import modelle as m
 from ..rein import pruefung as rein
-from . import pruefstand as staende
+from . import pruefstand as staende, zaehler
 from .stueck import _benutzer
 from .transfer import finde_stueck
 
@@ -106,15 +106,8 @@ def _zaehlerstand_nachtragen(sitzung: Any, stueck: m.Stueck, stand: Decimal | No
     """
     if stand is None or stueck.zaehler_einheit is None:
         return None
-    db, mid = sitzung.db, sitzung.kontext.mandant_id
-    letzter = db.execute(select(m.Zaehlerstand.stand).where(m.Zaehlerstand.mandant_id == mid, m.Zaehlerstand.stueck_id == stueck.id)
-                         .order_by(m.Zaehlerstand.abgelesen_am.desc(), m.Zaehlerstand.id.desc()).limit(1)).scalar_one_or_none()
-    if letzter is not None and stand < letzter:
-        return letzter
-    db.add(m.Zaehlerstand(mandant_id=mid, stueck_id=stueck.id, stand=stand, einheit=stueck.zaehler_einheit, abgelesen_am=zeit.jetzt_utc(),
-                          abgelesen_von=_benutzer(sitzung), quelle="pruefung"))
-    db.flush()
-    return None
+    satz, letzter = zaehler.eintragen(sitzung, stueck, stand, "pruefung")
+    return letzter if satz is None else None
 
 
 def nachweis_lesen(sitzung: Any, pruefung_id: int, arbeitsordner: Path) -> tuple[str, bytes]:

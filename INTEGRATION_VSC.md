@@ -1,14 +1,14 @@
-# INTEGRATION_VSC — was VSC mit `digiassistenz_inventar` tut (L10–L14, Auftrag 05, Box, 10.10.2026)
+# INTEGRATION_VSC — was VSC mit `digiassistenz_inventar` tut (L10–L15, Aufträge 05 und 06, Box, 11.10.2026)
 
 Gebaut gegen **KERN_STECKBRIEF_kern-0.15.4**. Alles hier gilt als Entwurf, bis es auf dem echten Kern läuft. Schon gefahren (Auftrag 05, Abschnitt 5): Kern-Start
-mit `prozesse` (GER am Kern ohne Docker, VSC im Container) und **T-I-6** nach L13 (VSC, 3 passed). Neu seit L13a/L14 ist nur, was in Abschnitt 1 steht.
+mit `prozesse` (GER am Kern ohne Docker, VSC im Container) und **T-I-6** nach L13 (VSC, 3 passed). Neu seit L14a/L15 ist nur, was in Abschnitt 1 und in den Zeilen „L14a“ und „L15“ der Tabelle in Abschnitt 3 steht.
 
 ## 1. Was Box schon gefahren hat (Python 3.12.3, Wheel 0.15.4 nicht editierbar, PostgreSQL 16.15, Superuser)
 
-* `python -m pytest -q -W error`: 331 passed, 0 skipped.
+* `python -m pytest -q -W error`: **360** passed, 0 skipped.
 * Kette `k0001…k0004` → `i0001`, Startdaten, zweiter Start ändert nichts.
-* `tests/integration` (ohne `test_t_i_6.py`): 43 passed, 0 skipped — T-I-5 (8), Anwendungsfälle gegen die echte Datenbank (13), Modelle gegen Kette (2),
-  Seiten L11/L12 (5), Prüfungen/Erinnerung/Kaufdaten/Scan-Quelle/Startstandort L13 (8), **L13a** (3), **Werkstatt L14** (4).
+* `tests/integration` (ohne `test_t_i_6.py`): **56** passed, 0 skipped — T-I-5 (8), Anwendungsfälle gegen die echte Datenbank (13), Modelle gegen Kette (2),
+  Seiten L11/L12 (5), Prüfungen/Erinnerung/Kaufdaten/Scan-Quelle/Startstandort L13 (8), L13a (3), Werkstatt L14/L14a (**10**), **Kosten und Inventur L15 (7)**.
 * Der Prozess `python -m digiassistenz_inventar.erinnern` von Hand gestartet und mit SIGTERM beendet: schreibt auf stdout und in
   `log/digiassistenz-inventar-erinnern.log` (Kern 0.15.4, eine Logdatei je Prozess), `inventar.erinnern_start` und `inventar.erinnern_ende`.
 * Kern-Start mit `prozesse`: **ist gefahren** — GER am Kern 0.15.3/0.15.4 ohne Docker; VSC im Container (Prozess im Bild gefunden, `kill -9` → Neustart durch Docker,
@@ -42,6 +42,13 @@ python -m digiassistenz_kern.start                                             #
 * **Rechte seit L13a:** Das Anlegen eines Stücks (Startstandort, auch im Import) braucht `pflegen` auf der gewählten Kostenstelle; jede Bewegung danach (Abgang, Eingang, Scan)
   braucht `buchen`. Kaufdaten ändert nur, wer `kosten_pflegen` hat. Reparaturkosten trägt nur ein, wer `kosten_pflegen` hat, und sieht nur, wer `kosten_sehen` hat.
 * **Menü seit L14:** „Werkstatt“ (`/inventar/werkstatt`, Recht `werkstatt`, Reihenfolge 13); die Kacheln „Meldungen offen“ und „in Arbeit“ führen dorthin.
+  **Neu mit L15:** „Kosten“ (`/inventar/kosten`, Recht `kosten_sehen`, Reihenfolge 14) und unter Verwaltung die Seite „Inventur“ (`/inventar/verwaltung/inventur`).
+* **Mails (L14a):** alle Mails des Moduls gehen durch **eine** Funktion (`dienstlogik/benachrichtigen.py`), die `mail.einreihen(db, an=[…], betreff=…, text=…, mandant_id=…, benutzer_id=…)` ruft
+  (alle Argumente nach `db` nur als Schlüsselwörter, `mandant_id` immer). Es wird nur **eingereiht** (`kern.mail_ausgang`, Status `wartend`); versendet wird erst mit dem Versand des Kerns.
+  Zu prüfen: eine Zeile je Empfänger, `mandant_id` gesetzt, bei fehlender Adresse der Vermerk `inventar.mail_ohne_adresse` im Verlauf des Stücks.
+* **Datenbank (L14a):** zwei neue Spalten an `inventar.reparatur` — `arbeit` und `durchgefuehrt_von` (benannter Fremdschlüssel `fk_reparatur_durchgefuehrt_von` auf `kern.benutzer`) —,
+  beide **in `i0001`** (die Grundlinie bleibt änderbar bis zur ersten Box mit Inventar-Daten; Stand „i0001 offen“, siehe `tests/integration/laufen.md`). Eine Datenbank, die `i0001` schon
+  durchlaufen hat, muss neu aufgebaut werden.
 
 ### Pakete (Auftrag 04 Abschnitt 4, Auftrag 05 Abschnitt 3)
 
@@ -62,11 +69,11 @@ Alles unter `<ARBEITSORDNER>/inventar/<mandant.ordnername>/`; nichts wird gelös
 
 | Pfad | Inhalt |
 |---|---|
-| `stamm/<nr>/bilder/` | Fotos des Stücks (jpg/png ≤ 8 MB; Hash am Stück) |
+| `stamm/<nr>/bilder/` | Fotos des Stücks (jpg/png ≤ 8 MB; Hash am Stück; **seit L14a** Abruf `/inventar/stueck/<id>/foto`, inline, prüft die Summe) |
 | `stamm/<nr>/pruefungen/` | Nachweise zu Prüfungen (PDF/JPG/PNG ≤ 10 MB; SHA-256 an der Prüfung; Abruf `/inventar/pruefung/<id>/nachweis` prüft die Summe und zeigt **inline**) |
 | `stamm/<nr>/meldungen/` | Fotos zu Schadensmeldungen (Abruf `/inventar/meldung/<id>/foto`, inline, prüft die Summe) |
 | `import/` | hochgeladene Excel-Importdateien (`<kennung>.xlsx`), bleiben liegen |
-| `export/` | Etiketten-PDF (`etiketten_*.pdf`) |
+| `export/` | Etiketten-PDF (`etiketten_*.pdf`); **seit L15** die CSV-Auszüge `kosten_<block>_<JJJJMMTT-HHMMSS>.csv` (je Kostenstelle, je Stück, Miete, Anlagenbuch) und `inventur_<…>.csv` — UTF-8 mit BOM, Semikolon, Dezimalkomma; nichts wird überschrieben |
 | `kostenstellen/<nr>/` | reserviert für Kostenstellen-Unterlagen |
 | `<ARBEITSORDNER>/log/digiassistenz-inventar-erinnern.log` | Log des Prozesses `erinnern` (vom Kern, 0.15.4) |
 
@@ -79,7 +86,8 @@ Alles unter `<ARBEITSORDNER>/inventar/<mandant.ordnername>/`; nichts wird gelös
 | Seiten L11/L12 durch die Anwendung | Kern + Inventar | `tests/integration/test_seiten_db.py` (5 Fälle) |
 | Prüfungen, Erinnerung, Kaufdaten, Scan-Quelle, Startstandort (L13) | Kern + Inventar | `tests/integration/test_pruefungen_db.py` (8 Fälle) |
 | Startstandort mit `pflegen`, Import nach Rechten, Kachel für `werkstatt` (L13a) | Kern + Inventar | `tests/integration/test_l13a_db.py` (3 Fälle) |
-| Werkstatt: Posteingang, Rückmeldung, Reparatur, `in_reparatur` (L14) | Kern + Inventar | `tests/integration/test_werkstatt_db.py` (4 Fälle) |
+| Werkstatt: Posteingang, Rückmeldung, Reparatur, `in_reparatur` (L14) und **L14a** (Hand bleibt Hand, Pflichtangaben beim Abschluss, Haken „Meldung damit erledigen“, Fehlerfall Mail, Zurückziehen, Foto am Stück) | Kern + Inventar | `tests/integration/test_werkstatt_db.py` (**10** Fälle) |
+| **L15:** Vorhaltung über Transfer und Teil-Eingang, Miete gegen eigen, CSV im Exportordner, Rechte, Kostensatz je Stück, Stichtags-Inventur, Zählerstand aus der Werkstatt | Kern + Inventar | `tests/integration/test_kosten_db.py` (7 Fälle) |
 | **T-I-6**, T-K-14 | Kern + Belegerfassung + Inventar | `tests/integration/test_t_i_6.py` (Muster T-I-4; von VSC nach L13 gefahren: 3 passed) |
 
 Aufruf und Stolpersteine (auch Nicht-Superuser): `tests/integration/laufen.md`.
@@ -107,6 +115,14 @@ Aufruf und Stolpersteine (auch Nicht-Superuser): `tests/integration/laufen.md`.
     (ohne Text bleibt der Dialog offen und zeigt den Fehler); die Rückmeldung steht danach an der Stück-Seite; Zurückziehen verlangt einen Grund.
 16. Reparatur: „Reparatur anlegen“ an einer Meldung öffnet den Dialog (`#reparatur-anlegen`) mit der Beschreibung der Meldung; „Beginnen“ → das Stück zeigt den Hinweis
     „In Reparatur“, Abgang und Eingang lassen sich weiter buchen; „Abschließen“ → wieder aktiv, sobald keine Reparatur mehr läuft. Ein Konto nur mit `werkstatt` sieht keine Kostenfelder.
+17. **L14a:** „Abschließen“ öffnet **oben** den Dialog (`#reparatur-abschliessen`): Datum, „Was gemacht wurde“ (Pflicht), extern die Firma (Suchfeld) oder intern die Person (vorbelegt),
+    bei Großgeräten ein Zählerstand, mit `kosten_pflegen` die Kosten. Der Haken „Meldung damit erledigen“ ist an, wenn eine Meldung dranhängt; das Feld „Rückmeldung“ füllt sich mit dem Text
+    aus „Was gemacht wurde“, solange man es nicht selbst ändert (Skript `statisch/inventar.js`, im Browser noch nicht gefahren). Ein von Hand auf „In Reparatur“ gesetztes Stück bleibt es nach
+    einem kleinen Vorgang. Die Stück-Seite zeigt das Foto des Stücks.
+18. **L15 Kosten:** `/inventar/kosten` mit Zeitraum, Gruppe, Kostenstelle; je Kostenstelle (Tage und Vorhaltung), je Stück, Miete gegen eigen, Anlagenbuch; „Als CSV exportieren“ meldet ✓, die Liste
+    „Exportierte Dateien“ nennt den Pfad. `Polier.Eins` sieht weder Menüpunkt noch Seite noch den Abschnitt „Kosten“ an der Stück-Seite (Browserfall 3 bleibt).
+19. Stück-Seite, Abschnitt „Kosten“: Tagessatz, Kosten bis heute, Reparaturen; mit `kosten_pflegen` „Kostensatz überschreiben“ und „Miete eintragen“.
+20. Verwaltung → Inventur: Stichtag setzen; je Kostenstelle „gesehen / nicht gesehen“; „Als vermisst vorschlagen“ öffnet die Zeile mit Pflichtgrund; ohne Klick ändert sich **nichts**.
 
 ## 5. Offen / bewusst nicht eingehängt (Steckbrief 11)
 
@@ -117,7 +133,7 @@ Aufruf und Stolpersteine (auch Nicht-Superuser): `tests/integration/laufen.md`.
 * `Verbindung(braucht="baustelle", menuepunkte=())`: leer, bis APP den Weg nennt; der Schlüssel (`app` oder `baustelle`) steht nur als `MODUL_BAUSTELLE`.
 * `app.modul` setzt das Inventar nicht; der Titel ist mit dem Inventar allein „DOKON“.
 * Seiten: L11–L14 bringen Liste, Stück-Seite, Pflege, Verwaltung (Kataloge, Import, Etiketten, Testdaten), Hier-Seite, Buchungen, Scan, die Prüfungen
-  (Fällig-Liste, Prüfung eintragen mit Nachweis, Prüfarten je Gruppe und Stück) und die Werkstatt (Posteingang, Reparatur-Vorgang). Kosten (L15) und die Browser-Prüffälle (L16) fehlen noch.
+  (Fällig-Liste, Prüfung eintragen mit Nachweis, Prüfarten je Gruppe und Stück) und die Werkstatt (Posteingang, Reparatur-Vorgang). Kosten und Inventur (L15) sind da; die Browser-Prüffälle (L16) fehlen noch.
 * **Vorgesehen, nicht gebaut (Thomas, Auftrag 05 Abschnitt 7):** vorgedruckte QR-Etiketten. Spec E24: Feld `etikett_code` je Stück (eindeutig je Mandant), der Scan löst zuerst die
   Inventarnummer, dann den Etikett-Code auf, „Etikett zuordnen“ an der Stück-Seite, Protokoll `inventar.etikett_zugeordnet`. Vorbereitet: die Auflösung steht an **einer** Stelle
   (`dienstlogik/sicht.aufloesen`), der Etikett-Code kommt dort als weiterer Schritt dazu, ohne dass sich Wege oder Seiten ändern.

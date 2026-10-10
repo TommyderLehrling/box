@@ -253,6 +253,7 @@ def test_erinnerung_pruefungen_an_werkstatt_nur_bei_neuem_und_montags(box) -> No
         assert s.db.execute(text(mails)).scalar_one() == 1
         assert erinnerungen.pruefungen_erinnern(s.db, mid, montag) == 0
         assert s.db.execute(text(mails)).scalar_one() == 2, "montags kommt die Liste der Überfälligen noch einmal"
+        assert s.db.execute(text("SELECT count(*) FROM kern.mail_ausgang WHERE mandant_id IS NULL")).scalar_one() == 0, "ein Vorgang der Firma, nicht der Box"
     # Tageslauf: idempotent je Tag; der Prozess prüft die Uhrzeit aus der Einstellung
     with benutzersitzung(_benutzer_id(VERWALTER), "pruefung.l13") as s:
         s.db.execute(text("UPDATE inventar.einstellung SET wert = '' WHERE schluessel = 'erinnern_letzter_lauf'"))
@@ -268,7 +269,7 @@ def test_erinnerung_pruefungen_an_werkstatt_nur_bei_neuem_und_montags(box) -> No
     assert k.post("/inventar/verwaltung/einstellungen", data={"erinnern_um": "halb acht"}).status_code == 409
     assert erinnern.tick(dt.datetime(2026, 10, 15, 6, 30, tzinfo=tz)) == erinnern.Takt(None, False)
     assert erinnern.tick(dt.datetime(2026, 10, 15, 7, 30, tzinfo=tz)).lauf is not None
-    assert "werktage" in k.get("/inventar/verwaltung/einstellungen").text and "Kostenrechnung" in k.get("/inventar/verwaltung/einstellungen").text
+    assert "werktage" in k.get("/inventar/verwaltung/einstellungen").text and "Montag bis Freitag" in k.get("/inventar/verwaltung/einstellungen").text
 
 
 def test_kaufdaten_aendern_nur_mit_kosten_pflegen_und_startwert_einkauf(box) -> None:

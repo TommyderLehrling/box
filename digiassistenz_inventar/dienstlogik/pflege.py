@@ -17,6 +17,7 @@ from digiassistenz_kern.web import gemeinsam
 
 from .. import dateien
 from .. import modelle as m
+from . import zaehler
 from .stueck import OBJEKT_TYP, _benutzer, _merkmale_schreiben
 from .transfer import finde_stueck
 
@@ -96,6 +97,22 @@ def foto_speichern(sitzung: Any, inventarnummer: str, inhalt_typ: str, inhalt: b
     return zeile
 
 
+def foto_lesen(sitzung: Any, stueck_id: int, arbeitsordner: Path) -> tuple[str, bytes]:
+    """Das Foto des Stücks zum Ansehen: nur für Stücke, die die Sitzung sehen darf; die Prüfsumme muss zum Datensatz passen."""
+    from . import sicht
+
+    zeile = sitzung.db.execute(sicht.stuecke(sitzung).where(m.Stueck.id == stueck_id)).scalars().first()
+    if zeile is None or not zeile.foto_pfad:
+        raise gemeinsam.KeinRecht("inventar", "sehen")
+    datei = (arbeitsordner / zeile.foto_pfad).resolve()
+    if arbeitsordner.resolve() not in datei.parents or not datei.is_file():
+        raise ValueError("stueck.foto_fehlt")
+    inhalt = datei.read_bytes()
+    if dateien.pruefsumme(inhalt) != zeile.foto_sha256:
+        raise ValueError("stueck.foto_veraendert")
+    return datei.name, inhalt
+
+
 def _beziehung_offen(db: Any, mid: int, **bedingung: Any) -> m.Beziehung | None:
     q = select(m.Beziehung).where(m.Beziehung.mandant_id == mid, m.Beziehung.gueltig_bis.is_(None))
     for name, wert in bedingung.items():
@@ -166,21 +183,9 @@ def zaehlerstand_eintragen(sitzung: Any, inventarnummer: str, stand: Decimal, ko
     if not (sitzung.darf("inventar", "scannen", kostenstelle_id) or sitzung.darf("inventar", "pflegen")):
         raise gemeinsam.KeinRecht("inventar", "scannen")
     zeile = finde_stueck(sitzung, inventarnummer, "sehen")
-    db, mid = sitzung.db, sitzung.kontext.mandant_id
-    if zeile.zaehler_einheit is None:
-        raise ValueError("zaehlerstand.kein_zaehler")
-    if stand < 0:
-        raise ValueError("zaehlerstand.negativ")
-    letzter = db.execute(select(m.Zaehlerstand.stand).where(m.Zaehlerstand.mandant_id == mid, m.Zaehlerstand.stueck_id == zeile.id)
-                         .order_by(m.Zaehlerstand.abgelesen_am.desc(), m.Zaehlerstand.id.desc()).limit(1)).scalar_one_or_none()
-    if letzter is not None and stand < letzter:
+    satz, _letzter = zaehler.eintragen(sitzung, zeile, stand, quelle, kostenstelle_id, protokollieren=True)
+    if satz is None:
         raise ValueError("zaehlerstand.zurueck")
-    satz = m.Zaehlerstand(mandant_id=mid, stueck_id=zeile.id, stand=stand, einheit=zeile.zaehler_einheit, abgelesen_am=zeit.jetzt_utc(),
-                          abgelesen_von=_benutzer(sitzung), quelle=quelle, kostenstelle_id=kostenstelle_id)
-    db.add(satz)
-    db.flush()
-    protokoll.schreiben(db, mandant_id=mid, aktion="inventar.zaehlerstand", objekt_typ=OBJEKT_TYP, objekt_id=int(zeile.id),
-                        neu_wert=f"{stand} {zeile.zaehler_einheit}", benutzer_id=_benutzer(sitzung), kostenstelle_id=kostenstelle_id)
     return satz
 
 

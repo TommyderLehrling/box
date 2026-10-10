@@ -1,0 +1,58 @@
+{% extends "rahmen.html" %}
+{% block titel %}{{ t("inventar.verwaltung.inventur") }} — {{ t("web.titel") }}{% endblock %}
+{% block inhalt %}
+{% with seite = "inventar_inventur", titel = t("inventar.verwaltung.inventur") %}{% include "teil_seitenkopf.html" %}{% endwith %}
+{% if fertig %}<p class="gut" role="status" id="inventur-fertig">✓ {{ t("inventar.inventur.fertig." ~ fertig) }}</p>{% endif %}
+<div id="inventur-meldung"></div>
+
+{% if darf_einstellen %}
+<form method="post" action="/inventar/verwaltung/inventur" hx-post="/inventar/verwaltung/inventur" hx-target="#inventur-meldung" hx-swap="innerHTML" id="inventur-stichtag">
+  <input type="hidden" name="aktion" value="stichtag">
+  <label for="inv-tag">{{ t("inventar.inventur.stichtag") }}</label>
+  <input type="date" id="inv-tag" name="stichtag" value="{{ stichtag.isoformat() if stichtag else "" }}" max="{{ heute_iso }}">
+  <button type="submit" class="haupt">{{ t("inventar.inventur.stichtag_setzen") }}</button>
+  <span class="klein leise">{{ t("inventar.inventur.stichtag_hinweis") }}</span>
+</form>
+{% endif %}
+
+{% if not bericht %}
+<p class="leise" id="inventur-leer">{{ t("inventar.inventur.kein_stichtag") }}</p>
+{% else %}
+<p>{{ t("inventar.inventur.stand", stichtag=(bericht.stichtag|datum), gesehen=bericht.gesehen, nicht=bericht.nicht_gesehen) }}</p>
+<p class="klein leise">{{ t("inventar.inventur.hinweis") }}</p>
+<form class="inline" method="post" action="/inventar/verwaltung/inventur" hx-post="/inventar/verwaltung/inventur" hx-target="#inventur-meldung" hx-swap="innerHTML">
+  <input type="hidden" name="aktion" value="export"><button type="submit" class="klein">{{ t("inventar.kosten.export") }}</button>
+</form>
+{% for ks, zeilen in bericht.je_kostenstelle.items() %}
+<section id="inventur-ks-{{ ks }}">
+  <h2>{{ bericht.namen.get(ks, ks) }}</h2>
+  <table class="liste">
+    <tr><th>{{ t("web.nummer") }}</th><th>{{ t("web.bezeichnung") }}</th><th>{{ t("inventar.inventur.erwartet") }}</th><th>{{ t("inventar.inventur.gesehen_menge") }}</th><th>{{ t("inventar.inventur.ergebnis") }}</th>{% if darf_stilllegen %}<th></th>{% endif %}</tr>
+    {% for z in zeilen %}
+    <tr id="inventur-{{ z.stueck_id }}-{{ ks }}">
+      <td><a href="/inventar/stueck/{{ z.stueck_id }}">{{ z.nummer }}</a></td><td>{{ z.bezeichnung }}</td><td class="zahl">{{ z.erwartet }}</td><td class="zahl">{{ z.gesehen }}</td>
+      <td>{{ t("inventar.inventur.ergebnis." ~ z.ergebnis) }}{% if z.woanders_auf %}: {{ bericht.namen.get(z.woanders_auf, z.woanders_auf) }}{% endif %}</td>
+      {% if darf_stilllegen %}<td>
+        {% if z.vorschlag %}
+        <details class="dialog" id="vermisst-{{ z.stueck_id }}">
+          <summary class="taste klein">{{ t("inventar.inventur.vermisst_vorschlag") }}</summary>
+          <form method="post" action="/inventar/verwaltung/inventur" hx-post="/inventar/verwaltung/inventur" hx-target="#inventur-meldung" hx-swap="innerHTML">
+            <input type="hidden" name="aktion" value="vermisst"><input type="hidden" name="stueck_id" value="{{ z.stueck_id }}">
+            <p><label for="grund-{{ z.stueck_id }}">{{ t("inventar.meldung.grund") }}</label> <input type="text" id="grund-{{ z.stueck_id }}" name="grund" size="30" required></p>
+            <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.inventur.als_vermisst") }}</button><button type="button" data-abbrechen>{{ t("inventar.taste.abbrechen") }}</button></p>
+          </form>
+        </details>
+        {% endif %}</td>{% endif %}
+    </tr>
+    {% endfor %}
+  </table>
+</section>
+{% endfor %}
+{% if bericht.unbekannt %}<p class="warnung" role="status">{{ t("inventar.inventur.unbekannte_nummern", nummern=bericht.unbekannt|join(", ")) }}</p>{% endif %}
+{% endif %}
+
+{% if exporte %}
+<section id="exporte"><h2>{{ t("inventar.kosten.exportiert") }}</h2>
+  <ul>{% for pfad in exporte %}<li><code>{{ pfad }}</code></li>{% endfor %}</ul></section>
+{% endif %}
+{% endblock %}

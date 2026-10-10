@@ -6,10 +6,10 @@
 <p class="klein leise">{{ t("inventar.kosten.hinweis") }}</p>
 {% if not zeilen %}<p class="leise">{{ t("inventar.leer") }}</p>{% else %}
 <table class="liste">
-  <tr><th>{{ t("inventar.feld.gruppe") }}</th><th>{{ t("inventar.katalog.gueltig_ab") }}</th><th>{{ t("inventar.kosten.nutzungsdauer") }}</th><th>{{ t("inventar.kosten.zins_prozent") }}</th><th>{{ t("inventar.kosten.reparatur_prozent") }}</th><th>{{ t("inventar.kosten.satz_monat") }}</th><th>{{ t("inventar.kosten.satz_tag") }}</th><th>{{ t("inventar.quelle") }}</th></tr>
+  <tr><th>{{ t("inventar.feld.gruppe") }}</th><th>{{ t("inventar.katalog.gueltig_ab") }}</th><th>{{ t("inventar.kosten.nutzungsdauer") }}</th><th>{{ t("inventar.kosten.zins_prozent") }}</th><th>{{ t("inventar.kosten.reparatur_prozent") }}</th><th>{{ t("inventar.kosten.satz_monat") }}</th><th>{{ t("inventar.kosten.satz_tag") }}</th><th>{{ t("inventar.kosten.kaufpreis_basis") }}</th><th>{{ t("inventar.quelle") }}</th><th>{{ t("inventar.kosten.gerechnet_am") }}</th></tr>
   {% for z in zeilen %}
   <tr><td>{{ z.gruppe }}</td><td>{{ z.ab|datum }}</td><td class="zahl">{{ z.nutzungsdauer }}</td><td class="zahl">{{ z.zins }}</td><td class="zahl">{{ z.reparatur }}</td><td class="zahl">{{ z.monat|betrag }}</td><td class="zahl">{{ z.tag|betrag }}</td>
-    <td>{{ t("inventar.katalog.satzquelle." ~ z.quelle) }}</td></tr>
+    <td class="zahl">{{ z.basis|betrag }}</td><td>{{ t("inventar.katalog.satzquelle." ~ z.quelle) }}</td><td>{{ z.gerechnet_am|datum }}</td></tr>
   {% endfor %}
 </table>
 {% endif %}
@@ -20,7 +20,9 @@
   <p><label for="k-dauer">{{ t("inventar.kosten.nutzungsdauer") }}</label> <input id="k-dauer" name="nutzungsdauer" type="number" min="1" size="6" required>
      <label for="k-zins">{{ t("inventar.kosten.zins_prozent") }}</label> <input id="k-zins" name="zins" inputmode="decimal" size="6" required value="4.0">
      <label for="k-rep">{{ t("inventar.kosten.reparatur_prozent") }}</label> <input id="k-rep" name="reparatur" inputmode="decimal" size="6" required value="0">
-     <label for="k-rest">{{ t("inventar.kosten.restwert") }} %</label> <input id="k-rest" name="restwert" inputmode="decimal" size="6"></p>
+     <label for="k-rest">{{ t("inventar.kosten.restwert") }} %</label> <input id="k-rest" name="restwert" inputmode="decimal" size="6">
+     <label for="k-basis">{{ t("inventar.kosten.kaufpreis_basis") }}</label> <input id="k-basis" name="kaufpreis_basis" inputmode="decimal" size="10"></p>
+  <p class="klein leise">{{ t("inventar.kosten.satz_von_hand_hinweis") }}</p>
   <p><label for="k-monat">{{ t("inventar.kosten.satz_monat") }}</label> <input id="k-monat" name="satz_monat" inputmode="decimal" size="10">
      <label for="k-tag">{{ t("inventar.kosten.satz_tag") }}</label> <input id="k-tag" name="satz_tag" inputmode="decimal" size="10">
      <label for="k-woche">{{ t("inventar.kosten.satz_woche") }}</label> <input id="k-woche" name="satz_woche" inputmode="decimal" size="10">

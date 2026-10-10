@@ -25,10 +25,10 @@ def erlaubte_kostenstellen(sitzung: Any, aktion: str = "sehen") -> tuple[int, ..
     return tuple(umfang) if isinstance(umfang, tuple) else None
 
 
-def stuecke(sitzung: Any) -> Select[Any]:
-    """Alle Stücke, die diese Sitzung sehen darf."""
+def stuecke(sitzung: Any, aktion: str = "sehen") -> Select[Any]:
+    """Alle Stücke, die diese Sitzung sehen darf — mit `aktion` die, die sie für diesen Baustein sehen darf (z. B. `kosten_sehen`)."""
     abfrage = sitzung.abfrage(m.Stueck)
-    ks = erlaubte_kostenstellen(sitzung)
+    ks = erlaubte_kostenstellen(sitzung, aktion)
     if ks is None:
         return abfrage
     steht = select(m.Standort.stueck_id).where(m.Standort.bis.is_(None), m.Standort.kostenstelle_id.in_(ks))

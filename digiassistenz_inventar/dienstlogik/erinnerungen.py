@@ -1,7 +1,8 @@
 """Erinnerungen: überfällige Transfers an die Disposition und den Melder; Fälligkeiten (L13) an die Werkstatt.
 
 Der Lauf ist **idempotent je Tag**: `erinnert_am` am Transfer verhindert eine zweite Mail. Empfänger kommen aus den
-Funktionen des Kerns (`rechte.funktionen`); ob ein Konto aktiv ist und eine Adresse hat, prüft dieser Lauf.
+Funktionen des Kerns (`rechte.funktionen`); jede Person bekommt ihre Mail über `benachrichtigen` (die eine Mailstelle des
+Moduls) — ob ein Konto aktiv ist und eine Adresse hat, prüft diese Funktion und vermerkt, wenn nicht.
 """
 
 from __future__ import annotations
@@ -12,13 +13,13 @@ from typing import Any
 
 from sqlalchemy import select
 
-from digiassistenz_kern import Benutzer, mail, protokoll, rechte, zeit
+from digiassistenz_kern import Benutzer, protokoll, rechte, zeit
 from digiassistenz_kern.texte import t
 
 from .. import modelle as m
 from ..rein import transfer as automat
 from ..rein.stueck_status import im_bestand
-from . import katalog, laden, pruefstand
+from . import benachrichtigen, katalog, laden, pruefstand
 from .stueckseite import ampel_hinweis
 
 FUNKTION_DISPOSITION = "disposition"
@@ -36,13 +37,17 @@ class Tageslauf:
     pruefungen: int
 
 
-def adressen(db: Any, mandant_id: int, art: str, zusaetzlich: tuple[int, ...] = ()) -> list[str]:
-    """Adressen der aktiven Konten, die diese Funktion tragen, dazu weitere Konten (z. B. der Melder)."""
+def empfaenger(db: Any, mandant_id: int, art: str, zusaetzlich: tuple[int, ...] = ()) -> list[int]:
+    """Ids der aktiven Konten, die diese Funktion tragen, dazu weitere Konten (z. B. der Melder); sortiert, ohne Doppelte."""
     ids = {int(f.benutzer_id) for f in rechte.funktionen(db, mandant_id=mandant_id, art=art)} | set(zusaetzlich)
     if not ids:
         return []
-    konten = db.execute(select(Benutzer).where(Benutzer.mandant_id == mandant_id, Benutzer.id.in_(ids), Benutzer.aktiv)).scalars()
-    return sorted({k.benachrichtigung_email or k.email for k in konten if (k.benachrichtigung_email or k.email)})
+    return sorted(int(i) for i in db.execute(select(Benutzer.id).where(Benutzer.mandant_id == mandant_id, Benutzer.id.in_(ids), Benutzer.aktiv)).scalars())
+
+
+def _an_alle(db: Any, mandant_id: int, ids: list[int], schluessel: str, objekt_id: int | None = None, **felder: Any) -> int:
+    """Eine Mail je Person; liefert, an wie viele eingereiht wurde."""
+    return sum(1 for i in ids if benachrichtigen.benachrichtigen(db, i, schluessel, mandant_id=mandant_id, objekt_id=objekt_id, **felder))
 
 
 def transfers_erinnern(db: Any, mandant_id: int) -> int:
@@ -60,10 +65,8 @@ def transfers_erinnern(db: Any, mandant_id: int) -> int:
             erg = automat.erinnert(z, ueberfaellig.id, jetzt)
             laden.speichern(db, mandant_id, namen[nummer], erg)
             melder = laden.benutzer_id(ueberfaellig.abgang_von)
-            an = adressen(db, mandant_id, FUNKTION_DISPOSITION, () if melder is None else (melder,))
-            if an:
-                mail.einreihen(db, an=an, betreff=t("inventar.erinnerung.betreff", nummer=nummer),
-                               text=t("inventar.erinnerung.transfer", tage=frist) + f": {nummer}", mandant_id=mandant_id)
+            an = empfaenger(db, mandant_id, FUNKTION_DISPOSITION, () if melder is None else (melder,))
+            if _an_alle(db, mandant_id, an, "transfer_erinnert", int(namen[nummer].id), nummer=nummer, tage=frist):
                 gesendet += 1
             protokoll.schreiben(db, mandant_id=mandant_id, aktion="inventar.transfer_erinnert", objekt_typ="inventar.stueck",
                                 objekt_id=int(namen[nummer].id), neu_wert=nummer)
@@ -120,7 +123,7 @@ def pruefungen_erinnern(db: Any, mandant_id: int, heute: Any) -> int:
     montags = heute.weekday() == 0 and any(x[1] == "ueberfaellig" for x in treffer)
     if not neu and not montags:
         return 0
-    an = adressen(db, mandant_id, FUNKTION_WERKSTATT)
+    an = empfaenger(db, mandant_id, FUNKTION_WERKSTATT)
     if not an:
         return 0
     zeilen_quelle = neu if neu else [x for x in treffer if x[1] == "ueberfaellig"]
@@ -130,6 +133,6 @@ def pruefungen_erinnern(db: Any, mandant_id: int, heute: Any) -> int:
               for _, _, stand, nummer, bezeichnung in zeilen_quelle[:ZEILEN_IN_DER_MAIL]]
     if len(zeilen_quelle) > ZEILEN_IN_DER_MAIL:
         zeilen.append(t("inventar.erinnerung.pruefung_weitere", anzahl=len(zeilen_quelle) - ZEILEN_IN_DER_MAIL))
-    text = "\n".join([t("inventar.erinnerung.pruefung_kopf", ueberfaellig=ueberfaellig, bald=bald), "", *zeilen, "", t("inventar.erinnerung.pruefung_fuss")])
-    mail.einreihen(db, an=an, betreff=t("inventar.erinnerung.pruefung_betreff", ueberfaellig=ueberfaellig, bald=bald), text=text, mandant_id=mandant_id)
+    _an_alle(db, mandant_id, an, "pruefung_faellig", ueberfaellig=ueberfaellig, bald=bald, kopf=t("inventar.erinnerung.pruefung_kopf", ueberfaellig=ueberfaellig, bald=bald),
+             zeilen="\n".join(zeilen), fuss=t("inventar.erinnerung.pruefung_fuss"))
     return len(neu)

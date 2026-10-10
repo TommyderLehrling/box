@@ -15,7 +15,8 @@ from digiassistenz_kern.web import gemeinsam
 
 from .. import modelle as m
 from ..rein.pruefung import gesamt_ampel
-from . import pruefstand, sicht
+from . import kostenrechnung, pruefstand, sicht
+from .zaehler import verlauf as zaehler_verlauf
 from .liste import AMPEL_ZEICHEN
 
 AMPEL_RANG = {"gruen": 0, "unbekannt": 1, "gelb": 2, "rot": 3}
@@ -124,13 +125,15 @@ def daten(sitzung: Any, stueck: m.Stueck) -> dict[str, Any]:
                   "von": wer.get(int(z.gemeldet_von), "") if z.gemeldet_von else "", "hat_foto": bool(z.foto_sha256),
                   "bearbeiter": wer.get(int(z.bearbeitet_von), "") if z.bearbeitet_von else "", "erledigt_am": z.erledigt_am,
                   "rueckmeldung": z.rueckmeldung, "grund": z.grund} for z in meldungen_zeilen]
+    reparatur_zeilen = list(db.execute(select(m.Reparatur).where(m.Reparatur.mandant_id == mid, m.Reparatur.stueck_id == sid)
+                                       .order_by(m.Reparatur.id.desc())).scalars())
+    wer_rep = namen_benutzer(sitzung, {r.durchgefuehrt_von for r in reparatur_zeilen})
+    firmen = _lieferanten(db, mid, {int(r.lieferant_id) for r in reparatur_zeilen if r.lieferant_id})
     reparaturen = [{"status": r.status, "beschreibung": r.beschreibung, "begonnen": r.begonnen_am, "beendet": r.beendet_am,
-                    "kosten": r.kosten if kosten_sehen else None, "durchfuehrung": r.durchfuehrung, "grund": r.grund}
-                   for r in db.execute(select(m.Reparatur).where(m.Reparatur.mandant_id == mid, m.Reparatur.stueck_id == sid)
-                                       .order_by(m.Reparatur.id.desc())).scalars()]
-    zaehler = [{"stand": z.stand, "einheit": z.einheit, "am": z.abgelesen_am, "quelle": z.quelle}
-               for z in db.execute(select(m.Zaehlerstand).where(m.Zaehlerstand.mandant_id == mid, m.Zaehlerstand.stueck_id == sid)
-                                   .order_by(m.Zaehlerstand.abgelesen_am.desc(), m.Zaehlerstand.id.desc()).limit(20)).scalars()]
+                    "kosten": r.kosten if kosten_sehen else None, "durchfuehrung": r.durchfuehrung, "grund": r.grund, "arbeit": r.arbeit,
+                    "durch": wer_rep.get(int(r.durchgefuehrt_von), "") if r.durchgefuehrt_von else "",
+                    "firma": firmen.get(int(r.lieferant_id), "") if r.lieferant_id else ""} for r in reparatur_zeilen]
+    zaehler = zaehler_verlauf(sitzung, sid, 20)
 
     zubehoer, haupt, bauteile = [], None, []
     beziehungen = list(db.execute(select(m.Beziehung).where(m.Beziehung.mandant_id == mid, m.Beziehung.gueltig_bis.is_(None)).where(
@@ -153,11 +156,17 @@ def daten(sitzung: Any, stueck: m.Stueck) -> dict[str, Any]:
 
     kosten = None
     if kosten_sehen:
-        satz = db.execute(select(m.Kostensatz).where(m.Kostensatz.mandant_id == mid, m.Kostensatz.gruppe_id == stueck.gruppe_id)
-                          .order_by(m.Kostensatz.gueltig_ab.desc()).limit(1)).scalar_one_or_none()
-        kosten = {"kaufpreis": stueck.kaufpreis, "kaufdatum": stueck.kaufdatum, "buchwert_extern": stueck.buchwert_extern,
-                  "mietkosten": stueck.mietkosten, "miete": stueck.miete, "satz_monat": None if satz is None else satz.satz_monat,
-                  "satz_tag": None if satz is None else satz.satz_tag, "nutzungsdauer": None if satz is None else satz.nutzungsdauer_monate}
+        k = kostenrechnung.kosten_fuer_stueck(sitzung, stueck)
+        satz = k.satz
+        kosten = {
+            "kaufpreis": stueck.kaufpreis, "kaufdatum": stueck.kaufdatum, "buchwert_extern": stueck.buchwert_extern, "afa_hinweis": stueck.afa_hinweis or "",
+            "miete": stueck.miete, "mietkosten": stueck.mietkosten, "miet_von": stueck.miet_von, "miet_bis": stueck.miet_bis,
+            "satz_monat": satz.satz_monat, "satz_tag": satz.satz_tag, "satz_woche": satz.satz_woche, "satz_quelle": satz.quelle,
+            "satz_herkunft": satz.herkunft, "gerechnet_am": satz.gerechnet_am, "hinweis": satz.hinweis, "kalkulatorisch": k.kalkulatorisch,
+            "reparaturen_belegt": k.reparaturen_belegt, "reparaturen_geschaetzt": k.reparaturen_geschaetzt, "gesamt": k.gesamt,
+            "form": {"nutzungsdauer": satz.nutzungsdauer_monate or "", "zins": satz.zins_prozent if satz.zins_prozent is not None else "",
+                     "reparatur": satz.reparatur_prozent_jahr if satz.reparatur_prozent_jahr is not None else "",
+                     "restwert": satz.restwert if satz.restwert is not None else "", "restwert_prozent": satz.restwert_prozent if satz.restwert_prozent is not None else ""}}
 
     verlauf = [{"am": v.zeitpunkt, "text": aktion_text(v.aktion), "alt": v.alt_wert, "neu": v.neu_wert, "wer": v.wer, "fuer": v.fuer}
                for v in protokoll.verlauf(db, mandant_id=mid, objekt_typ="inventar.stueck", objekt_id=sid)]

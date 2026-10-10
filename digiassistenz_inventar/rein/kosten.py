@@ -123,6 +123,21 @@ def kalkulatorisch_bis(p: Kostenparameter, kaufdatum: date, heute: date) -> Deci
     return _runde((abschreibung + zins + reparatur) * n)
 
 
+def kalkulatorisch_aus_satz(satz_monat: Decimal, nutzungsdauer_monate: int, kaufdatum: date, heute: date) -> Decimal:
+    """Volle Monate seit Kauf mal ein gegebener Monatssatz (von Hand gesetzt oder aus der BGL), hoechstens die Nutzungsdauer."""
+    if satz_monat < 0 or nutzungsdauer_monate < 1:
+        raise ValueError("kosten.nutzungsdauer_ungueltig")
+    return _runde(satz_monat * _volle_monate(kaufdatum, heute, nutzungsdauer_monate))
+
+
+def satz_aus_monat(satz_monat: Decimal, tage_je_monat: Decimal = Decimal("30")) -> tuple[Decimal, Decimal]:
+    """Tages- und Wochensatz zu einem gegebenen Monatssatz; gerundet wird erst am Ende (Woche aus dem ungerundeten Tagessatz)."""
+    if satz_monat < 0 or tage_je_monat <= 0:
+        raise ValueError("kosten.tage_je_monat_ungueltig")
+    tag = satz_monat / tage_je_monat
+    return _runde(tag), _runde(tag * 7)
+
+
 def miete_vs_eigen(
     mietkosten: Decimal, satz_tag_eigen: Decimal, tage: int
 ) -> tuple[Decimal, Decimal, Decimal]:

@@ -6,7 +6,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import select
 
 from digiassistenz_kern import zeit
@@ -17,13 +17,13 @@ from digiassistenz_kern.web import gemeinsam, wahlfeld
 from .. import dateien
 from .. import modelle as m
 from .. import rechte
-from ..dienstlogik import liste, nummer as nummernvergabe, pflege, stueck as fachstueck, stueckseite
+from ..dienstlogik import kostenrechnung, liste, nummer as nummernvergabe, pflege, stueck as fachstueck, stueckseite
 from . import helfer, pruefdialog
 
 router = APIRouter()
 WEG = "/inventar/stueck"
 FERTIG = ("angelegt", "geaendert", "status", "zubehoer", "bauteil", "zaehlerstand", "meldung", "abgang", "eingang", "zurueck", "scan",
-          "pruefung", "pruefart")
+          "pruefung", "pruefart", "kostensatz", "miete")
 
 
 async def formular(request: Request) -> dict[str, Any]:
@@ -233,6 +233,18 @@ def stueck_seite(
     return antwort
 
 
+@router.get(WEG + "/{stueck_id}/foto")
+def stueck_foto(
+    stueck_id: int, sitzung: Sitzung = Depends(gemeinsam.angemeldet), _recht=Depends(gemeinsam.verlangt("inventar", "sehen")),
+) -> Response:
+    """Das Foto des Stücks zum Ansehen (Recht `sehen` am Stück, Prüfsumme geprüft, im Browser)."""
+    try:
+        name, inhalt = pflege.foto_lesen(sitzung, stueck_id, helfer.arbeitsordner())
+    except ValueError as fehler:
+        return helfer.fehlerteil(fehler)
+    return helfer.datei_antwort(name, inhalt)
+
+
 def _zurueck(request: Request, stueck_id: int, fertig: str) -> HTMLResponse:
     return gemeinsam.umleiten(f"{WEG}/{stueck_id}?fertig={fertig}", request)
 
@@ -301,6 +313,40 @@ def zaehlerstand(
         sitzung.db.rollback()
         return helfer.fehlerteil(fehler)
     return _zurueck(request, stueck_id, "zaehlerstand")
+
+
+@router.post(WEG + "/{stueck_id}/kostensatz", response_class=HTMLResponse)
+def kostensatz(
+    stueck_id: int, request: Request, f: dict[str, Any] = Depends(formular), sitzung: Sitzung = Depends(gemeinsam.angemeldet),
+    _recht=Depends(gemeinsam.verlangt("inventar", "kosten_pflegen")),
+) -> HTMLResponse:
+    """Den Kostensatz **dieses** Stücks setzen (überschreibt den der Gruppe ab einem Datum)."""
+    zeile = stueckseite.holen(sitzung, stueck_id)
+    try:
+        kostenrechnung.stueck_satz_speichern(
+            sitzung, zeile.inventarnummer, _text(f, "nutzungsdauer"), _text(f, "zins"), _text(f, "reparatur"), _text(f, "restwert"),
+            _text(f, "restwert_prozent"), _text(f, "kaufpreis_basis"), _text(f, "satz_monat"), _text(f, "satz_tag"), _text(f, "satz_woche"),
+            _text(f, "satz_stunde"), helfer.datum(_text(f, "ab")))
+    except ValueError as fehler:
+        sitzung.db.rollback()
+        return helfer.fehlerteil(fehler)
+    return _zurueck(request, stueck_id, "kostensatz")
+
+
+@router.post(WEG + "/{stueck_id}/miete", response_class=HTMLResponse)
+def miete(
+    stueck_id: int, request: Request, f: dict[str, Any] = Depends(formular), sitzung: Sitzung = Depends(gemeinsam.angemeldet),
+    _recht=Depends(gemeinsam.verlangt("inventar", "kosten_pflegen")),
+) -> HTMLResponse:
+    """Ein Mietgerät: Zeitraum und Mietkosten von Hand."""
+    zeile = stueckseite.holen(sitzung, stueck_id)
+    try:
+        kostenrechnung.miete_eintragen(sitzung, zeile.inventarnummer, _text(f, "miete") == "1", helfer.datum(_text(f, "von")),
+                                       helfer.datum(_text(f, "bis")), helfer.dezimal(_text(f, "mietkosten")))
+    except ValueError as fehler:
+        sitzung.db.rollback()
+        return helfer.fehlerteil(fehler)
+    return _zurueck(request, stueck_id, "miete")
 
 
 @router.post(WEG + "/{stueck_id}/meldung", response_class=HTMLResponse)

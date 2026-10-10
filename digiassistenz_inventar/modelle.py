@@ -431,6 +431,8 @@ class Reparatur(Basis):
     rechnung_verweis: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'offen'"))
     grund: Mapped[str] = _leer()
+    arbeit: Mapped[str] = _leer()
+    durchgefuehrt_von: Mapped[int | None] = mapped_column(BigInteger, ForeignKey(FK_BENUTZER, name="fk_reparatur_durchgefuehrt_von"), nullable=True)
     angelegt_von: Mapped[int | None] = _benutzer("reparatur", "angelegt_von")
     angelegt_am: Mapped[dt.datetime] = _am()
 

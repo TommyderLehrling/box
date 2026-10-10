@@ -7,7 +7,7 @@ import uuid
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 from digiassistenz_kern import zeit
 from digiassistenz_kern.texte import t
@@ -79,3 +79,9 @@ def datum(text: str) -> dt.date | None:
         return dt.date.fromisoformat(text)
     except ValueError:
         raise ValueError("web.datum_ungueltig") from None
+
+
+def datei_antwort(name: str, inhalt: bytes) -> Response:
+    """Ein Foto zum Ansehen: im Browser (`inline`), der Typ aus dem Anfang der Datei, ohne Raten durch den Browser."""
+    typ = "image/png" if inhalt.startswith(b"\x89PNG") else "image/jpeg"
+    return Response(inhalt, media_type=typ, headers={"Content-Disposition": f'inline; filename="{name}"', "X-Content-Type-Options": "nosniff"})

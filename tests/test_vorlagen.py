@@ -52,7 +52,7 @@ ORT = SimpleNamespace(titel="79795 Husum", anzahl=1, kinder=[], stuecke=[ZEILE])
 ORDNER = [SimpleNamespace(titel="Baumaschinen", anzahl=1, kinder=[ORT], stuecke=[])]
 STUECK = SimpleNamespace(id=1, inventarnummer="BM-00001", bezeichnung="Bagger", art="gross", hersteller="Cat", typ="320", seriennummer="S1",
                          baujahr=2020, besonderheiten="", status="aktiv", status_grund="", quelle="web", zaehler_einheit="h",
-                         kaufpreis=Decimal("1000"), kaufdatum=HEUTE, lieferant_id=None, gruppe_id=1)
+                         kaufpreis=Decimal("1000"), kaufdatum=HEUTE, lieferant_id=None, gruppe_id=1, foto_sha256="ab" * 32)
 OFFEN = {"kostenstelle_id": 5, "kostenstelle": "79795 Husum", "menge": 1, "seit": JETZT, "darf_buchen": True, "darf_scannen": True, "darf_melden": True}
 TRANSFER = {"id": 9, "menge": 1, "von": "79795 Husum", "nach": "79800 Nord", "nach_id": 6, "abgang_am": JETZT, "grund": "", "darf_eingang": True,
             "darf_zurueck": True}
@@ -67,12 +67,16 @@ STUECK_SEITE = dict(
                 "bearbeiter": "", "erledigt_am": None, "rueckmeldung": "", "grund": ""},
                {"id": 9, "art": "reparatur", "beschreibung": "Schlauch undicht", "status": "erledigt", "am": JETZT, "von": "Eins", "hat_foto": True,
                 "bearbeiter": "Werkstatt", "erledigt_am": JETZT, "rueckmeldung": "Schlauch getauscht", "grund": ""}],
-    reparaturen=[{"status": "offen", "beschreibung": "", "begonnen": HEUTE, "beendet": None, "kosten": Decimal("10"), "durchfuehrung": "intern", "grund": ""}],
-    zaehlerstaende=[{"stand": Decimal("12.5"), "einheit": "h", "am": JETZT, "quelle": "web"}],
+    reparaturen=[{"status": "offen", "beschreibung": "", "begonnen": HEUTE, "beendet": None, "kosten": Decimal("10"), "durchfuehrung": "intern", "grund": "",
+                  "arbeit": "Dichtung erneuert", "durch": "Werner", "firma": ""}],
+    zaehlerstaende=[{"stand": Decimal("12.5"), "einheit": "h", "am": JETZT, "quelle": "web", "wer": "Eins"}],
     zubehoer=[{"beziehung_id": 3, "id": 2, "nummer": "BM-00002", "bezeichnung": "Löffel"}], haupt={"beziehung_id": 4, "id": 7, "nummer": "BM-00007", "bezeichnung": "Kran"},
     bauteile=[{"beziehung_id": 5, "nummer": "B1", "bezeichnung": "Filter", "preis": Decimal("9.9")}],
-    kosten={"kaufpreis": Decimal("1000"), "kaufdatum": HEUTE, "buchwert_extern": None, "mietkosten": None, "miete": False, "satz_monat": Decimal("5"),
-            "satz_tag": None, "nutzungsdauer": 96},
+    kosten={"kaufpreis": Decimal("1000"), "kaufdatum": HEUTE, "buchwert_extern": None, "afa_hinweis": "", "miete": False, "mietkosten": None,
+            "miet_von": None, "miet_bis": None, "satz_monat": Decimal("5"), "satz_tag": Decimal("0.17"), "satz_woche": Decimal("1.17"),
+            "satz_quelle": "gerechnet", "satz_herkunft": "gruppe", "gerechnet_am": JETZT, "hinweis": "", "kalkulatorisch": Decimal("60"),
+            "reparaturen_belegt": Decimal("10"), "reparaturen_geschaetzt": Decimal("5"), "gesamt": Decimal("1015"),
+            "form": {"nutzungsdauer": 96, "zins": Decimal("4"), "reparatur": Decimal("2"), "restwert": Decimal("100"), "restwert_prozent": ""}},
     verlauf=[{"am": JETZT, "text": "Stück angelegt", "alt": None, "neu": "BM-00001", "wer": "Eins", "fuer": "Zwei"}],
     lieferant="Händler", steht_auf="79795 Husum", seit=JETZT, angekuendigt_auf="79800 Nord", fertig="angelegt", wahl_nach=wahl("nach"),
     von_ks=[OFFEN], melde_ks=[OFFEN], bauteile_katalog=[(1, "B1 Filter")], status_moeglich=["vermisst"], hauptlage="eingang", buchung="k-1",
@@ -94,7 +98,8 @@ def _meldung_zeile(nr: int, status: str, **mehr):
 def _reparatur_zeile(nr: int, status: str, **mehr):
     return {"id": nr, "stueck_id": 1, "nummer": "BM-00001", "bezeichnung": "Bagger", "stueck_status": "aktiv", "status": status,
             "durchfuehrung": "extern", "beschreibung": "Hydraulik", "lieferant": "Firma X", "begonnen": HEUTE, "beendet": None,
-            "kosten": Decimal("120"), "kosten_quelle": "geschaetzt", "laeuft": status == "in_arbeit", **mehr}
+            "kosten": Decimal("120"), "kosten_quelle": "geschaetzt", "laeuft": status == "in_arbeit", "arbeit": "", "durch": "", "lieferant_id": 0,
+            "meldung_id": 0, "meldung_offen": False, "meldung_text": "", "zaehler_einheit": "", **mehr}
 
 
 WERKSTATT = dict(
@@ -105,7 +110,33 @@ WERKSTATT = dict(
         reparaturen=[_reparatur_zeile(5, "offen"), _reparatur_zeile(6, "in_arbeit")],
         reparaturen_fertig=[_reparatur_zeile(7, "erledigt", beendet=HEUTE)],
         stuecke_in_reparatur=[{"id": 1, "nummer": "BM-00001", "bezeichnung": "Bagger", "seit": JETZT}]),
-    fertig="", ziel=None, heute_iso=HEUTE.isoformat(), wahl_lieferant=wahl("lieferant_id"), **darf())
+    fertig="", ziel=None, abschluss=None, benutzer_auswahl=[], benutzer_ich=0, zaehler_hinweis="", heute_iso=HEUTE.isoformat(),
+    wahl_lieferant=wahl("lieferant_id"), **darf())
+KOSTEN_ZEILE = SimpleNamespace(
+    id=1, nummer="BM-00001", bezeichnung="Bagger", gruppe="Baumaschinen", kaufdatum=HEUTE, kaufpreis=Decimal("1000"), hat_zaehler=True,
+    satz=SimpleNamespace(satz_tag=Decimal("0.17"), satz_monat=Decimal("5"), quelle="gerechnet", hinweis=""), kalkulatorisch=Decimal("60"),
+    reparaturen_belegt=Decimal("10"), reparaturen_geschaetzt=Decimal("5"), gesamt=Decimal("1015"))
+KOSTEN_OHNE = SimpleNamespace(**{**vars(KOSTEN_ZEILE), "id": 2, "nummer": "BM-00002", "satz": SimpleNamespace(satz_tag=None, satz_monat=None, quelle="gerechnet", hinweis="kaufpreis_fehlt")})
+KOSTEN = dict(
+    von="2026-10-01", bis="2026-10-31", zeitraum_ersetzt=False, kostenstelle="", gruppe="", vergleich="", gruppen=[("bm", "Baumaschinen")], wahl_ks=wahl(),
+    summen=[{"name": "79795 Husum", "tage": 31, "betrag": Decimal("5.27")}],
+    einzeln=[{"ks": "79795 Husum", "nummer": "BM-00001", "bezeichnung": "Bagger", "tage": 31, "betrag": Decimal("5.27")}], ohne_satz=1, werktage=False,
+    tage_je_monat=Decimal("30"), stuecke=[KOSTEN_ZEILE, KOSTEN_OHNE], stuecke_gesamt=600,
+    miete=SimpleNamespace(zeilen=(SimpleNamespace(inventarnummer="BM-00009", gruppe="bm", tage=10, miete=Decimal("800"), eigen=Decimal("1.70"),
+                                                  differenz=Decimal("798.30")),
+                                  SimpleNamespace(inventarnummer="BM-00010", gruppe="xx", tage=3, miete=Decimal("90"), eigen=None, differenz=None)),
+                          bezeichnungen={"BM-00009": "Mietbagger"}, unvollstaendig=2, eigene=("BM-00001",)),
+    miete_fehler="", verlauf=[{"stand": Decimal("12.5"), "einheit": "h", "am": JETZT, "quelle": "pruefung", "wer": "Eins"}],
+    gewaehlt=SimpleNamespace(inventarnummer="BM-00001", bezeichnung="Bagger"), exporte=["inventar/pruefbetrieb/export/kosten_stueck_20261010-101010.csv"],
+    fertig="export", filterweg="von=2026-10-01&bis=2026-10-31", **darf())
+INVENTUR_ZEILEN = [
+    SimpleNamespace(stueck_id=1, nummer="BM-00001", bezeichnung="Bagger", kostenstelle=5, erwartet=1, gesehen=0, ergebnis="nicht_gesehen", woanders_auf=None, vorschlag=True),
+    SimpleNamespace(stueck_id=2, nummer="BM-00002", bezeichnung="Löffel", kostenstelle=5, erwartet=4, gesehen=4, ergebnis="gesehen", woanders_auf=None, vorschlag=False),
+    SimpleNamespace(stueck_id=3, nummer="BM-00003", bezeichnung="Kran", kostenstelle=5, erwartet=1, gesehen=0, ergebnis="woanders", woanders_auf=6, vorschlag=False)]
+INVENTUR = dict(
+    stichtag=HEUTE, bericht=SimpleNamespace(stichtag=HEUTE, je_kostenstelle={5: INVENTUR_ZEILEN}, namen={5: "79795 Husum", 6: "79800 Nord"}, gesehen=2,
+                                            nicht_gesehen=1, unbekannt=("XX-1",)),
+    fertig="stichtag", heute_iso=HEUTE.isoformat(), exporte=[], **darf())
 FORM = dict(zeile=None, titel_form="Neues Stück", gruppen=[("baumaschinen", "Baumaschinen")], gruppe_gewaehlt=1,
             felder=[{"schluessel": "gewicht", "bezeichnung": "Gewicht", "typ": "zahl", "einheit": "t", "auswahl": [], "pflicht": True, "wert": ""},
                     {"schluessel": "klasse", "bezeichnung": "Klasse", "typ": "auswahl", "einheit": "", "auswahl": ["a", "b"], "pflicht": False, "wert": "a"},
@@ -129,6 +160,8 @@ KONTEXT = {
     "inventar_scannen.html": dict(kostenstellen=[(5, "79795 Husum"), (6, "79800 Nord")], gewaehlt=5, **darf()),
     "inventar_faellig.html": FAELLIG,
     "inventar_werkstatt.html": WERKSTATT,
+    "inventar_kosten.html": KOSTEN,
+    "inventar_verwaltung_inventur.html": INVENTUR,
     "inventar_verwaltung.html": dict(kacheln=[("gruppen", "/inventar/verwaltung/gruppen", 12), ("import", "/inventar/verwaltung/import", None)]),
     "inventar_verwaltung_gruppen.html": dict(KATALOG_FERTIG, eintrag=LEER_EINTRAG, zeilen=[
         {"schluessel": "bm", "bezeichnung": "Baumaschinen", "kuerzel": "BM", "oben": "", "sortierung": 1, "aktiv": True, "startwert": True}]),
@@ -146,7 +179,7 @@ KONTEXT = {
         eintrag={"nummer": "", "bezeichnung": "", "hersteller": "", "preis": "", "hinweis": "", "aktiv": True}),
     "inventar_verwaltung_kostensaetze.html": dict(KATALOG_FERTIG, heute=HEUTE, gruppen=[("bm", "Baumaschinen")], zeilen=[
         {"gruppe": "Baumaschinen", "ab": HEUTE, "nutzungsdauer": 96, "zins": Decimal("4"), "reparatur": Decimal("2"), "restwert": None,
-         "monat": Decimal("100"), "tag": None, "woche": None, "stunde": None, "quelle": "manuell"}]),
+         "monat": Decimal("100"), "tag": None, "woche": None, "stunde": None, "quelle": "manuell", "basis": None, "gerechnet_am": JETZT}]),
     "inventar_verwaltung_einstellungen.html": dict(KATALOG_FERTIG, auslieferung="", felder=[("nummernmuster", "{gruppe}-{nr:5}"), ("tage_je_monat", "30")]),
     "inventar_verwaltung_import.html": dict(bericht={
         "fehler": [{"zeile": 3, "spalte": "Gruppe", "text": "import.fehler.gruppe_unbekannt", "wert": "xx"}], "hinweise": [{"zeile": 2, "text": "import.hinweis.beispiel_uebersprungen"}],
@@ -337,3 +370,69 @@ def test_stueck_seite_zeigt_rueckmeldung_foto_und_werkstatt_tasten(umgebung):
     assert "id=\"hinweis-in-reparatur\"" not in html
     in_rep = render(umgebung, "inventar_stueck.html", stueck=SimpleNamespace(**{**vars(STUECK), "status": "in_reparatur"}))
     assert 'id="hinweis-in-reparatur"' in in_rep and "weiter buchen" in in_rep
+
+
+ABSCHLUSS_INTERN = {"id": 6, "nummer": "BM-00001", "bezeichnung": "Bagger", "durchfuehrung": "intern", "lieferant": "", "hat_lieferant": False,
+                    "meldung_offen": True, "zaehler_einheit": "h", "begonnen": HEUTE}
+
+
+def test_werkstatt_abschluss_dialog_zeigt_die_pflichtfelder_und_den_haken(umgebung):
+    html = render(umgebung, "inventar_werkstatt.html", abschluss=ABSCHLUSS_INTERN, benutzer_auswahl=[(1, "Eins"), (2, "Werner")], benutzer_ich=2)
+    assert 'id="reparatur-abschliessen" open' in html and 'action="/inventar/werkstatt/reparatur/6/weiter"' in html
+    assert 'name="arbeit"' in html and "required" in html.split('name="arbeit"', 1)[1][:80] and 'data-vorbild-fuer="ab-rueck"' in html
+    assert '<option value="2" selected>' in html and 'name="durchgefuehrt_von"' in html and 'name="lieferant_id"' not in html
+    assert 'name="zaehlerstand"' in html and 'name="meldung_erledigen" value="1" checked' in html and 'id="ab-rueck"' in html
+    assert 'name="kosten"' in html and 'inventar.js' in html
+    extern = {**ABSCHLUSS_INTERN, "durchfuehrung": "extern", "meldung_offen": False, "zaehler_einheit": ""}
+    ohne_firma = render(umgebung, "inventar_werkstatt.html", abschluss=extern)
+    assert 'name="lieferant_id"' in ohne_firma and 'name="durchgefuehrt_von"' not in ohne_firma and "meldung_erledigen" not in ohne_firma
+    mit_firma = render(umgebung, "inventar_werkstatt.html", abschluss={**extern, "hat_lieferant": True, "lieferant": "Firma X"})
+    assert "<strong>Firma X</strong>" in mit_firma and 'name="lieferant_id"' not in mit_firma
+    ohne_kosten = render(umgebung, "inventar_werkstatt.html", abschluss=ABSCHLUSS_INTERN, **{**darf(False), "darf_werkstatt": True})
+    assert 'name="kosten"' not in ohne_kosten and 'name="arbeit"' in ohne_kosten
+
+
+def test_werkstatt_zeigt_wer_und_was_und_den_zaehlerhinweis(umgebung):
+    zeile = _reparatur_zeile(7, "erledigt", beendet=HEUTE, arbeit="Dichtung erneuert", durch="Werner")
+    p = SimpleNamespace(**{**vars(WERKSTATT["p"]), "reparaturen_fertig": [zeile]})
+    html = render(umgebung, "inventar_werkstatt.html", p=p, zaehler_hinweis="Zählerstand 90 liegt unter dem letzten Stand 120")
+    assert "Dichtung erneuert" in html and "Werner" in html and "liegt unter dem letzten Stand" in html
+
+
+def test_stueck_seite_zeigt_das_foto_und_wer_was_der_reparatur(umgebung):
+    html = render(umgebung, "inventar_stueck.html")
+    assert 'src="/inventar/stueck/1/foto"' in html and "Dichtung erneuert" in html and "Werner" in html
+    ohne = render(umgebung, "inventar_stueck.html", stueck=SimpleNamespace(**{**vars(STUECK), "foto_sha256": None}))
+    assert "/inventar/stueck/1/foto" not in ohne
+
+
+def test_kosten_seite_zeigt_die_vier_bloecke_den_export_und_die_dateien(umgebung):
+    html = render(umgebung, "inventar_kosten.html")
+    for kennung in ("kosten-kostenstelle", "kosten-stueck", "kosten-miete", "kosten-anlagenbuch", "exporte", "zaehler"):
+        assert f'id="{kennung}"' in html, kennung
+    assert "79795 Husum" in html and "BM-00009" in html and "kein eigenes Stück in der Gruppe" in html and "kosten_stueck_20261010-101010.csv" in html
+    assert html.count('action="/inventar/kosten/export"') == 4 and 'name="block" value="miete"' in html
+    assert "ohne Kaufpreis" in html and "2 Mietstücke ohne Zeitraum" in html and "1 Stücke standen im Zeitraum" in html
+    assert "kalkulatorisch, nicht steuerlich" in html and "Kalendertagen" in html
+    werktage = render(umgebung, "inventar_kosten.html", werktage=True, tage_je_monat=Decimal("21.67"), gewaehlt=None, fertig="")
+    assert "Werktagen" in werktage and 'id="zaehler"' not in werktage and 'id="kosten-fertig"' not in werktage
+
+
+def test_inventur_seite_zeigt_gesehen_nicht_gesehen_und_den_vorschlag_nur_mit_recht(umgebung):
+    html = render(umgebung, "inventar_verwaltung_inventur.html")
+    assert 'id="inventur-ks-5"' in html and "Nicht gesehen" in html and "Woanders gesehen: 79800 Nord" in html and "XX-1" in html
+    assert 'id="vermisst-1"' in html and 'id="vermisst-2"' not in html and 'name="grund"' in html and 'id="inventur-stichtag"' in html
+    ohne = render(umgebung, "inventar_verwaltung_inventur.html", **{**darf(False), "darf_sehen": True})
+    assert 'id="vermisst-1"' not in ohne and 'id="inventur-stichtag"' not in ohne
+    leer = render(umgebung, "inventar_verwaltung_inventur.html", bericht=None, stichtag=None, fertig="")
+    assert 'id="inventur-leer"' in leer and "inventur-ks-" not in leer
+
+
+def test_stueck_seite_zeigt_kosten_nur_mit_recht_und_die_formulare_nur_mit_kosten_pflegen(umgebung):
+    html = render(umgebung, "inventar_stueck.html")
+    assert 'id="kosten-satz"' in html and 'action="/inventar/stueck/1/kostensatz"' in html and 'action="/inventar/stueck/1/miete"' in html
+    assert "Satz der Gruppe" in html and "1.015,00" in html and "1.000,00" in html
+    ohne_pflegen = render(umgebung, "inventar_stueck.html", darf_kosten_pflegen=False)
+    assert 'id="kosten-satz"' in ohne_pflegen and "/kostensatz" not in ohne_pflegen and "/miete" not in ohne_pflegen
+    polier = render(umgebung, "inventar_stueck.html", kosten=None, **{**darf(False)})
+    assert 'id="abschnitt-kosten"' not in polier and 'id="kosten-satz"' not in polier

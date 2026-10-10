@@ -35,7 +35,7 @@ HEX = re.compile(r"^[0-9a-f]{32}$")
 KACHELN = (
     ("gruppen", "einstellen"), ("merkmale", "einstellen"), ("pruefarten", "einstellen"), ("bauteile", "pflegen"),
     ("kostensaetze", "kosten_pflegen"), ("einstellungen", "einstellen"), ("import", "pflegen"), ("etiketten", "pflegen"),
-    ("testdaten", "einstellen"),
+    ("testdaten", "einstellen"), ("inventur", "stilllegen"),
 )
 MODELLE = {"gruppen": m.Gruppe, "merkmale": m.Merkmal, "pruefarten": m.Pruefart, "bauteile": m.Bauteil,
            "kostensaetze": m.Kostensatz, "einstellungen": m.Einstellung}
@@ -224,7 +224,8 @@ def kostensaetze(
                                             .order_by(m.Gruppe.sortierung, m.Gruppe.id)).scalars())
     zeilen = [{"gruppe": namen.get(int(s.gruppe_id), ""), "ab": s.gueltig_ab, "nutzungsdauer": s.nutzungsdauer_monate,
                "zins": s.zins_prozent, "reparatur": s.reparatur_prozent_jahr, "restwert": s.restwert_prozent, "monat": s.satz_monat,
-               "tag": s.satz_tag, "woche": s.satz_woche, "stunde": s.satz_stunde, "quelle": s.quelle}
+               "tag": s.satz_tag, "woche": s.satz_woche, "stunde": s.satz_stunde, "quelle": s.quelle, "basis": s.kaufpreis_basis,
+               "gerechnet_am": s.angelegt_am}
               for s in sitzung.db.execute(select(m.Kostensatz).where(m.Kostensatz.mandant_id == mid, m.Kostensatz.gruppe_id.is_not(None))
                                           .order_by(m.Kostensatz.gruppe_id, m.Kostensatz.gueltig_ab.desc())).scalars()]
     return _seite(request, sitzung, "inventar_verwaltung_kostensaetze.html", "kostensaetze", zeilen=zeilen, fertig=bool(fertig),
@@ -238,7 +239,8 @@ def kostensatz_speichern(
 ) -> HTMLResponse:
     return _speichern(request, sitzung, "kostensaetze", lambda: katalogpflege.kostensatz_speichern(
         sitzung, _text(f, "gruppe"), _text(f, "nutzungsdauer"), _text(f, "zins"), _text(f, "reparatur"), _text(f, "restwert"),
-        _text(f, "satz_monat"), _text(f, "satz_tag"), _text(f, "satz_woche"), _text(f, "satz_stunde"), helfer.datum(_text(f, "ab"))))
+        _text(f, "satz_monat"), _text(f, "satz_tag"), _text(f, "satz_woche"), _text(f, "satz_stunde"), helfer.datum(_text(f, "ab")),
+        _text(f, "kaufpreis_basis")))
 
 
 # ---- Einstellungen ------------------------------------------------------------------------------------------------
@@ -249,7 +251,8 @@ def einstellungen_seite(
     _recht=Depends(gemeinsam.verlangt("inventar", "einstellen")),
 ) -> HTMLResponse:
     mid = sitzung.kontext.mandant_id
-    felder = [(s, katalog.einstellung(sitzung.db, mid, s)) for s in katalogpflege.EINSTELLUNGEN_ZAHL + ("nummernmuster", "zins_prozent", "etikett_layout", "erinnern_um")]
+    felder = [(s, katalog.einstellung(sitzung.db, mid, s)) for s in katalogpflege.EINSTELLUNGEN_ZAHL + katalogpflege.EINSTELLUNGEN_DEZIMAL
+              + ("nummernmuster", "zins_prozent", "etikett_layout", "erinnern_um")]
     return _seite(request, sitzung, "inventar_verwaltung_einstellungen.html", "einstellungen", felder=felder, fertig=bool(fertig),
                   auslieferung=katalog.einstellung(sitzung.db, mid, "auslieferung_am"))
 
@@ -259,7 +262,7 @@ def einstellungen_speichern(
     request: Request, f: dict[str, Any] = Depends(formular), sitzung: Sitzung = Depends(gemeinsam.angemeldet),
     _recht=Depends(gemeinsam.verlangt("inventar", "einstellen")),
 ) -> HTMLResponse:
-    namen = katalogpflege.EINSTELLUNGEN_ZAHL + ("nummernmuster", "zins_prozent", "etikett_layout", "erinnern_um", "auslieferung_am")
+    namen = katalogpflege.EINSTELLUNGEN_ZAHL + katalogpflege.EINSTELLUNGEN_DEZIMAL + ("nummernmuster", "zins_prozent", "etikett_layout", "erinnern_um", "auslieferung_am")
     return _speichern(request, sitzung, "einstellungen", lambda: katalogpflege.einstellungen_speichern(
         sitzung, {n: _text(f, n) for n in namen if n in f}))
 

@@ -29,9 +29,9 @@ def test_vertrag_namen_wie_im_auftrag():
     assert [(e.weg, e.schluessel, e.reihenfolge) for e in B.menuepunkte] == [
         ("/inventar", "inventar", 10), ("/inventar/hier", "inventar_hier", 11),
         ("/inventar/faellig", "inventar_faellig", 12), ("/inventar/werkstatt", "inventar_werkstatt", 13),
-        ("/inventar/verwaltung", "inventar_verwaltung", 30)]
-    assert B.menuepunkte[4].unterzeile and B.menuepunkte[4].auch == ("/inventar/verwaltung/",)
-    assert B.menuepunkte[3].rechte == (("inventar", "werkstatt"),)
+        ("/inventar/kosten", "inventar_kosten", 14), ("/inventar/verwaltung", "inventar_verwaltung", 30)]
+    assert B.menuepunkte[5].unterzeile and B.menuepunkte[5].auch == ("/inventar/verwaltung/",)
+    assert B.menuepunkte[3].rechte == (("inventar", "werkstatt"),) and B.menuepunkte[4].rechte == (("inventar", "kosten_sehen"),)
 
 
 def test_elf_bausteine_und_die_sichtbarkeit_ist_einer_davon():

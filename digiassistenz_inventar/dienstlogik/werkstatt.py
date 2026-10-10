@@ -1,8 +1,8 @@
 """Werkstatt (G4): Posteingang der Meldungen, Reparatur-Vorgänge und der Status `in_reparatur` — Recht `werkstatt`.
 
 Die Statusregeln stehen in `rein.werkstatt` (Automaten für Meldung und Reparatur); hier werden sie auf die Tabellen
-angewendet, protokolliert und — bei „erledigt“ — dem Melder zurückgemeldet (Mail über `mail.einreihen`, Vermerk am Stück
-im Protokoll). Nichts wird gelöscht: zurückgezogen ist ein Status mit Grund.
+angewendet, protokolliert und — bei „erledigt“ und „zurückgezogen“ — dem Melder gesagt (Mail über `benachrichtigen`, Vermerk
+am Stück im Protokoll). Nichts wird gelöscht: zurückgezogen ist ein Status mit Grund.
 
 Reparaturkosten sind Kosten: eintragen darf sie, wer `kosten_pflegen` hat; sehen, wer `kosten_sehen` hat. Wer nur `werkstatt`
 hat, beginnt und schließt Reparaturen ohne Betrag ab.
@@ -18,14 +18,14 @@ from typing import Any
 
 from sqlalchemy import select
 
-from digiassistenz_kern import Benutzer, Lieferant, mail, protokoll, zeit
+from digiassistenz_kern import Lieferant, protokoll, zeit
 from digiassistenz_kern.texte import t
 from digiassistenz_kern.web import gemeinsam
 
 from .. import dateien
 from .. import modelle as m
 from ..rein import werkstatt
-from . import laden, sicht, stueck as fachstueck
+from . import benachrichtigen, laden, sicht, stueck as fachstueck, zaehler
 from .stueckseite import namen_benutzer
 from .transfer import finde_stueck
 
@@ -90,12 +90,15 @@ def _rein_meldung(z: m.Meldung) -> werkstatt.Meldung:
 
 
 def _rein_reparatur(z: m.Reparatur) -> werkstatt.Reparatur:
-    return werkstatt.Reparatur(z.status, z.durchfuehrung, z.begonnen_am, z.beendet_am, z.kosten, z.kosten_quelle, z.grund)  # type: ignore[arg-type]
+    return werkstatt.Reparatur(
+        z.status, z.durchfuehrung, z.begonnen_am, z.beendet_am, z.kosten, z.kosten_quelle, z.grund,  # type: ignore[arg-type]
+        None if z.lieferant_id is None else int(z.lieferant_id), z.arbeit, None if z.durchgefuehrt_von is None else laden.person(z.durchgefuehrt_von))
 
 
 def _uebernehmen(z: m.Reparatur, r: werkstatt.Reparatur) -> None:
     z.status, z.begonnen_am, z.beendet_am, z.kosten, z.kosten_quelle, z.grund = (
         r.status, r.begonnen_am, r.beendet_am, r.kosten, r.kosten_quelle, r.grund)
+    z.lieferant_id, z.arbeit, z.durchgefuehrt_von = r.lieferant_id, r.arbeit, laden.benutzer_id(r.durchgefuehrt_von)
 
 
 def _vermerk(sitzung: Any, stueck: m.Stueck, aktion: str, neu_wert: str) -> None:
@@ -125,7 +128,11 @@ def posteingang(sitzung: Any) -> Posteingang:
     stueck_ids = {int(z.stueck_id) for z in zeilen} | {int(r.stueck_id) for r in offene_rep + fertige_rep}
     stuecke = {int(s.id): s for s in db.execute(select(m.Stueck).where(m.Stueck.id.in_(stueck_ids))).scalars()} if stueck_ids else {}
     orte = sicht.kostenstellen_namen(sitzung, {int(z.kostenstelle_id) for z in zeilen})
-    personen = namen_benutzer(sitzung, {z.gemeldet_von for z in zeilen} | {z.bearbeitet_von for z in zeilen})
+    reparaturen_alle = offene_rep + fertige_rep
+    personen = namen_benutzer(sitzung, {z.gemeldet_von for z in zeilen} | {z.bearbeitet_von for z in zeilen}
+                              | {r.durchgefuehrt_von for r in reparaturen_alle})
+    meldungsstatus = {int(z.id): z.status for z in db.execute(select(m.Meldung).where(
+        m.Meldung.id.in_({int(r.meldung_id) for r in reparaturen_alle if r.meldung_id}))).scalars()} if any(r.meldung_id for r in reparaturen_alle) else {}
     firmen = {int(x.id): (x.kurzname or x.name_gedruckt) for x in db.execute(select(Lieferant).where(
         Lieferant.mandant_id == mid, Lieferant.id.in_({int(r.lieferant_id) for r in offene_rep + fertige_rep if r.lieferant_id}))).scalars()} \
         if any(r.lieferant_id for r in offene_rep + fertige_rep) else {}
@@ -148,7 +155,11 @@ def posteingang(sitzung: Any) -> Posteingang:
             "bezeichnung": "" if s is None else s.bezeichnung, "stueck_status": "" if s is None else s.status, "status": r.status,
             "durchfuehrung": r.durchfuehrung, "beschreibung": r.beschreibung, "lieferant": firmen.get(int(r.lieferant_id), "") if r.lieferant_id else "",
             "begonnen": r.begonnen_am, "beendet": r.beendet_am, "kosten": r.kosten if kosten_sehen else None,
-            "kosten_quelle": r.kosten_quelle if kosten_sehen else None, "laeuft": int(r.stueck_id) in laufende_je_stueck}
+            "kosten_quelle": r.kosten_quelle if kosten_sehen else None, "laeuft": int(r.stueck_id) in laufende_je_stueck,
+            "arbeit": r.arbeit, "durch": personen.get(int(r.durchgefuehrt_von), "") if r.durchgefuehrt_von else "",
+            "lieferant_id": int(r.lieferant_id) if r.lieferant_id else 0, "meldung_id": int(r.meldung_id) if r.meldung_id else 0,
+            "meldung_offen": meldungsstatus.get(int(r.meldung_id), "") in ("offen", "angenommen", "in_arbeit") if r.meldung_id else False,
+            "meldung_text": r.beschreibung, "zaehler_einheit": "" if s is None or s.zaehler_einheit is None else s.zaehler_einheit}
 
     je_status: dict[str, list[dict[str, Any]]] = {"offen": [], "angenommen": [], "in_arbeit": [], "erledigt": []}
     for z in zeilen:
@@ -162,39 +173,38 @@ def posteingang(sitzung: Any) -> Posteingang:
 
 # ---- Meldungen ---------------------------------------------------------------------------------------------------
 
-def meldung_weiter(sitzung: Any, meldung_id: int, neu: str, rueckmeldung: str = "", grund: str = "") -> m.Meldung:
-    """Annehmen (`angenommen`), Übernehmen (`in_arbeit`), Erledigen mit Rückmeldung, Zurückziehen mit Grund."""
-    _fordern(sitzung)
-    z = _meldung(sitzung, meldung_id)
-    stueck = _stueck(sitzung, int(z.stueck_id))
-    jetzt = zeit.jetzt_utc()
-    erg = werkstatt.meldung_weiter(_rein_meldung(z), neu, laden.person(_benutzer(sitzung)), jetzt, rueckmeldung, grund)
+def _melder_benachrichtigen(sitzung: Any, meldung: m.Meldung, stueck: m.Stueck, schluessel: str) -> bool:
+    """Sagt dem Melder, wie es ausging (erledigt mit Rückmeldung, zurückgezogen mit Grund) — über die eine Mailfunktion des Moduls."""
+    if meldung.gemeldet_von is None:
+        return False
+    return benachrichtigen.benachrichtigen(
+        sitzung.db, int(meldung.gemeldet_von), schluessel, mandant_id=sitzung.kontext.mandant_id, von=_benutzer(sitzung),
+        objekt_id=int(stueck.id), nummer=stueck.inventarnummer, bezeichnung=stueck.bezeichnung, art=t("inventar.meldung.art." + meldung.art),
+        beschreibung=meldung.beschreibung, rueckmeldung=meldung.rueckmeldung, grund=meldung.grund)
+
+
+def _meldung_anwenden(sitzung: Any, z: m.Meldung, stueck: m.Stueck, neu: str, rueckmeldung: str = "", grund: str = "") -> None:
+    """Ein Statuswechsel der Meldung: Automat, Spalten, Vermerk am Stück, bei erledigt und zurückgezogen die Benachrichtigung."""
+    erg = werkstatt.meldung_weiter(_rein_meldung(z), neu, laden.person(_benutzer(sitzung)), zeit.jetzt_utc(), rueckmeldung, grund)
     z.status, z.erledigt_am, z.rueckmeldung, z.grund = erg.status, erg.erledigt_am, erg.rueckmeldung, erg.grund
     if neu in ("angenommen", "in_arbeit", "erledigt"):
         z.bearbeitet_von = _benutzer(sitzung)
     sitzung.db.flush()
     text = erg.rueckmeldung if neu == "erledigt" else erg.grund if neu == "zurueckgezogen" else z.beschreibung[:200]
     _vermerk(sitzung, stueck, f"meldung_{neu}", f"{stueck.inventarnummer}: {text}")
-    if neu == "erledigt":
-        _rueckmelden(sitzung, z, stueck)
+    if neu in ("erledigt", "zurueckgezogen"):
+        _melder_benachrichtigen(sitzung, z, stueck, "werkstatt_" + neu)
+
+
+def meldung_weiter(sitzung: Any, meldung_id: int, neu: str, rueckmeldung: str = "", grund: str = "") -> m.Meldung:
+    """Annehmen (`angenommen`), Übernehmen (`in_arbeit`), Erledigen mit Rückmeldung, Zurückziehen mit Grund.
+
+    Erledigen und Zurückziehen bekommt der Melder per Mail gesagt; Annehmen und Übernehmen nicht.
+    """
+    _fordern(sitzung)
+    z = _meldung(sitzung, meldung_id)
+    _meldung_anwenden(sitzung, z, _stueck(sitzung, int(z.stueck_id)), neu, rueckmeldung, grund)
     return z
-
-
-def _rueckmelden(sitzung: Any, meldung: m.Meldung, stueck: m.Stueck) -> bool:
-    """Die Rückmeldung an den Melder als Mail; ohne aktives Konto oder Adresse bleibt nur der Vermerk am Stück."""
-    if meldung.gemeldet_von is None:
-        return False
-    db, mid = sitzung.db, sitzung.kontext.mandant_id
-    konto = db.execute(select(Benutzer).where(Benutzer.mandant_id == mid, Benutzer.id == meldung.gemeldet_von, Benutzer.aktiv)).scalar_one_or_none()
-    adresse = None if konto is None else (konto.benachrichtigung_email or konto.email)
-    if not adresse:
-        return False
-    mail.einreihen(
-        db, an=[adresse], betreff=t("inventar.werkstatt.mail_betreff", nummer=stueck.inventarnummer),
-        text=t("inventar.werkstatt.mail_text", nummer=stueck.inventarnummer, bezeichnung=stueck.bezeichnung,
-               art=t("inventar.meldung.art." + meldung.art), beschreibung=meldung.beschreibung, rueckmeldung=meldung.rueckmeldung),
-        mandant_id=mid, benutzer_id=_benutzer(sitzung))
-    return True
 
 
 def meldung_foto_lesen(sitzung: Any, meldung_id: int, arbeitsordner: Path) -> tuple[str, bytes]:
@@ -213,13 +223,31 @@ def meldung_foto_lesen(sitzung: Any, meldung_id: int, arbeitsordner: Path) -> tu
 
 # ---- Reparaturen -------------------------------------------------------------------------------------------------
 
-def _status_folgen(sitzung: Any, stueck: m.Stueck) -> None:
-    """`in_reparatur`, solange eine Reparatur läuft; danach zurück auf `aktiv` (andere Stati bleiben unberührt)."""
+@dataclass(frozen=True)
+class Abschluss:
+    """Ergebnis von „Reparatur abschließen“: die Reparatur und — wenn ein Zählerstand dabei war — der Hinweis, falls er zu niedrig lag."""
+
+    reparatur: m.Reparatur
+    meldung_erledigt: bool
+    zaehler_unter: Decimal | None
+    zaehler_letzter: Decimal | None
+
+
+def _status_folgen(sitzung: Any, stueck: m.Stueck, reparatur: m.Reparatur) -> None:
+    """`in_reparatur`, solange eine Reparatur läuft (Grund `reparatur:<id>`); danach zurück auf `aktiv` — aber nur, wenn die
+    Automatik es gesetzt hat. Hand bleibt Hand: was die Werkstatt von Hand gesperrt hat, hebt sie von Hand auf."""
     laufende = sitzung.db.execute(select(m.Reparatur.id).where(
         m.Reparatur.mandant_id == sitzung.kontext.mandant_id, m.Reparatur.stueck_id == stueck.id, m.Reparatur.status == "in_arbeit")).all()
-    folge = werkstatt.status_folge(stueck.status, len(laufende))
-    if folge is not None:
+    folge = werkstatt.status_folge(stueck.status, len(laufende), stueck.status_grund)
+    if folge == "in_reparatur":
+        fachstueck.status_setzen(sitzung, stueck, folge, f"{werkstatt.GRUND_PRAEFIX}{int(reparatur.id)}")
+    elif folge is not None:
         fachstueck.status_setzen(sitzung, stueck, folge)
+
+
+def _lieferant_pruefen(db: Any, mandant_id: int, lieferant_id: int | None) -> None:
+    if lieferant_id is not None and db.execute(select(Lieferant.id).where(Lieferant.mandant_id == mandant_id, Lieferant.id == lieferant_id)).first() is None:
+        raise ValueError("reparatur.lieferant_unbekannt")
 
 
 def reparatur_anlegen(
@@ -238,8 +266,7 @@ def reparatur_anlegen(
     else:
         raise ValueError("reparatur.ziel_fehlt")
     werkstatt.neue_reparatur(durchfuehrung)
-    if lieferant_id is not None and db.execute(select(Lieferant.id).where(Lieferant.mandant_id == mid, Lieferant.id == lieferant_id)).first() is None:
-        raise ValueError("reparatur.lieferant_unbekannt")
+    _lieferant_pruefen(db, mid, lieferant_id)
     text = beschreibung.strip() or (meldung.beschreibung if meldung is not None else "")
     satz = m.Reparatur(mandant_id=mid, stueck_id=stueck.id, meldung_id=None if meldung is None else meldung.id, beschreibung=text,
                        durchfuehrung=durchfuehrung, lieferant_id=lieferant_id, status="offen", angelegt_von=_benutzer(sitzung))
@@ -256,23 +283,56 @@ def reparatur_beginnen(sitzung: Any, reparatur_id: int, am: dt.date, geschaetzte
     z, stueck = _reparatur(sitzung, reparatur_id)
     _uebernehmen(z, werkstatt.reparatur_beginnen(_rein_reparatur(z), am, geschaetzte_kosten))
     sitzung.db.flush()
-    _status_folgen(sitzung, stueck)
+    _status_folgen(sitzung, stueck, z)
     _vermerk(sitzung, stueck, "reparatur_begonnen", f"{stueck.inventarnummer}: {am.isoformat()}")
     return z
 
 
+def _durchfuehrende(sitzung: Any, durchgefuehrt_von: int | None) -> int | None:
+    """Wer intern repariert hat: die gewählte Person, sonst die Abschließende; sie muss ein aktives Konto dieses Betriebs sein."""
+    wer = durchgefuehrt_von if durchgefuehrt_von is not None else _benutzer(sitzung)
+    if wer is not None and benachrichtigen.konto(sitzung.db, sitzung.kontext.mandant_id, int(wer)) is None:
+        raise ValueError("reparatur.durchgefuehrt_von_unbekannt")
+    return wer
+
+
 def reparatur_abschliessen(
-    sitzung: Any, reparatur_id: int, am: dt.date, kosten: Decimal | None = None, quelle: str = "geschaetzt",
-) -> m.Reparatur:
-    """Ende der Reparatur; ohne weitere laufende Reparatur ist das Stück wieder `aktiv`."""
+    sitzung: Any, reparatur_id: int, am: dt.date, kosten: Decimal | None = None, quelle: str = "geschaetzt", *, arbeit: str = "",
+    lieferant_id: int | None = None, durchgefuehrt_von: int | None = None, meldung_erledigen: bool = False, rueckmeldung: str = "",
+    zaehlerstand: Decimal | None = None,
+) -> Abschluss:
+    """Ende der Reparatur — wer, wo, was, wann sind Pflicht: extern die Firma, intern die Person (vorbelegt mit der
+    Abschließenden), dazu was gemacht wurde und das Datum. Ohne weitere laufende Reparatur ist das Stück wieder `aktiv`,
+    wenn die Automatik es gesperrt hatte.
+
+    Mit `meldung_erledigen` wird die zugehörige Meldung im selben Zug erledigt (Rückmeldung vorgefüllt mit `arbeit`) und der
+    Melder benachrichtigt. Scheitert das Einreihen der Mail, bleiben Abschluss und Erledigung gültig; ein Vermerk sagt es.
+    """
     _fordern(sitzung)
     _kosten_pflegen(sitzung, kosten)
     z, stueck = _reparatur(sitzung, reparatur_id)
-    _uebernehmen(z, werkstatt.reparatur_abschliessen(_rein_reparatur(z), am, kosten, quelle))
+    firma = lieferant_id if lieferant_id is not None else (None if z.lieferant_id is None else int(z.lieferant_id))
+    _lieferant_pruefen(sitzung.db, sitzung.kontext.mandant_id, firma)
+    person = _durchfuehrende(sitzung, durchgefuehrt_von) if z.durchfuehrung == "intern" else None
+    _uebernehmen(z, werkstatt.reparatur_abschliessen(
+        _rein_reparatur(z), am, kosten, quelle, arbeit=arbeit, lieferant_id=firma,
+        durchgefuehrt_von=None if person is None else laden.person(person)))
     sitzung.db.flush()
-    _status_folgen(sitzung, stueck)
-    _vermerk(sitzung, stueck, "reparatur_abgeschlossen", f"{stueck.inventarnummer}: {am.isoformat()}")
-    return z
+    _status_folgen(sitzung, stueck, z)
+    _vermerk(sitzung, stueck, "reparatur_abgeschlossen", f"{stueck.inventarnummer}: {am.isoformat()}: {z.arbeit}")
+    erledigt = False
+    if meldung_erledigen and z.meldung_id is not None:
+        meldung = _meldung(sitzung, int(z.meldung_id))
+        if meldung.status in ("offen", "angenommen", "in_arbeit"):
+            if meldung.status == "offen":
+                _meldung_anwenden(sitzung, meldung, stueck, "angenommen")
+            _meldung_anwenden(sitzung, meldung, stueck, "erledigt", rueckmeldung.strip() or z.arbeit)
+            erledigt = True
+    unter = letzter = None
+    if zaehlerstand is not None:
+        satz, letzter = zaehler.eintragen(sitzung, stueck, zaehlerstand, "werkstatt")
+        unter = zaehlerstand if satz is None else None
+    return Abschluss(z, erledigt, unter, letzter)
 
 
 def reparatur_rechnung(sitzung: Any, reparatur_id: int, kosten: Decimal) -> m.Reparatur:
@@ -287,12 +347,13 @@ def reparatur_rechnung(sitzung: Any, reparatur_id: int, kosten: Decimal) -> m.Re
 
 
 def reparatur_zurueckziehen(sitzung: Any, reparatur_id: int, grund: str) -> m.Reparatur:
-    """Zieht eine offene oder laufende Reparatur mit Grund zurück; das Stück wird wieder `aktiv`, wenn nichts mehr läuft."""
+    """Zieht eine offene oder laufende Reparatur mit Grund zurück; das Stück wird wieder `aktiv`, wenn nichts mehr läuft
+    und die Automatik es gesperrt hatte."""
     _fordern(sitzung)
     z, stueck = _reparatur(sitzung, reparatur_id)
     _uebernehmen(z, werkstatt.reparatur_zurueckziehen(_rein_reparatur(z), grund))
     sitzung.db.flush()
-    _status_folgen(sitzung, stueck)
+    _status_folgen(sitzung, stueck, z)
     _vermerk(sitzung, stueck, "reparatur_zurueckgezogen", f"{stueck.inventarnummer}: {z.grund}")
     return z
 

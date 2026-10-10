@@ -21,8 +21,9 @@ from ..rein import zeitplan
 from ..rein.nummernformat import pruefe_muster
 from . import katalog
 
-EINSTELLUNGEN_ZAHL = ("transfer_frist_werktage", "tage_je_monat", "werktage", "gelb_ab_tagen", "zaehler_gelb_prozent", "pruefung_erinnern_tage")
+EINSTELLUNGEN_ZAHL = ("transfer_frist_werktage", "tage_je_monat", "gelb_ab_tagen", "zaehler_gelb_prozent", "pruefung_erinnern_tage")
 EINSTELLUNGEN_TEXT = ("nummernmuster", "etikett_layout", "zins_prozent", "auslieferung_am", "erinnern_um")
+EINSTELLUNGEN_DEZIMAL = ("werktage",)  # Werktage je Monat dürfen eine Dezimalzahl sein (z. B. 21,67); 0 = nicht verwendet
 _SCHLUESSEL = re.compile(r"^[a-z][a-z0-9_]{0,39}$")
 _KUERZEL = re.compile(r"^[A-Z]{2}$")
 
@@ -233,8 +234,12 @@ def bauteil_speichern(sitzung: Any, bauteilnummer: str, bezeichnung: str, herste
 
 def kostensatz_speichern(sitzung: Any, gruppe: str, nutzungsdauer_monate: str, zins_prozent: str, reparatur_prozent_jahr: str,
                          restwert_prozent: str = "", satz_monat: str = "", satz_tag: str = "", satz_woche: str = "",
-                         satz_stunde: str = "", gueltig_ab: dt.date | None = None) -> m.Kostensatz:
-    """Ein neuer Satz mit Gültigkeitsbeginn; der alte bleibt stehen (Verlauf). Quelle `manuell`."""
+                         satz_stunde: str = "", gueltig_ab: dt.date | None = None, kaufpreis_basis: str = "", restwert: str = "") -> m.Kostensatz:
+    """Ein neuer Satz mit Gültigkeitsbeginn; der alte bleibt stehen (Verlauf).
+
+    Mit einem von Hand gesetzten Monatssatz gilt dieser (`manuell`); ohne ihn rechnet jedes Stück aus diesen Parametern und seinem
+    Kaufpreis (`gerechnet`). Die Kaufpreisbasis ist nur der Richtpreis für Stücke ohne eigenen Kaufpreis.
+    """
     _fordern(sitzung, "kosten_pflegen")
     db, mid = sitzung.db, sitzung.kontext.mandant_id
     zeile_gruppe = db.execute(select(m.Gruppe).where(m.Gruppe.mandant_id == mid, m.Gruppe.schluessel == gruppe)).scalar_one_or_none()
@@ -250,8 +255,11 @@ def kostensatz_speichern(sitzung: Any, gruppe: str, nutzungsdauer_monate: str, z
         nutzungsdauer_monate=_zahl(nutzungsdauer_monate, "katalog.intervall_ungueltig", ganz=True, minimum=1),
         zins_prozent=_zahl(zins_prozent, "katalog.prozent_ungueltig"),
         reparatur_prozent_jahr=_zahl(reparatur_prozent_jahr, "katalog.prozent_ungueltig"),
-        restwert_prozent=betrag(restwert_prozent), satz_monat=betrag(satz_monat), satz_tag=betrag(satz_tag),
-        satz_woche=betrag(satz_woche), satz_stunde=betrag(satz_stunde), quelle="manuell", angelegt_von=_benutzer(sitzung))
+        restwert_prozent=betrag(restwert_prozent), restwert=betrag(restwert), kaufpreis_basis=betrag(kaufpreis_basis),
+        satz_monat=betrag(satz_monat), satz_tag=betrag(satz_tag), satz_woche=betrag(satz_woche), satz_stunde=betrag(satz_stunde),
+        quelle="manuell" if satz_monat.strip() else "gerechnet", angelegt_von=_benutzer(sitzung))
+    if (satz.satz_tag is not None or satz.satz_woche is not None) and satz.satz_monat is None:
+        raise ValueError("kosten.monatssatz_fehlt")
     if db.execute(select(m.Kostensatz.id).where(m.Kostensatz.mandant_id == mid, m.Kostensatz.gruppe_id == zeile_gruppe.id,
                                                 m.Kostensatz.gueltig_ab == ab)).first():
         raise ValueError("katalog.satz_gibt_es")
@@ -270,7 +278,9 @@ def einstellungen_speichern(sitzung: Any, werte: dict[str, str]) -> list[str]:
     geaendert: list[str] = []
     for schluessel, wert in werte.items():
         wert = wert.strip()
-        if schluessel in EINSTELLUNGEN_ZAHL:
+        if schluessel in EINSTELLUNGEN_DEZIMAL:
+            _zahl(wert or "0", "katalog.zahl_ungueltig")
+        elif schluessel in EINSTELLUNGEN_ZAHL:
             _zahl(wert, "katalog.zahl_ungueltig", ganz=True)
         elif schluessel == "nummernmuster":
             if pruefe_muster(wert):

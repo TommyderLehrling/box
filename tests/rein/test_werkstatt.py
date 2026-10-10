@@ -18,6 +18,11 @@ from digiassistenz_inventar.rein.werkstatt import (
     status_folge,
 )
 
+def abschliessen(r, am, kosten, quelle="geschaetzt", **mehr):
+    """Abschluss mit allen Pflichtangaben (Firma, Person, was gemacht wurde); einzelne lassen sich überschreiben."""
+    return reparatur_abschliessen(r, am, kosten, quelle, **{"arbeit": "Schlauch getauscht", "lieferant_id": 3, "durchgefuehrt_von": "7", **mehr})
+
+
 JETZT = datetime(2026, 10, 8, 8, 0, tzinfo=timezone.utc)
 SPAETER = datetime(2026, 10, 9, 8, 0, tzinfo=timezone.utc)
 
@@ -67,12 +72,12 @@ def test_W5_reparatur_ablauf():
     assert r.status == "offen"
     r = reparatur_beginnen(r, date(2026, 10, 8), D("350"))
     assert (r.status, r.begonnen_am, r.kosten, r.kosten_quelle) == ("in_arbeit", date(2026, 10, 8), D("350"), "geschaetzt")
-    r = reparatur_abschliessen(r, date(2026, 10, 10), D("412.50"), "geschaetzt")
+    r = abschliessen(r, date(2026, 10, 10), D("412.50"), "geschaetzt")
     assert (r.status, r.beendet_am, r.kosten) == ("erledigt", date(2026, 10, 10), D("412.50"))
 
 
 def test_W6_beleg_ersetzt_schaetzung_nur_nach_abschluss():
-    r = reparatur_abschliessen(reparatur_beginnen(neue_reparatur("extern"), date(2026, 10, 1)), date(2026, 10, 2), D("500"))
+    r = abschliessen(reparatur_beginnen(neue_reparatur("extern"), date(2026, 10, 1)), date(2026, 10, 2), D("500"))
     belegt = kosten_aus_rechnung(r, D("487.30"))
     assert (belegt.kosten, belegt.kosten_quelle) == (D("487.30"), "rechnung")
     with pytest.raises(ValueError, match="wechsel_nicht_erlaubt"):
@@ -84,15 +89,15 @@ def test_W7_reparatur_pruefungen():
     with pytest.raises(ValueError):
         neue_reparatur("fremd")
     with pytest.raises(ValueError, match="wechsel_nicht_erlaubt"):
-        reparatur_abschliessen(r, date(2026, 10, 8), D("1"))
+        abschliessen(r, date(2026, 10, 8), D("1"))
     laufend = reparatur_beginnen(r, date(2026, 10, 8))
     assert laufend.kosten is None and laufend.kosten_quelle is None
     with pytest.raises(ValueError, match="ende_vor_beginn"):
-        reparatur_abschliessen(laufend, date(2026, 10, 7), D("1"))
+        abschliessen(laufend, date(2026, 10, 7), D("1"))
     with pytest.raises(ValueError, match="kosten_ungueltig"):
-        reparatur_abschliessen(laufend, date(2026, 10, 9), D("-1"))
+        abschliessen(laufend, date(2026, 10, 9), D("-1"))
     with pytest.raises(ValueError, match="kostenquelle_unbekannt"):
-        reparatur_abschliessen(laufend, date(2026, 10, 9), D("1"), "raten")
+        abschliessen(laufend, date(2026, 10, 9), D("1"), "raten")
     with pytest.raises(ValueError, match="kosten_ungueltig"):
         reparatur_beginnen(r, date(2026, 10, 8), D("-5"))
     with pytest.raises(ValueError, match="wechsel_nicht_erlaubt"):
@@ -105,7 +110,7 @@ def test_W8_reparatur_zurueckziehen_mit_grund():
         reparatur_zurueckziehen(r, " ")
     z = reparatur_zurueckziehen(reparatur_beginnen(r, date(2026, 10, 8)), "Schaden war keiner")
     assert (z.status, z.grund) == ("zurueckgezogen", "Schaden war keiner")
-    fertig = reparatur_abschliessen(reparatur_beginnen(r, date(2026, 10, 8)), date(2026, 10, 8), D("0"))
+    fertig = abschliessen(reparatur_beginnen(r, date(2026, 10, 8)), date(2026, 10, 8), D("0"))
     with pytest.raises(ValueError, match="wechsel_nicht_erlaubt"):
         reparatur_zurueckziehen(fertig, "zu spaet")
 
@@ -113,7 +118,8 @@ def test_W8_reparatur_zurueckziehen_mit_grund():
 def test_W9_status_folge_fuer_das_stueck():
     assert status_folge("aktiv", 1) == "in_reparatur"
     assert status_folge("in_reparatur", 1) is None  # noch eine laeuft
-    assert status_folge("in_reparatur", 0) == "aktiv"
+    assert status_folge("in_reparatur", 0, "reparatur:5") == "aktiv"  # die Automatik hat es gesetzt: sie hebt es auf
+    assert status_folge("in_reparatur", 0) is None and status_folge("in_reparatur", 0, "Rahmen gerissen") is None  # Hand bleibt Hand
     assert status_folge("aktiv", 0) is None
     assert status_folge("vermisst", 2) is None and status_folge("stillgelegt", 0) is None
     with pytest.raises(ValueError, match="anzahl_ungueltig"):
@@ -123,7 +129,7 @@ def test_W9_status_folge_fuer_das_stueck():
 def test_W10_reparaturkosten_getrennt_nach_quelle():
     def erledigt(kosten: str, quelle: str):
         r = reparatur_beginnen(neue_reparatur("extern"), date(2026, 1, 1))
-        return reparatur_abschliessen(r, date(2026, 1, 2), D(kosten), quelle)
+        return abschliessen(r, date(2026, 1, 2), D(kosten), quelle)
     laufend = reparatur_beginnen(neue_reparatur("intern"), date(2026, 1, 1), D("999"))
     liste = [erledigt("100.005", "rechnung"), erledigt("50", "geschaetzt"), erledigt("20.50", "rechnung"), laufend,
              reparatur_zurueckziehen(neue_reparatur("intern"), "x")]
@@ -140,9 +146,31 @@ def test_W11_eingabe_bleibt_unveraendert():
 def test_abschliessen_ohne_kosten_laesst_eine_schaetzung_stehen():
     """Wer `kosten_pflegen` nicht hat, schließt ohne Betrag ab: eine frühere Schätzung bleibt, sonst bleibt der Betrag leer."""
     mit_schaetzung = reparatur_beginnen(neue_reparatur("extern"), date(2026, 10, 1), D("300"))
-    fertig = reparatur_abschliessen(mit_schaetzung, date(2026, 10, 3), None)
+    fertig = abschliessen(mit_schaetzung, date(2026, 10, 3), None)
     assert (fertig.status, fertig.kosten, fertig.kosten_quelle, fertig.beendet_am) == ("erledigt", D("300"), "geschaetzt", date(2026, 10, 3))
-    ohne = reparatur_abschliessen(reparatur_beginnen(neue_reparatur("intern"), date(2026, 10, 1)), date(2026, 10, 1), None)
+    ohne = abschliessen(reparatur_beginnen(neue_reparatur("intern"), date(2026, 10, 1)), date(2026, 10, 1), None)
     assert (ohne.status, ohne.kosten, ohne.kosten_quelle) == ("erledigt", None, None)
     with pytest.raises(ValueError, match="reparatur.ende_vor_beginn"):
-        reparatur_abschliessen(mit_schaetzung, date(2026, 9, 30), None)
+        abschliessen(mit_schaetzung, date(2026, 9, 30), None)
+
+
+def test_W12_beim_abschliessen_sind_wann_was_und_wer_pflicht():
+    laufend = reparatur_beginnen(neue_reparatur("extern"), date(2026, 10, 1))
+    for fehlt, kw in (("arbeit_fehlt", {"arbeit": " "}), ("lieferant_fehlt", {"lieferant_id": None})):
+        with pytest.raises(ValueError, match=fehlt):
+            abschliessen(laufend, date(2026, 10, 2), None, **kw)
+    mit_firma = reparatur_beginnen(neue_reparatur("extern", lieferant_id=9), date(2026, 10, 1))
+    fertig = abschliessen(mit_firma, date(2026, 10, 2), None, lieferant_id=None)  # die Firma vom Anlegen genügt
+    assert (fertig.lieferant_id, fertig.arbeit, fertig.durchgefuehrt_von, fertig.beendet_am) == (9, "Schlauch getauscht", None, date(2026, 10, 2))
+    intern = reparatur_beginnen(neue_reparatur("intern"), date(2026, 10, 1))
+    with pytest.raises(ValueError, match="durchgefuehrt_von_fehlt"):
+        abschliessen(intern, date(2026, 10, 2), None, durchgefuehrt_von=None)
+    ok = abschliessen(intern, date(2026, 10, 2), None, arbeit="  Dichtung erneuert ")
+    assert (ok.durchgefuehrt_von, ok.arbeit, ok.lieferant_id) == ("7", "Dichtung erneuert", 3)
+    assert intern.arbeit == "" and intern.status == "in_arbeit", "die Eingabe bleibt unverändert"
+
+
+def test_W13_beim_anlegen_ist_alles_freiwillig():
+    r = neue_reparatur("extern")
+    assert (r.lieferant_id, r.arbeit, r.durchgefuehrt_von) == (None, "", None)
+    assert neue_reparatur("intern", lieferant_id=4).lieferant_id == 4

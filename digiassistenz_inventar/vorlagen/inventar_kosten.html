@@ -1,0 +1,116 @@
+{% extends "rahmen.html" %}
+{% macro export(block) %}
+<form class="inline" method="post" action="/inventar/kosten/export" hx-post="/inventar/kosten/export" hx-target="#kosten-meldung" hx-swap="innerHTML">
+  <input type="hidden" name="block" value="{{ block }}"><input type="hidden" name="von" value="{{ von }}"><input type="hidden" name="bis" value="{{ bis }}">
+  <input type="hidden" name="kostenstelle" value="{{ kostenstelle }}"><input type="hidden" name="gruppe" value="{{ gruppe }}"><input type="hidden" name="vergleich" value="{{ vergleich }}">
+  <button type="submit" class="klein">{{ t("inventar.kosten.export") }}</button>
+</form>
+{% endmacro %}
+{% block titel %}{{ t("inventar.menue_kosten") }} — {{ t("web.titel") }}{% endblock %}
+{% block inhalt %}
+{% with seite = "inventar_kosten", titel = t("inventar.menue_kosten") %}{% include "teil_seitenkopf.html" %}{% endwith %}
+{% if fertig %}<p class="gut" role="status" id="kosten-fertig">✓ {{ t("inventar.kosten.fertig." ~ fertig) }}</p>{% endif %}
+{% if zeitraum_ersetzt %}<p class="warnung" role="status">{{ t("inventar.kosten.zeitraum_ersetzt") }}</p>{% endif %}
+<div id="kosten-meldung"></div>
+<p class="klein leise">{{ t("inventar.kosten.hinweis") }} · {% if werktage %}{{ t("inventar.kosten.modus_werktage", tage=tage_je_monat) }}{% else %}{{ t("inventar.kosten.modus_kalender", tage=tage_je_monat) }}{% endif %}</p>
+
+<form method="get" action="/inventar/kosten" class="filterzeile" id="kosten-filter">
+  <label for="k-von">{{ t("inventar.von") }}</label> <input type="date" id="k-von" name="von" value="{{ von }}">
+  <label for="k-bis">{{ t("inventar.bis") }}</label> <input type="date" id="k-bis" name="bis" value="{{ bis }}">
+  <label for="k-gruppe">{{ t("inventar.spalte_gruppe") }}</label>
+  <select id="k-gruppe" name="gruppe">
+    <option value="">{{ t("inventar.alle") }}</option>
+    {% for schluessel, bezeichnung in gruppen %}<option value="{{ schluessel }}"{% if gruppe == schluessel %} selected{% endif %}>{{ bezeichnung }}</option>{% endfor %}
+  </select>
+  {% with wahl = wahl_ks %}{% include "teil_wahl.html" %}{% endwith %}
+  <label for="k-vergleich">{{ t("inventar.kosten.vergleichsstueck") }}</label> <input type="text" id="k-vergleich" name="vergleich" value="{{ vergleich }}" size="12">
+  <button type="submit">{{ t("web.suchen") }}</button>
+</form>
+
+<section id="kosten-kostenstelle">
+  <h2>{{ t("inventar.kosten.block.kostenstelle") }}</h2>
+  <p class="klein leise">{{ t("inventar.kosten.block.kostenstelle_hinweis") }}</p>
+  {% if not summen %}<p class="leise">{{ t("inventar.leer") }}</p>{% else %}
+  <table class="liste" id="kosten-summen">
+    <tr><th>{{ t("inventar.feld.kostenstelle") }}</th><th>{{ t("inventar.kosten.tage") }}</th><th>{{ t("inventar.kosten.vorhaltung") }}</th></tr>
+    {% for s in summen %}<tr><td>{{ s.name }}</td><td class="zahl">{{ s.tage }}</td><td class="zahl">{{ s.betrag|betrag }}</td></tr>{% endfor %}
+  </table>
+  <details>
+    <summary>{{ t("inventar.kosten.je_stueck_und_ort") }} ({{ einzeln|length }})</summary>
+    <table class="liste">
+      <tr><th>{{ t("inventar.feld.kostenstelle") }}</th><th>{{ t("web.nummer") }}</th><th>{{ t("web.bezeichnung") }}</th><th>{{ t("inventar.kosten.tage") }}</th><th>{{ t("inventar.kosten.betrag") }}</th></tr>
+      {% for z in einzeln %}<tr><td>{{ z.ks }}</td><td>{{ z.nummer }}</td><td>{{ z.bezeichnung }}</td><td class="zahl">{{ z.tage }}</td><td class="zahl">{{ z.betrag|betrag }}</td></tr>{% endfor %}
+    </table>
+  </details>
+  {% endif %}
+  {% if ohne_satz %}<p class="warnung" role="status">{{ t("inventar.kosten.ohne_satz", anzahl=ohne_satz) }}</p>{% endif %}
+  <p>{{ export("kostenstelle") }}</p>
+</section>
+
+<section id="kosten-stueck">
+  <h2>{{ t("inventar.kosten.block.stueck") }} ({{ stuecke_gesamt }})</h2>
+  {% if not stuecke %}<p class="leise">{{ t("inventar.leer") }}</p>{% else %}
+  <table class="liste">
+    <tr><th>{{ t("web.nummer") }}</th><th>{{ t("web.bezeichnung") }}</th><th>{{ t("inventar.kosten.kaufpreis") }}</th><th>{{ t("inventar.kosten.satz_tag") }}</th><th>{{ t("inventar.kosten.kalkulatorisch_bis") }}</th><th>{{ t("inventar.kosten.reparaturen") }}</th><th>{{ t("inventar.kosten.gesamtkosten") }}</th><th>{{ t("inventar.quelle") }}</th></tr>
+    {% for k in stuecke %}
+    <tr>
+      <td><a href="/inventar/stueck/{{ k.id }}">{{ k.nummer }}</a></td><td>{{ k.bezeichnung }}<br><span class="klein leise">{{ k.gruppe }}</span></td>
+      <td class="zahl">{{ k.kaufpreis|betrag }}</td>
+      <td class="zahl">{% if k.satz.satz_tag is not none %}{{ k.satz.satz_tag|betrag }}{% else %}{{ ""|oder_strich }}{% endif %}</td>
+      <td class="zahl">{{ k.kalkulatorisch|betrag }}</td>
+      <td class="zahl">{{ k.reparaturen_belegt|betrag }} <span class="klein leise">{{ t("inventar.reparatur.kostenquelle.rechnung") }}</span><br>{{ k.reparaturen_geschaetzt|betrag }} <span class="klein leise">{{ t("inventar.reparatur.kostenquelle.geschaetzt") }}</span></td>
+      <td class="zahl">{{ k.gesamt|betrag }}</td>
+      <td>{% if k.satz.satz_monat is not none %}{{ t("inventar.katalog.satzquelle." ~ k.satz.quelle) }}{% elif k.satz.hinweis %}<span class="warnung">{{ t("inventar.kosten.hinweis_satz." ~ k.satz.hinweis) }}</span>{% else %}<span class="leise">{{ t("inventar.kosten.hinweis_satz.keiner") }}</span>{% endif %}
+        {% if k.hat_zaehler %}<br><a class="klein" href="/inventar/kosten?stueck={{ k.id }}&amp;{{ filterweg }}#zaehler">{{ t("inventar.abschnitt.zaehler") }}</a>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% if stuecke|length < stuecke_gesamt %}<p class="klein leise">{{ t("inventar.faellig.gekuerzt", anzahl=stuecke|length, gesamt=stuecke_gesamt) }}</p>{% endif %}
+  {% endif %}
+  <p>{{ export("stueck") }}</p>
+</section>
+
+{% if gewaehlt %}
+<section id="zaehler">
+  <h2>{{ t("inventar.abschnitt.zaehler") }}: {{ gewaehlt.inventarnummer }} {{ gewaehlt.bezeichnung }}</h2>
+  {% if not verlauf %}<p class="leise">{{ t("inventar.leer") }}</p>{% else %}
+  <table class="liste">
+    <tr><th>{{ t("inventar.feld.zaehlerstand") }}</th><th>{{ t("inventar.von") }}</th><th>{{ t("inventar.quelle") }}</th><th>{{ t("web.name") }}</th></tr>
+    {% for z in verlauf %}<tr><td class="zahl">{{ z.stand|menge }} {{ z.einheit }}</td><td>{{ z.am|zeitpunkt }}</td><td>{{ t("inventar.zaehler.quelle." ~ z.quelle) }}</td><td>{{ z.wer|oder_strich }}</td></tr>{% endfor %}
+  </table>
+  {% endif %}
+</section>
+{% endif %}
+
+<section id="kosten-miete">
+  <h2>{{ t("inventar.kosten.block.miete") }}</h2>
+  <p class="klein leise">{{ t("inventar.kosten.block.miete_hinweis") }}</p>
+  {% if miete_fehler %}<p class="warnung" role="status">{{ miete_fehler }}</p>{% endif %}
+  {% if miete and miete.zeilen %}
+  <table class="liste">
+    <tr><th>{{ t("web.nummer") }}</th><th>{{ t("inventar.spalte_gruppe") }}</th><th>{{ t("inventar.kosten.miettage") }}</th><th>{{ t("inventar.kosten.miete") }}</th><th>{{ t("inventar.kosten.eigen") }}</th><th>{{ t("inventar.kosten.differenz") }}</th></tr>
+    {% for z in miete.zeilen %}
+    <tr><td>{{ z.inventarnummer }}<br><span class="klein leise">{{ miete.bezeichnungen.get(z.inventarnummer, "") }}</span></td><td>{{ z.gruppe }}</td><td class="zahl">{{ z.tage }}</td><td class="zahl">{{ z.miete|betrag }}</td>
+      <td class="zahl">{% if z.eigen is not none %}{{ z.eigen|betrag }}{% else %}<span class="leise">{{ t("inventar.kosten.kein_vergleich") }}</span>{% endif %}</td>
+      <td class="zahl">{% if z.differenz is not none %}{{ z.differenz|betrag }}{% else %}{{ ""|oder_strich }}{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+  {% elif not miete_fehler %}<p class="leise">{{ t("inventar.leer") }}</p>{% endif %}
+  {% if miete and miete.unvollstaendig %}<p class="warnung" role="status">{{ t("inventar.kosten.miete_unvollstaendig", anzahl=miete.unvollstaendig) }}</p>{% endif %}
+  <p>{{ export("miete") }}</p>
+</section>
+
+<section id="kosten-anlagenbuch">
+  <h2>{{ t("inventar.kosten.block.anlagenbuch") }}</h2>
+  <p class="klein leise">{{ t("inventar.kosten.block.anlagenbuch_hinweis") }}</p>
+  <p>{{ export("anlagenbuch") }}</p>
+</section>
+
+<section id="exporte">
+  <h2>{{ t("inventar.kosten.exportiert") }}</h2>
+  {% if not exporte %}<p class="leise">{{ t("inventar.leer") }}</p>{% else %}
+  <ul>{% for pfad in exporte %}<li><code>{{ pfad }}</code></li>{% endfor %}</ul>
+  <p class="klein leise">{{ t("inventar.kosten.exportiert_hinweis") }}</p>
+  {% endif %}
+</section>
+{% endblock %}
