@@ -6,7 +6,6 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import func
 
 from digiassistenz_kern.sitzung import Sitzung
 from digiassistenz_kern.web import gemeinsam, wahlfeld
@@ -16,7 +15,6 @@ from .. import modelle as m
 from .. import rechte
 from ..dienstlogik import liste
 from ..dienstlogik import sicht
-from ..rein.nummernformat import normalisiere
 
 router = APIRouter()
 LISTE = "inventar_liste"
@@ -73,11 +71,7 @@ def liste_teil(
 
 
 def _ziel(sitzung: Sitzung, text: str, ks: str, art: str = "") -> RedirectResponse:
-    nummer = normalisiere(text)
-    zeile = sitzung.db.execute(sicht.stuecke(sitzung).where(func.upper(m.Stueck.inventarnummer) == nummer)).scalars().first()
-    if zeile is None:
-        zeile = sitzung.db.execute(sicht.stuecke(sitzung).where(
-            func.upper(m.Stueck.seriennummer) == nummer).order_by(m.Stueck.inventarnummer)).scalars().first()
+    zeile = sicht.aufloesen(sitzung, text)
     if zeile is None:
         raise gemeinsam.KeinRecht("inventar", "sehen")
     abfrage = [f"ks={ks}"] if ks.isdigit() else []

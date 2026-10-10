@@ -37,6 +37,7 @@ MODUL_BAUSTELLE = "baustelle"
 WEG_UEBERSICHT = "/inventar"
 WEG_HIER = "/inventar/hier"
 WEG_FAELLIG = "/inventar/faellig"
+WEG_WERKSTATT = "/inventar/werkstatt"
 WEG_VERWALTUNG = "/inventar/verwaltung"
 WEG_KOSTENSTELLE = "/inventar/kostenstelle/{kostenstelle_id}"
 WEG_UEBERSICHT_TEIL = "/inventar/uebersicht"
@@ -122,6 +123,8 @@ BESCHREIBUNG = Modulbeschreibung(
                      rechte=(("inventar", "scannen"), ("inventar", "sehen"))),
         Menueeintrag(WEG_FAELLIG, "inventar.menue_faellig", "inventar_faellig", reihenfolge=12,
                      rechte=(("inventar", "pruefen"), ("inventar", "werkstatt"))),
+        Menueeintrag(WEG_WERKSTATT, "inventar.menue_werkstatt", "inventar_werkstatt", reihenfolge=13,
+                     rechte=(("inventar", "werkstatt"),)),
         Menueeintrag(WEG_VERWALTUNG, "inventar.menue_verwaltung", "inventar_verwaltung", reihenfolge=30,
                      rechte=(("inventar", "einstellen"), ("inventar", "pflegen")), unterzeile=True,
                      auch=("/inventar/verwaltung/",)),

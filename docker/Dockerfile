@@ -11,6 +11,9 @@
 # kommt ins gemeinsame Bild. Systempakete für WeasyPrint im Bild:
 #   libpango-1.0-0 libpangoft2-1.0-0 libcairo2 libgdk-pixbuf-2.0-0 libharfbuzz0b fonts-dejavu-core
 # Wem das Bild gehört, entscheidet Thomas vor AP-K2; bis dahin bleibt diese Datei ein Entwurf.
+# Das Kern-Prüfbild `digi-assistenz-kern:0.2.0` gibt es (ohne Pango/Cairo — darum die apt-Zeile unten), ein Betriebsbild ist es nicht.
+# Pillow wird hier nicht gepinnt: im gemeinsamen Bild gilt Pillow==11.0.0 (Pin der Belegerfassung), WeasyPrint 70.0 läuft damit.
+# Auf Drive heißt diese Datei `Dockerfile.txt`; VSC benennt beim Einbau in `Dockerfile` um.
 #
 # Zu prüfen (VSC): KERN_BILD trifft das gebaute Kern-Bild; die Paketnamen der Schriften auf bookworm;
 # `python -c "from weasyprint import HTML; HTML(string='x').write_pdf()"` im Bild.

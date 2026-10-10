@@ -7,7 +7,7 @@ falsche Aufbau da, wird die Datei rot (`aufbau_pruefen`), nie übersprungen. Pr�
 | Lauf | Aufbau | Datei |
 |---|---|---|
 | **T-I-5** | Kern + Inventar | `tests/integration/test_t_i_5.py` |
-| Seiten L11–L13, Anwendungsfälle, Modelle gegen Kette | Kern + Inventar | `test_seiten_db.py`, `test_pruefungen_db.py`, `test_dienstlogik_db.py`, `test_migration_gegen_modelle.py` |
+| Seiten L11–L14, Anwendungsfälle, Modelle gegen Kette | Kern + Inventar | `test_seiten_db.py`, `test_pruefungen_db.py`, `test_l13a_db.py`, `test_werkstatt_db.py`, `test_dienstlogik_db.py`, `test_migration_gegen_modelle.py` |
 | **T-I-6**, T-K-14 | Kern + Belegerfassung + Inventar | `tests/integration/test_t_i_6.py` |
 
 ## Ohne Docker (Anleitung VSC `LAUFEN_OHNE_DOCKER.md`, geprüft auf PostgreSQL 16; Superuser, und seit dem Nachtrag 10.10. auch Nicht-Superuser)
@@ -15,7 +15,7 @@ falsche Aufbau da, wird die Datei rot (`aufbau_pruefen`), nie übersprungen. Pr�
 ```
 python3.12 -m venv v && . v/bin/activate
 pip install -r requirements.txt                       # die des Kerns, dazu openpyxl, weasyprint
-pip install --no-deps digiassistenz_kern-0.15.3-py3-none-any.whl
+pip install --no-deps digiassistenz_kern-0.15.4-py3-none-any.whl
 pip install --no-deps -e <pfad>/Inventar              # Einstiegspunkt digiassistenz.module → inventar
 cd <wurzel mit konfig.env>                            # ARBEITSORDNER, DB_URL, MANDANT_NAME, WEB_GEHEIMNIS
 DIGIASSISTENZ_WURZEL=$PWD python -m pytest <pfad>/Inventar/tests/integration/test_t_i_5.py

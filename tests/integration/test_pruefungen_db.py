@@ -111,7 +111,7 @@ def test_faellig_liste_pruefung_mit_nachweis_ampel_und_fehlerfaelle(box) -> None
     # Nachweis ansehen: derselbe Inhalt; verändert → Fehler; Polier ohne Kostenstelle: kein Recht
     datei = k.get(f"/inventar/pruefung/{pid}/nachweis")
     assert datei.status_code == 200 and datei.content == PDF and datei.headers["content-type"] == "application/pdf"
-    assert datei.headers["x-content-type-options"] == "nosniff"
+    assert datei.headers["x-content-type-options"] == "nosniff" and datei.headers["content-disposition"].startswith("inline;")
     pfad = box.arbeitsordner / zeile[1]
     pfad.write_bytes(PDF + b"manipuliert")
     kaputt = k.get(f"/inventar/pruefung/{pid}/nachweis")
@@ -159,6 +159,23 @@ def test_extern_mit_lieferant_zaehlerstand_aus_der_pruefung_und_foto_nachweis(bo
     assert k.post(f"/inventar/stueck/{sid}/zaehlerstand", data={"stand": "1760"}, follow_redirects=False).status_code == 303
     block = _block(k.get("/inventar/faellig").text, "ueberfaellig")
     assert "Radlader" in block and "Betriebsstunden" in block
+    # ein Stand aus der Prüfung unter dem letzten: bleibt an der Prüfung, der Dialog sagt es danach
+    vorher = _db("SELECT count(*) FROM inventar.zaehlerstand")[0][0]
+    zu_niedrig = k.post(f"/inventar/stueck/{sid}/pruefung", follow_redirects=False, data={
+        "pruefart": "wartung_betriebsstunden", "durchgefuehrt_am": HEUTE.isoformat(), "ergebnis": "bestanden", "durchfuehrung": "intern",
+        "zaehlerstand": "1000", "weiter": "faellig"})
+    assert zu_niedrig.status_code == 303 and zu_niedrig.headers["location"].endswith("fertig=pruefung&stand=1000&letzter=1760")
+    assert _db("SELECT count(*) FROM inventar.zaehlerstand")[0][0] == vorher, "kein neuer Stand"
+    assert _db("SELECT zaehlerstand FROM inventar.pruefung ORDER BY id DESC LIMIT 1")[0][0] == Decimal("1000.000")
+    hinweis = "Zählerstand 1000 liegt unter dem letzten Stand 1760 — nur an der Prüfung vermerkt"
+    assert hinweis in k.get(zu_niedrig.headers["location"]).text
+    stueck_zu = k.post(f"/inventar/stueck/{sid}/pruefung", follow_redirects=False, data={
+        "pruefart": "wartung_betriebsstunden", "durchgefuehrt_am": HEUTE.isoformat(), "ergebnis": "bestanden", "durchfuehrung": "intern",
+        "zaehlerstand": "900"})
+    assert hinweis.replace("1000", "900") in k.get(stueck_zu.headers["location"]).text
+    assert "liegt unter dem letzten Stand" not in k.get("/inventar/faellig", params={"stand": "abc", "letzter": "1", "fertig": "pruefung"}).text
+    ok_stand = _eintragen(k, sid, pruefart="wartung_betriebsstunden", zaehlerstand="2000")
+    assert ok_stand.status_code == 303 and "stand=" not in ok_stand.headers["location"], "ein höherer Stand braucht keinen Hinweis"
 
 
 def test_pruefarten_je_gruppe_und_je_stueck_und_intervall(box) -> None:
@@ -359,6 +376,7 @@ def test_import_ohne_kosten_pflegen_nimmt_keine_kaufdaten(box) -> None:
     anmelden(k, "pfleger@integration.invalid")
     bericht = k.post("/inventar/verwaltung/import", data={"aktion": "pruefen"}, files={"datei": ("i.xlsx", io.BytesIO(puffer.getvalue()), "application/octet-stream")})
     assert bericht.status_code == 200 and 'value="einspielen"' in bericht.text
+    assert "Kaufpreis und Kaufdatum in 1 Zeilen übersprungen" in bericht.text, "nicht still: der Prüfbericht sagt es"
     kennung = re.search(r'name="datei" value="([0-9a-f]{32})"', bericht.text).group(1)
     assert k.post("/inventar/verwaltung/import", data={"aktion": "einspielen", "datei": kennung}).status_code == 200
     assert _db("SELECT bezeichnung, kaufpreis, kaufdatum FROM inventar.stueck") == [("Plotter", None, None)]

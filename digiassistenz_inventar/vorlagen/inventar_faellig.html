@@ -3,6 +3,7 @@
 {% block inhalt %}
 {% with seite = "inventar_faellig", titel = t("inventar.menue_faellig") %}{% include "teil_seitenkopf.html" %}{% endwith %}
 {% if fertig %}<p class="gut" role="status">✓ {{ t("inventar.fertig.pruefung") }}</p>{% endif %}
+{% if zaehler_hinweis %}<p class="warnung" role="status">{{ zaehler_hinweis }}</p>{% endif %}
 
 <form method="get" action="/inventar/faellig" class="filterzeile" id="faellig-filter">
   <label for="f-pruefart">{{ t("inventar.pruefung.feld.pruefart") }}</label>

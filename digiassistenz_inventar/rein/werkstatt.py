@@ -103,12 +103,17 @@ def reparatur_beginnen(r: Reparatur, am: date, geschaetzte_kosten: Decimal | Non
                    kosten_quelle="geschaetzt" if geschaetzte_kosten is not None else None)
 
 
-def reparatur_abschliessen(r: Reparatur, am: date, kosten: Decimal, quelle: str = "geschaetzt") -> Reparatur:
-    """Schliesst die Reparatur mit den Kosten ab; Quelle Rechnung ueberschreibt eine Schaetzung."""
+def reparatur_abschliessen(r: Reparatur, am: date, kosten: Decimal | None, quelle: str = "geschaetzt") -> Reparatur:
+    """Schliesst die Reparatur ab; Quelle Rechnung ueberschreibt eine Schaetzung.
+
+    Ohne Kosten (`None`: wer abschliesst, darf sie nicht eintragen) bleibt eine frueher geschaetzte Angabe stehen.
+    """
     if r.status != "in_arbeit" or r.begonnen_am is None:
         raise ValueError("reparatur.wechsel_nicht_erlaubt")
     if am < r.begonnen_am:
         raise ValueError("reparatur.ende_vor_beginn")
+    if kosten is None:
+        return replace(r, status="erledigt", beendet_am=am)
     if kosten < 0:
         raise ValueError("reparatur.kosten_ungueltig")
     if quelle not in ("geschaetzt", "rechnung"):

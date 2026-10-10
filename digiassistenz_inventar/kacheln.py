@@ -52,4 +52,4 @@ def kacheln(db: Session, sitzung: Any) -> tuple[Kachel, ...]:
     alle = rein_kacheln.kacheln(
         [(infos[n], zustaende[n]) for n in infos], pruefstand.staende(db, mid, zeilen, heute),
         _meldungen(db, sitzung, nummern), heute, _reparaturen(db, sitzung, nummern), meine, frist)
-    return tuple(k for k in alle if sitzung.darf(*k.recht.split(".", 1)))
+    return tuple(k for k in alle if any(sitzung.darf(modul, aktion) for modul, aktion in k.rechte))

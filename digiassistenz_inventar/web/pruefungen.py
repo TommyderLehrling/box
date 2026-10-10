@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request
@@ -30,19 +29,12 @@ def _nachweis(f: dict[str, Any]) -> tuple[str, bytes] | None:
     return (wert.filename, inhalt) if inhalt else None
 
 
-def _zahl(text: str) -> Decimal | None:
-    text = text.strip().replace(",", ".")
-    if not text:
-        return None
-    try:
-        return Decimal(text)
-    except InvalidOperation:
-        raise ValueError("web.zahl_ungueltig") from None
+_zahl = helfer.dezimal
 
 
 @router.get("/inventar/faellig", response_class=HTMLResponse)
 def faellig_seite(
-    request: Request, pruefart: str = "", kostenstelle: str = "", gruppe: str = "", fertig: str = "",
+    request: Request, pruefart: str = "", kostenstelle: str = "", gruppe: str = "", fertig: str = "", stand: str = "", letzter: str = "",
     sitzung: Sitzung = Depends(gemeinsam.angemeldet),
     _recht=Depends(gemeinsam.verlangt_eines(("inventar", "pruefen"), ("inventar", "werkstatt"))),
 ) -> HTMLResponse:
@@ -54,7 +46,8 @@ def faellig_seite(
                                  leer="inventar.alle", leer_wert="", beschriftung="inventar.feld.kostenstelle", kennung="wahl-faellig-ks")
     return gemeinsam.seite(
         request, sitzung, "inventar_faellig.html", aktiv="inventar_faellig", filter=f, uebersicht=faellig.uebersicht(sitzung, f),
-        arten=arten, gruppen=liste.gruppen_auswahl(sitzung), wahl_ks=wahl, fertig=fertig == "pruefung", **rechte.darf_alle(sitzung))
+        arten=arten, gruppen=liste.gruppen_auswahl(sitzung), wahl_ks=wahl, fertig=fertig == "pruefung",
+        zaehler_hinweis=helfer.zaehler_hinweis(stand, letzter) if fertig == "pruefung" else "", **rechte.darf_alle(sitzung))
 
 
 @router.post("/inventar/stueck/{stueck_id}/pruefung", response_class=HTMLResponse)
@@ -67,7 +60,7 @@ def pruefung_eintragen(
         datum = helfer.datum(_text(f, "durchgefuehrt_am"))
         if datum is None:
             raise ValueError("pruefung.datum_fehlt")
-        pruefung.eintragen(
+        satz = pruefung.eintragen(
             sitzung, zeile.inventarnummer, _text(f, "pruefart"), datum, _text(f, "ergebnis"), _text(f, "durchfuehrung") or "intern",
             pruefer_text=_text(f, "pruefer_text"), zaehlerstand=_zahl(_text(f, "zaehlerstand")), bemerkung=_text(f, "bemerkung"),
             nachweis=_nachweis(f), arbeitsordner=helfer.arbeitsordner(), quelle="web",
@@ -76,9 +69,11 @@ def pruefung_eintragen(
     except ValueError as fehler:
         sitzung.db.rollback()
         return helfer.fehlerteil(fehler)
+    unter = getattr(satz, "zaehler_unter", None)
+    hinweis = "" if unter is None or satz.zaehlerstand is None else f"&stand={helfer.zahl_text(satz.zaehlerstand)}&letzter={helfer.zahl_text(unter)}"
     if _text(f, "weiter") == "faellig":
-        return gemeinsam.umleiten("/inventar/faellig?fertig=pruefung", request)
-    return gemeinsam.umleiten(f"/inventar/stueck/{stueck_id}?fertig=pruefung", request)
+        return gemeinsam.umleiten(f"/inventar/faellig?fertig=pruefung{hinweis}", request)
+    return gemeinsam.umleiten(f"/inventar/stueck/{stueck_id}?fertig=pruefung{hinweis}", request)
 
 
 @router.post("/inventar/stueck/{stueck_id}/pruefart", response_class=HTMLResponse)
@@ -105,4 +100,5 @@ def nachweis(
     except ValueError as fehler:
         return helfer.fehlerteil(fehler)
     typ = "application/pdf" if inhalt.startswith(b"%PDF-") else "image/png" if inhalt.startswith(b"\x89PNG") else "image/jpeg"
-    return Response(inhalt, media_type=typ, headers={"Content-Disposition": f'attachment; filename="{name}"', "X-Content-Type-Options": "nosniff"})
+    # inline: der Prüfer will ansehen (Browser zeigt PDF und Bilder direkt); speichern geht weiter. Fester Typ und nosniff bleiben.
+    return Response(inhalt, media_type=typ, headers={"Content-Disposition": f'inline; filename="{name}"', "X-Content-Type-Options": "nosniff"})

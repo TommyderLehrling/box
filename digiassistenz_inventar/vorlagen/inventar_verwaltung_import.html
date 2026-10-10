@@ -20,6 +20,7 @@
 {% if bericht.hinweise %}<ul class="klein leise">{% for h in bericht.hinweise %}<li>{{ t("inventar.import.zeile") }} {{ h.zeile }}: {{ t("inventar." ~ h.text) }}</li>{% endfor %}</ul>{% endif %}
 {% for z in bericht.je_gruppe %}<p>{{ t("inventar.import.bericht.zeile", gruppe=z.gruppe, art=z.art, neu=z.neu, unveraendert=z.unveraendert, abweichend=z.abweichend) }}</p>{% endfor %}
 {% for h in bericht.abweichungen %}<p class="klein leise">{{ t("inventar." ~ h.text, detail=h.detail) }}</p>{% endfor %}
+{% if bericht.kaufdaten_uebersprungen %}<p class="warnung">{{ t("inventar.import.hinweis.kaufdaten_uebersprungen", anzahl=bericht.kaufdaten_uebersprungen) }}</p>{% endif %}
 {% if bericht.unbekannte_lieferanten %}<p class="warnung">{{ t("inventar.import.lieferant_unbekannt", namen=bericht.unbekannte_lieferanten|join(", ")) }}</p>{% endif %}
 {% if not bericht.fehler and not bericht.angelegt and datei %}
 <form method="post" action="/inventar/verwaltung/import">

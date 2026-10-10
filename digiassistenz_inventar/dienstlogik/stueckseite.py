@@ -119,11 +119,13 @@ def daten(sitzung: Any, stueck: m.Stueck) -> dict[str, Any]:
                        pruefer_firmen.get(int(p.pruefer_lieferant_id), "") if p.pruefer_lieferant_id else "") if x)}
                   for p in pruef_zeilen]
     meldungen_zeilen = list(db.execute(sitzung.abfrage(m.Meldung).where(m.Meldung.stueck_id == sid).order_by(m.Meldung.gemeldet_am.desc())).scalars())
-    wer = namen_benutzer(sitzung, {z.gemeldet_von for z in meldungen_zeilen})
-    meldungen = [{"art": z.art, "beschreibung": z.beschreibung, "status": z.status, "am": z.gemeldet_am,
-                  "von": wer.get(int(z.gemeldet_von), "") if z.gemeldet_von else "", "hat_foto": bool(z.foto_sha256)} for z in meldungen_zeilen]
+    wer = namen_benutzer(sitzung, {z.gemeldet_von for z in meldungen_zeilen} | {z.bearbeitet_von for z in meldungen_zeilen})
+    meldungen = [{"id": int(z.id), "art": z.art, "beschreibung": z.beschreibung, "status": z.status, "am": z.gemeldet_am,
+                  "von": wer.get(int(z.gemeldet_von), "") if z.gemeldet_von else "", "hat_foto": bool(z.foto_sha256),
+                  "bearbeiter": wer.get(int(z.bearbeitet_von), "") if z.bearbeitet_von else "", "erledigt_am": z.erledigt_am,
+                  "rueckmeldung": z.rueckmeldung, "grund": z.grund} for z in meldungen_zeilen]
     reparaturen = [{"status": r.status, "beschreibung": r.beschreibung, "begonnen": r.begonnen_am, "beendet": r.beendet_am,
-                    "kosten": r.kosten if kosten_sehen else None}
+                    "kosten": r.kosten if kosten_sehen else None, "durchfuehrung": r.durchfuehrung, "grund": r.grund}
                    for r in db.execute(select(m.Reparatur).where(m.Reparatur.mandant_id == mid, m.Reparatur.stueck_id == sid)
                                        .order_by(m.Reparatur.id.desc())).scalars()]
     zaehler = [{"stand": z.stand, "einheit": z.einheit, "am": z.abgelesen_am, "quelle": z.quelle}

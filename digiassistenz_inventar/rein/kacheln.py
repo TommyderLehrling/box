@@ -1,4 +1,4 @@
-"""Posteingang-Kacheln des Inventars: eine Zeile je Zaehler (Text, Zahl, Weg, Recht); Zahl 0 entfaellt."""
+"""Posteingang-Kacheln des Inventars: eine Zeile je Zaehler (Text, Zahl, Weg, Rechte); Zahl 0 entfaellt."""
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
@@ -14,7 +14,14 @@ from .werkstatt import Meldung, Reparatur
 WEG_UEBERSICHT = "/inventar"
 WEG_HIER = "/inventar/hier"
 WEG_FAELLIG = "/inventar/faellig"
+WEG_WERKSTATT = "/inventar/werkstatt"
 WEG_VERWALTUNG = "/inventar/verwaltung"
+
+PRUEFEN = (("inventar", "pruefen"),)
+SCANNEN = (("inventar", "scannen"),)
+BUCHEN = (("inventar", "buchen"),)
+WERKSTATT = (("inventar", "werkstatt"),)
+PRUEFEN_ODER_WERKSTATT = PRUEFEN + WERKSTATT  # wie der Menuepunkt „Faellig“
 
 
 @dataclass(frozen=True)
@@ -22,7 +29,7 @@ class Kachel:
     text_schluessel: str
     zahl: int
     weg: str
-    recht: str
+    rechte: tuple[tuple[str, str], ...]  # wie Menueeintrag.rechte: Paare (Modul, Aktion), eines genuegt
 
 
 def kacheln(
@@ -60,11 +67,11 @@ def kacheln(
     in_arbeit = {n for n, m in meldungen if n in im_bestand_nummern and m.status in ("angenommen", "in_arbeit")}
     in_arbeit |= {n for n, r in reparaturen if n in im_bestand_nummern and r.status == "in_arbeit"}
     alle = (
-        Kachel("inventar.kachel.pruefungen_faellig", faellig, WEG_FAELLIG, "inventar.pruefen"),
-        Kachel("inventar.kachel.ohne_nachweis", ohne_nachweis, WEG_FAELLIG, "inventar.pruefen"),
-        Kachel("inventar.kachel.transfers_an_mich", an_mich, WEG_HIER, "inventar.scannen"),
-        Kachel("inventar.kachel.transfers_ueberfaellig", ueberfaellig, WEG_UEBERSICHT, "inventar.buchen"),
-        Kachel("inventar.kachel.meldungen_offen", offen, WEG_UEBERSICHT, "inventar.werkstatt"),
-        Kachel("inventar.kachel.in_arbeit", len(in_arbeit), WEG_UEBERSICHT, "inventar.werkstatt"),
+        Kachel("inventar.kachel.pruefungen_faellig", faellig, WEG_FAELLIG, PRUEFEN_ODER_WERKSTATT),
+        Kachel("inventar.kachel.ohne_nachweis", ohne_nachweis, WEG_FAELLIG, PRUEFEN),
+        Kachel("inventar.kachel.transfers_an_mich", an_mich, WEG_HIER, SCANNEN),
+        Kachel("inventar.kachel.transfers_ueberfaellig", ueberfaellig, WEG_UEBERSICHT, BUCHEN),
+        Kachel("inventar.kachel.meldungen_offen", offen, WEG_WERKSTATT, WERKSTATT),
+        Kachel("inventar.kachel.in_arbeit", len(in_arbeit), WEG_WERKSTATT, WERKSTATT),
     )
     return tuple(k for k in alle if k.zahl > 0)

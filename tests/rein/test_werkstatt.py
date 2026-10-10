@@ -135,3 +135,14 @@ def test_W11_eingabe_bleibt_unveraendert():
     m = neue_meldung("schaden", "x", "paul", JETZT)
     meldung_weiter(m, "angenommen", "w", JETZT)
     assert m.status == "offen"
+
+
+def test_abschliessen_ohne_kosten_laesst_eine_schaetzung_stehen():
+    """Wer `kosten_pflegen` nicht hat, schließt ohne Betrag ab: eine frühere Schätzung bleibt, sonst bleibt der Betrag leer."""
+    mit_schaetzung = reparatur_beginnen(neue_reparatur("extern"), date(2026, 10, 1), D("300"))
+    fertig = reparatur_abschliessen(mit_schaetzung, date(2026, 10, 3), None)
+    assert (fertig.status, fertig.kosten, fertig.kosten_quelle, fertig.beendet_am) == ("erledigt", D("300"), "geschaetzt", date(2026, 10, 3))
+    ohne = reparatur_abschliessen(reparatur_beginnen(neue_reparatur("intern"), date(2026, 10, 1)), date(2026, 10, 1), None)
+    assert (ohne.status, ohne.kosten, ohne.kosten_quelle) == ("erledigt", None, None)
+    with pytest.raises(ValueError, match="reparatur.ende_vor_beginn"):
+        reparatur_abschliessen(mit_schaetzung, date(2026, 9, 30), None)

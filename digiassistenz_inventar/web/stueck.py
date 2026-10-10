@@ -107,7 +107,7 @@ def _form_seite(request: Request, sitzung: Sitzung, zeile: m.Stueck | None, wert
         merkmal_werte = {s: w for s, w in sitzung.db.execute(
             select(m.Merkmal.schluessel, m.StueckMerkmal.wert).join(m.Merkmal, m.Merkmal.id == m.StueckMerkmal.merkmal_id)
             .where(m.StueckMerkmal.stueck_id == zeile.id)).all()}
-    wahl_ks = wahlfeld.kostenstelle(sitzung, feld="kostenstelle", modul="inventar", aktion="buchen", leer="inventar.waehlen",
+    wahl_ks = wahlfeld.kostenstelle(sitzung, feld="kostenstelle", modul="inventar", aktion="pflegen", leer="inventar.waehlen",
                                     beschriftung="inventar.feld.startstandort", kennung="wahl-start-ks", pflicht=True)
     wahl_lieferant = wahlfeld.lieferant(sitzung, feld="lieferant_id", leer="inventar.kein_lieferant",
                                         gewaehlt=None if zeile is None else zeile.lieferant_id, kennung="wahl-lieferant")
@@ -206,7 +206,8 @@ def aendern_speichern(
 
 @router.get(WEG + "/{stueck_id}", response_class=HTMLResponse)
 def stueck_seite(
-    stueck_id: int, request: Request, ks: str = "", art: str = "", fertig: str = "", pruefart: str = "", weiter: str = "", sitzung: Sitzung = Depends(gemeinsam.angemeldet),
+    stueck_id: int, request: Request, ks: str = "", art: str = "", fertig: str = "", pruefart: str = "", weiter: str = "", stand: str = "",
+    letzter: str = "", sitzung: Sitzung = Depends(gemeinsam.angemeldet),
     _recht=Depends(gemeinsam.verlangt("inventar", "sehen")),
 ) -> HTMLResponse:
     zeile = stueckseite.holen(sitzung, stueck_id)
@@ -224,6 +225,7 @@ def stueck_seite(
     hauptlage = ("eingang" if any(x["darf_eingang"] for x in d["transfers"]) else "abgang" if von_ks else "")
     antwort = gemeinsam.seite(
         request, sitzung, "inventar_stueck.html", aktiv="inventar", brotkrumen=_krumen(zeile), fertig=fertig, wahl_nach=wahl_nach,
+        zaehler_hinweis=helfer.zaehler_hinweis(stand, letzter) if fertig == "pruefung" else "",
         von_ks=von_ks, melde_ks=melde_ks, bauteile_katalog=bauteile_katalog, status_moeglich=status_moeglich, hauptlage=hauptlage,
         buchung=helfer.neuer_schluessel(), scan_ks=ks if ks.isdigit() else "", scan_art="kamera" if art == "kamera" else "",
         scan_ok=ks.isdigit() and bool(sitzung.darf("inventar", "scannen", int(ks))), rueckmeldung_objekt=("inventar.stueck", stueck_id),

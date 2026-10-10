@@ -24,6 +24,8 @@ class Bericht:
     plan: import_plan.Plan | None
     angelegt: int = 0
     lieferanten_unbekannt: tuple[str, ...] = ()  # Namen, die der Kern nicht kennt: es wird kein Lieferant angelegt
+    ohne_recht: tuple[str, ...] = ()  # "<Nummer> (<Kostenstelle>)": Zeilen auf einer Kostenstelle ohne `pflegen`, nicht angelegt
+    kaufdaten_uebersprungen: int = 0  # Zeilen mit Kaufpreis/-datum, die ohne `kosten_pflegen` nicht übernommen werden
 
 
 def _vorhanden(db: Any, mid: int, gelesen: dict[str, ImportZeile], mit_kosten: bool = True) -> dict[str, ImportZeile]:
@@ -74,10 +76,15 @@ def bericht(sitzung: Any, pfad: Path) -> Bericht:
         return Bericht(gelesen, None)
     mid = sitzung.kontext.mandant_id
     mit_kosten = bool(sitzung.darf("inventar", "kosten_pflegen"))
+    # Der Startstandort ist Stammpflege: `pflegen` auf der Kostenstelle der Zeile. Wo es fehlt, wird nicht angelegt (Abweichung im Bericht).
+    kostenstellen = katalog.kostenstellen_nummern(sitzung)
+    erlaubt = [z for z in gelesen.zeilen if sitzung.darf("inventar", "pflegen", kostenstellen[z.kostenstelle])]
+    ohne_recht = tuple(f"{z.inventarnummer} ({z.kostenstelle})" for z in gelesen.zeilen if z not in erlaubt)
     # Kaufdaten nimmt der Import nur mit `kosten_pflegen` an; sonst bleiben sie außen vor (auch im Vergleich mit dem Bestand)
-    zeilen = gelesen.zeilen if mit_kosten else tuple(replace(z, kaufdatum=None, kaufpreis=None) for z in gelesen.zeilen)
+    uebersprungen = 0 if mit_kosten else sum(1 for z in erlaubt if z.kaufdatum is not None or z.kaufpreis is not None)
+    zeilen = tuple(erlaubt) if mit_kosten else tuple(replace(z, kaufdatum=None, kaufpreis=None) for z in erlaubt)
     vorhanden = _vorhanden(sitzung.db, mid, {normalisiere(z.inventarnummer): z for z in zeilen}, mit_kosten)
-    return Bericht(gelesen, import_plan.plane(zeilen, vorhanden), 0, _unbekannt(sitzung.db, mid, zeilen))
+    return Bericht(gelesen, import_plan.plane(zeilen, vorhanden), 0, _unbekannt(sitzung.db, mid, zeilen), ohne_recht, uebersprungen)
 
 
 def einspielen(sitzung: Any, pfad: Path, quelle: str = "import") -> Bericht:
@@ -85,7 +92,7 @@ def einspielen(sitzung: Any, pfad: Path, quelle: str = "import") -> Bericht:
     erg = bericht(sitzung, pfad)
     if erg.plan is None:
         raise ValueError("import_lauf.fehler_in_datei")
-    return Bericht(erg.lesen, erg.plan, anlegen(sitzung, erg.plan.neu, quelle), erg.lieferanten_unbekannt)
+    return replace(erg, angelegt=anlegen(sitzung, erg.plan.neu, quelle))
 
 
 def anlegen(sitzung: Any, zeilen: tuple[ImportZeile, ...] | list[ImportZeile], quelle: str = "import") -> int:

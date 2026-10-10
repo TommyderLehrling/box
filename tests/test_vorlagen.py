@@ -44,7 +44,7 @@ def _faellig_zeile(nr: int, ampel: str, zeichen: str, **mehr):
 
 FAELLIG = dict(
     filter=SimpleNamespace(pruefart="", kostenstelle="", gruppe=""), arten=[("uvv", "UVV")], gruppen=[("bm", "Baumaschinen")], wahl_ks=wahl(),
-    fertig=True, uebersicht=SimpleNamespace(
+    fertig=True, zaehler_hinweis="", uebersicht=SimpleNamespace(
         ueberfaellig=SimpleNamespace(zeilen=[_faellig_zeile(1, "rot", "✗")], gesamt=1, gekuerzt=False),
         faellig=SimpleNamespace(zeilen=[_faellig_zeile(2, "gelb", "⚠")], gesamt=250, gekuerzt=True),
         ohne_nachweis=SimpleNamespace(zeilen=[], gesamt=0, gekuerzt=False), gelesen=252, abgeschnitten=True), **darf())
@@ -63,8 +63,11 @@ STUECK_SEITE = dict(
     ampel="gelb", ampel_zeichen="⚠", ampel_hinweis="fällig in 5 Tagen",
     pruefungen=[{"id": 4, "art": "UVV", "am": HEUTE, "ergebnis": "bestanden", "durchfuehrung": "intern", "pruefer": "Meier", "naechste": HEUTE, "nachweis": True},
                 {"id": 5, "art": "UVV", "am": HEUTE, "ergebnis": "maengel", "durchfuehrung": "extern", "pruefer": "TÜV", "naechste": HEUTE, "nachweis": False}],
-    meldungen=[{"art": "schaden", "beschreibung": "Kratzer", "status": "offen", "am": JETZT, "von": "Eins", "hat_foto": False}],
-    reparaturen=[{"status": "offen", "beschreibung": "", "begonnen": HEUTE, "beendet": None, "kosten": Decimal("10")}],
+    meldungen=[{"id": 8, "art": "schaden", "beschreibung": "Kratzer", "status": "offen", "am": JETZT, "von": "Eins", "hat_foto": False,
+                "bearbeiter": "", "erledigt_am": None, "rueckmeldung": "", "grund": ""},
+               {"id": 9, "art": "reparatur", "beschreibung": "Schlauch undicht", "status": "erledigt", "am": JETZT, "von": "Eins", "hat_foto": True,
+                "bearbeiter": "Werkstatt", "erledigt_am": JETZT, "rueckmeldung": "Schlauch getauscht", "grund": ""}],
+    reparaturen=[{"status": "offen", "beschreibung": "", "begonnen": HEUTE, "beendet": None, "kosten": Decimal("10"), "durchfuehrung": "intern", "grund": ""}],
     zaehlerstaende=[{"stand": Decimal("12.5"), "einheit": "h", "am": JETZT, "quelle": "web"}],
     zubehoer=[{"beziehung_id": 3, "id": 2, "nummer": "BM-00002", "bezeichnung": "Löffel"}], haupt={"beziehung_id": 4, "id": 7, "nummer": "BM-00007", "bezeichnung": "Kran"},
     bauteile=[{"beziehung_id": 5, "nummer": "B1", "bezeichnung": "Filter", "preis": Decimal("9.9")}],
@@ -76,12 +79,33 @@ STUECK_SEITE = dict(
     scan_ks="5", scan_ok=True, scan_art="kamera",
     pruefen_arten=[{"schluessel": "uvv", "bezeichnung": "UVV"}, {"schluessel": "sp", "bezeichnung": "Sicherheitsprüfung"}], pruefen_vorgabe="uvv", pruefen_offen=True,
     pruefen_weiter="faellig", benutzer_auswahl=[(1, "Eins"), (2, "Zwei")], benutzer_ich=1, wahl_pruefer_lieferant=wahl("pruefer_lieferant_id"),
-    heute_iso=HEUTE.isoformat(),
+    heute_iso=HEUTE.isoformat(), zaehler_hinweis="",
     pruefarten_stueck=[{"schluessel": "uvv", "bezeichnung": "UVV", "katalog_intervall": 12, "gruppe_intervall": None, "stueck_intervall": 6, "aktiv": True,
                         "herkunft": "gruppe", "wirksam": 6, "zaehler_intervall": None, "je_merkmal": False},
                        {"schluessel": "sp", "bezeichnung": "Sicherheitsprüfung", "katalog_intervall": 24, "gruppe_intervall": None, "stueck_intervall": None,
                         "aktiv": False, "herkunft": "stueck", "wirksam": None, "zaehler_intervall": None, "je_merkmal": False}],
     pruefarten_dazu=[("elt", "Elektroprüfung")], **darf())
+def _meldung_zeile(nr: int, status: str, **mehr):
+    return {"id": nr, "stueck_id": 1, "nummer": "BM-00001", "bezeichnung": "Bagger", "stueck_status": "aktiv", "art": "schaden",
+            "beschreibung": "Schlauch undicht", "ort": "79795 Husum", "status": status, "am": JETZT, "von": "Eins", "bearbeiter": "",
+            "erledigt_am": None, "rueckmeldung": "", "hat_foto": True, **mehr}
+
+
+def _reparatur_zeile(nr: int, status: str, **mehr):
+    return {"id": nr, "stueck_id": 1, "nummer": "BM-00001", "bezeichnung": "Bagger", "stueck_status": "aktiv", "status": status,
+            "durchfuehrung": "extern", "beschreibung": "Hydraulik", "lieferant": "Firma X", "begonnen": HEUTE, "beendet": None,
+            "kosten": Decimal("120"), "kosten_quelle": "geschaetzt", "laeuft": status == "in_arbeit", **mehr}
+
+
+WERKSTATT = dict(
+    p=SimpleNamespace(
+        offen=[_meldung_zeile(1, "offen")], angenommen=[_meldung_zeile(2, "angenommen", bearbeiter="Werkstatt", stueck_status="in_reparatur")],
+        in_arbeit=[_meldung_zeile(3, "in_arbeit", bearbeiter="Werkstatt")],
+        erledigt=[_meldung_zeile(4, "erledigt", bearbeiter="Werkstatt", erledigt_am=JETZT, rueckmeldung="Schlauch getauscht")],
+        reparaturen=[_reparatur_zeile(5, "offen"), _reparatur_zeile(6, "in_arbeit")],
+        reparaturen_fertig=[_reparatur_zeile(7, "erledigt", beendet=HEUTE)],
+        stuecke_in_reparatur=[{"id": 1, "nummer": "BM-00001", "bezeichnung": "Bagger", "seit": JETZT}]),
+    fertig="", ziel=None, heute_iso=HEUTE.isoformat(), wahl_lieferant=wahl("lieferant_id"), **darf())
 FORM = dict(zeile=None, titel_form="Neues Stück", gruppen=[("baumaschinen", "Baumaschinen")], gruppe_gewaehlt=1,
             felder=[{"schluessel": "gewicht", "bezeichnung": "Gewicht", "typ": "zahl", "einheit": "t", "auswahl": [], "pflicht": True, "wert": ""},
                     {"schluessel": "klasse", "bezeichnung": "Klasse", "typ": "auswahl", "einheit": "", "auswahl": ["a", "b"], "pflicht": False, "wert": "a"},
@@ -104,6 +128,7 @@ KONTEXT = {
         vor_ort=[{"stueck_id": 1, "nummer": "BM-00001", "bezeichnung": "Bagger", "menge": 1, "seit": JETZT, "hat_zaehler": True, "status": "aktiv"}], **darf()),
     "inventar_scannen.html": dict(kostenstellen=[(5, "79795 Husum"), (6, "79800 Nord")], gewaehlt=5, **darf()),
     "inventar_faellig.html": FAELLIG,
+    "inventar_werkstatt.html": WERKSTATT,
     "inventar_verwaltung.html": dict(kacheln=[("gruppen", "/inventar/verwaltung/gruppen", 12), ("import", "/inventar/verwaltung/import", None)]),
     "inventar_verwaltung_gruppen.html": dict(KATALOG_FERTIG, eintrag=LEER_EINTRAG, zeilen=[
         {"schluessel": "bm", "bezeichnung": "Baumaschinen", "kuerzel": "BM", "oben": "", "sortierung": 1, "aktiv": True, "startwert": True}]),
@@ -126,7 +151,8 @@ KONTEXT = {
     "inventar_verwaltung_import.html": dict(bericht={
         "fehler": [{"zeile": 3, "spalte": "Gruppe", "text": "import.fehler.gruppe_unbekannt", "wert": "xx"}], "hinweise": [{"zeile": 2, "text": "import.hinweis.beispiel_uebersprungen"}],
         "gelesen": 5, "je_gruppe": [{"gruppe": "bm", "art": "gross", "neu": 2, "unveraendert": 1, "abweichend": 0}],
-        "abweichungen": [{"text": "import.hinweis.abweichung", "detail": "BM-1:typ"}], "neu": 2, "angelegt": 0, "unbekannte_lieferanten": ["Firma X"]},
+        "abweichungen": [{"text": "import.hinweis.abweichung", "detail": "BM-1:typ"},
+                         {"text": "import.hinweis.kostenstelle_ohne_recht", "detail": "BM-9 (70101)"}], "kaufdaten_uebersprungen": 3, "neu": 2, "angelegt": 0, "unbekannte_lieferanten": ["Firma X"]},
         datei="0123456789abcdef0123456789abcdef", **darf()),
     "inventar_verwaltung_etiketten.html": dict(gruppen=[("bm", "Baumaschinen")], wahl_ks=wahl(), **darf()),
     "inventar_verwaltung_testdaten.html": dict(erlaubt=True, **darf()),
@@ -192,7 +218,8 @@ def test_stueck_ohne_rechte_hat_keine_tasten_und_keine_preise(umgebung):
     html = render(umgebung, "inventar_stueck.html", **darf(False), kosten=None, von_ks=[], melde_ks=[], status_moeglich=[], hauptlage="",
                   transfers=[{**TRANSFER, "darf_eingang": False, "darf_zurueck": False}], scan_ok=False,
                   bauteile=[{"beziehung_id": 5, "nummer": "B1", "bezeichnung": "Filter", "preis": None}])
-    for spur in ("/aendern", "/inventar/transfer/abgang", "/eingang", "/meldung", "/zubehoer", "/bauteil", "/status", "/zurueck"):
+    for spur in ("/aendern", "/inventar/transfer/abgang", "/eingang", "/stueck/1/meldung", "/zubehoer", "/bauteil", "/status", "/zurueck",
+                 "/inventar/werkstatt"):
         assert spur not in html, spur
     assert "Kaufpreis" not in html and "9,90" not in html
 
@@ -256,3 +283,57 @@ def test_pruefarten_des_stuecks_nur_mit_pflegen(umgebung):
     assert 'id="pruefarten-stueck"' in html and 'action="/inventar/stueck/1/pruefart"' in html and 'id="pruefart-dazu"' in html
     ohne = render(umgebung, "inventar_stueck.html", darf_pflegen=False)
     assert "/pruefart\"" not in ohne
+
+
+def test_import_nennt_uebersprungene_kaufdaten_und_zeilen_ohne_recht(umgebung):
+    html = render(umgebung, "inventar_verwaltung_import.html")
+    assert "in 3 Zeilen übersprungen" in html and "Kostensätze pflegen" in html
+    assert "BM-9 (70101)" in html and "nicht angelegt" in html
+    ohne = render(umgebung, "inventar_verwaltung_import.html", bericht={**KONTEXT["inventar_verwaltung_import.html"]["bericht"], "kaufdaten_uebersprungen": 0})
+    assert "Kaufpreis und Kaufdatum in" not in ohne
+
+
+def test_zaehlerhinweis_steht_an_der_stueck_seite_und_in_der_faellig_liste(umgebung):
+    satz = "Zählerstand 90 liegt unter dem letzten Stand 120"
+    assert satz in render(umgebung, "inventar_stueck.html", zaehler_hinweis=satz)
+    assert satz in render(umgebung, "inventar_faellig.html", zaehler_hinweis=satz)
+    assert "liegt unter dem letzten Stand" not in render(umgebung, "inventar_stueck.html")
+
+
+def test_werkstatt_zeigt_die_tasten_je_stand_der_meldung(umgebung):
+    html = render(umgebung, "inventar_werkstatt.html")
+    for kennung in ("offen", "angenommen", "in-arbeit", "reparaturen", "in-reparatur", "erledigt", "reparaturen-fertig"):
+        assert f'id="werkstatt-{kennung}"' in html, kennung
+    assert 'action="/inventar/werkstatt/meldung/1/weiter"' in html and 'value="angenommen"' in html, "offen: Annehmen"
+    assert 'value="in_arbeit"' in html and 'id="erledigt-2"' in html and 'id="erledigt-3"' in html, "angenommen/in Arbeit: Übernehmen, Erledigen"
+    assert 'id="erledigt-4"' not in html and "Schlauch getauscht" in html, "erledigt: nur die Rückmeldung"
+    assert "/inventar/meldung/1/foto" in html and "/inventar/werkstatt?neu_meldung=2#reparatur-anlegen" in html
+    assert 'action="/inventar/werkstatt/stueck/1/status"' in html
+    assert 'id="beginnen-5"' in html and 'id="abschluss-6"' in html and 'id="rechnung-7"' in html
+    assert 'name="kosten"' in html and "120,00" in html
+
+
+def test_werkstatt_ohne_kostenrechte_hat_keine_kostenfelder_und_keine_preise(umgebung):
+    ohne = {**WERKSTATT, **darf(False), "darf_werkstatt": True}
+    ohne["p"] = SimpleNamespace(**{**vars(WERKSTATT["p"]), "reparaturen": [_reparatur_zeile(5, "in_arbeit", kosten=None, kosten_quelle=None)],
+                                   "reparaturen_fertig": []})
+    html = umgebung.get_template("inventar_werkstatt.html").render(**ohne)
+    assert 'name="kosten"' not in html and "<th>Reparaturkosten" not in html and 'id="abschluss-5"' in html
+
+
+def test_werkstatt_reparatur_dialog_steht_offen_zu_einem_ziel(umgebung):
+    html = render(umgebung, "inventar_werkstatt.html", ziel={"meldung_id": 2, "stueck_id": 1, "nummer": "BM-00001", "bezeichnung": "Bagger",
+                                                              "beschreibung": "Schlauch undicht"})
+    assert 'id="reparatur-anlegen" open' in html and 'name="meldung_id" value="2"' in html and 'name="lieferant_id"' in html
+    assert 'id="reparatur-anlegen"' not in render(umgebung, "inventar_werkstatt.html")
+    assert "Das Stück ist in Reparatur" in render(umgebung, "inventar_werkstatt.html", fertig="status_gesetzt")
+
+
+def test_stueck_seite_zeigt_rueckmeldung_foto_und_werkstatt_tasten(umgebung):
+    html = render(umgebung, "inventar_stueck.html")
+    assert "Schlauch getauscht" in html and "/inventar/meldung/9/foto" in html
+    assert "/inventar/werkstatt?neu_stueck=1#reparatur-anlegen" in html
+    assert "/inventar/werkstatt" not in render(umgebung, "inventar_stueck.html", darf_werkstatt=False)
+    assert "id=\"hinweis-in-reparatur\"" not in html
+    in_rep = render(umgebung, "inventar_stueck.html", stueck=SimpleNamespace(**{**vars(STUECK), "status": "in_reparatur"}))
+    assert 'id="hinweis-in-reparatur"' in in_rep and "weiter buchen" in in_rep

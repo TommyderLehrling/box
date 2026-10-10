@@ -1,0 +1,145 @@
+{% extends "rahmen.html" %}
+{% macro formular(weg) %}method="post" action="{{ weg }}" hx-post="{{ weg }}" hx-target="#werkstatt-meldung" hx-swap="innerHTML"{% endmacro %}
+{% macro einfach(weg, feld, wert, text, haupt=false) %}<form class="inline" {{ formular(weg) }}><input type="hidden" name="{{ feld }}" value="{{ wert }}"><button type="submit" class="klein{% if haupt %} haupt{% endif %}">{{ text }}</button></form>{% endmacro %}
+{% macro zurueckziehen(weg, kennung, feld, wert) %}
+<details class="dialog" id="zurueck-{{ kennung }}">
+  <summary class="taste klein">{{ t("inventar.werkstatt.taste.zurueckziehen") }}</summary>
+  <form {{ formular(weg) }}>
+    <input type="hidden" name="{{ feld }}" value="{{ wert }}">
+    <p><label for="grund-{{ kennung }}">{{ t("inventar.meldung.grund") }}</label> <input type="text" id="grund-{{ kennung }}" name="grund" size="30" required></p>
+    <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.werkstatt.taste.zurueckziehen") }}</button><button type="button" data-abbrechen>{{ t("inventar.taste.abbrechen") }}</button></p>
+  </form>
+</details>
+{% endmacro %}
+{% macro status_taste(z) %}
+{% if z.stueck_status == "aktiv" %}{{ einfach("/inventar/werkstatt/stueck/" ~ z.stueck_id ~ "/status", "setzen", "1", t("inventar.werkstatt.taste.in_reparatur_setzen")) }}
+{% elif z.stueck_status == "in_reparatur" %}{{ einfach("/inventar/werkstatt/stueck/" ~ z.stueck_id ~ "/status", "setzen", "0", t("inventar.werkstatt.taste.in_reparatur_aufheben")) }}{% endif %}
+{% endmacro %}
+{% macro meldungen(zeilen) %}
+{% if not zeilen %}<p class="leise">{{ t("inventar.werkstatt.leer") }}</p>{% else %}
+<table class="liste">
+  <tr><th>{{ t("web.nummer") }}</th><th>{{ t("inventar.feld.art") }}</th><th>{{ t("inventar.meldung.beschreibung") }}</th><th>{{ t("inventar.feld.kostenstelle") }}</th><th>{{ t("inventar.werkstatt.gemeldet") }}</th><th></th></tr>
+  {% for z in zeilen %}
+  <tr id="meldung-{{ z.id }}">
+    <td><a href="/inventar/stueck/{{ z.stueck_id }}">{{ z.nummer }}</a><br><span class="klein leise">{{ z.bezeichnung }}</span></td>
+    <td>{{ t("inventar.meldung.art." ~ z.art) }}</td>
+    <td>{{ z.beschreibung }}{% if z.hat_foto %} · <a href="/inventar/meldung/{{ z.id }}/foto" target="_blank" rel="noopener">{{ t("inventar.werkstatt.foto") }}</a>{% endif %}
+      {% if z.rueckmeldung %}<br><span class="klein"><strong>{{ t("inventar.meldung.rueckmeldung") }}:</strong> {{ z.rueckmeldung }}</span>{% endif %}</td>
+    <td>{{ z.ort|oder_strich }}</td>
+    <td>{{ z.am|zeitpunkt }}<br><span class="klein leise">{{ z.von|oder_strich }}</span>
+      {% if z.bearbeiter %}<br><span class="klein leise">{{ t("inventar.werkstatt.bearbeitet") }}: {{ z.bearbeiter }}{% if z.erledigt_am %}, {{ z.erledigt_am|zeitpunkt }}{% endif %}</span>{% endif %}</td>
+    <td class="tastenreihe">
+      {% if z.status == "offen" %}
+        {{ einfach("/inventar/werkstatt/meldung/" ~ z.id ~ "/weiter", "neu", "angenommen", t("inventar.werkstatt.taste.annehmen"), true) }}
+        {{ zurueckziehen("/inventar/werkstatt/meldung/" ~ z.id ~ "/weiter", "m" ~ z.id, "neu", "zurueckgezogen") }}
+      {% elif z.status in ("angenommen", "in_arbeit") %}
+        {% if z.status == "angenommen" %}{{ einfach("/inventar/werkstatt/meldung/" ~ z.id ~ "/weiter", "neu", "in_arbeit", t("inventar.werkstatt.taste.uebernehmen"), true) }}{% endif %}
+        <details class="dialog" id="erledigt-{{ z.id }}">
+          <summary class="taste klein">{{ t("inventar.werkstatt.taste.erledigen") }}</summary>
+          <form {{ formular("/inventar/werkstatt/meldung/" ~ z.id ~ "/weiter") }}>
+            <input type="hidden" name="neu" value="erledigt">
+            <p><label for="rueck-{{ z.id }}">{{ t("inventar.meldung.rueckmeldung") }}</label><br><textarea id="rueck-{{ z.id }}" name="rueckmeldung" rows="3" cols="40" required></textarea></p>
+            <p class="klein leise">{{ t("inventar.werkstatt.rueckmeldung_hinweis") }}</p>
+            <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.werkstatt.taste.erledigen") }}</button><button type="button" data-abbrechen>{{ t("inventar.taste.abbrechen") }}</button></p>
+          </form>
+        </details>
+        <a class="taste klein" href="/inventar/werkstatt?neu_meldung={{ z.id }}#reparatur-anlegen">{{ t("inventar.werkstatt.taste.reparatur_anlegen") }}</a>
+        {{ status_taste(z) }}
+        {{ zurueckziehen("/inventar/werkstatt/meldung/" ~ z.id ~ "/weiter", "m" ~ z.id, "neu", "zurueckgezogen") }}
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+{% endmacro %}
+{% macro reparaturen(zeilen, kosten_sehen, kosten_pflegen, heute_iso) %}
+{% if not zeilen %}<p class="leise">{{ t("inventar.werkstatt.leer") }}</p>{% else %}
+<table class="liste">
+  <tr><th>{{ t("web.nummer") }}</th><th>{{ t("inventar.reparatur.beschreibung") }}</th><th>{{ t("inventar.katalog.durchfuehrung") }}</th><th>{{ t("inventar.reparatur.beginn") }} – {{ t("inventar.reparatur.ende") }}</th>{% if kosten_sehen %}<th>{{ t("inventar.reparatur.kosten") }}</th>{% endif %}<th></th></tr>
+  {% for r in zeilen %}
+  <tr id="reparatur-{{ r.id }}">
+    <td><a href="/inventar/stueck/{{ r.stueck_id }}">{{ r.nummer }}</a><br><span class="klein leise">{{ r.bezeichnung }}</span></td>
+    <td>{{ r.beschreibung|oder_strich }}<br><span class="klein leise">{{ t("inventar.reparatur.status." ~ r.status) }}</span></td>
+    <td>{{ t("inventar.reparatur.durchfuehrung." ~ r.durchfuehrung) }}{% if r.lieferant %}<br><span class="klein leise">{{ r.lieferant }}</span>{% endif %}</td>
+    <td>{{ r.begonnen|datum }} – {{ r.beendet|datum }}</td>
+    {% if kosten_sehen %}<td class="zahl">{% if r.kosten is not none %}{{ r.kosten|betrag }}{% if r.kosten_quelle %}<br><span class="klein leise">{{ t("inventar.reparatur.kostenquelle." ~ r.kosten_quelle) }}</span>{% endif %}{% else %}{{ ""|oder_strich }}{% endif %}</td>{% endif %}
+    <td class="tastenreihe">
+      {% if r.status == "offen" %}
+      <details class="dialog" id="beginnen-{{ r.id }}">
+        <summary class="taste klein haupt">{{ t("inventar.werkstatt.taste.beginnen") }}</summary>
+        <form {{ formular("/inventar/werkstatt/reparatur/" ~ r.id ~ "/weiter") }}>
+          <input type="hidden" name="aktion" value="beginnen">
+          <p><label for="bg-datum-{{ r.id }}">{{ t("inventar.werkstatt.feld.beginn_am") }}</label> <input type="date" id="bg-datum-{{ r.id }}" name="datum" value="{{ heute_iso }}" max="{{ heute_iso }}" required>
+          {% if kosten_pflegen %}<label for="bg-kosten-{{ r.id }}">{{ t("inventar.werkstatt.feld.kosten_geschaetzt") }}</label> <input type="text" inputmode="decimal" id="bg-kosten-{{ r.id }}" name="kosten" size="10">{% endif %}</p>
+          <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.werkstatt.taste.beginnen") }}</button><button type="button" data-abbrechen>{{ t("inventar.taste.abbrechen") }}</button></p>
+        </form>
+      </details>
+      {{ zurueckziehen("/inventar/werkstatt/reparatur/" ~ r.id ~ "/weiter", "r" ~ r.id, "aktion", "zurueckziehen") }}
+      {% elif r.status == "in_arbeit" %}
+      <details class="dialog" id="abschluss-{{ r.id }}">
+        <summary class="taste klein haupt">{{ t("inventar.werkstatt.taste.abschliessen") }}</summary>
+        <form {{ formular("/inventar/werkstatt/reparatur/" ~ r.id ~ "/weiter") }}>
+          <input type="hidden" name="aktion" value="abschliessen">
+          <p><label for="ab-datum-{{ r.id }}">{{ t("inventar.werkstatt.feld.ende_am") }}</label> <input type="date" id="ab-datum-{{ r.id }}" name="datum" value="{{ heute_iso }}" max="{{ heute_iso }}" required></p>
+          {% if kosten_pflegen %}
+          <p><label for="ab-kosten-{{ r.id }}">{{ t("inventar.reparatur.kosten") }}</label> <input type="text" inputmode="decimal" id="ab-kosten-{{ r.id }}" name="kosten" size="10">
+             <label for="ab-quelle-{{ r.id }}">{{ t("inventar.werkstatt.feld.kosten_quelle") }}</label>
+             <select id="ab-quelle-{{ r.id }}" name="kosten_quelle">{% for q in ("geschaetzt", "rechnung") %}<option value="{{ q }}">{{ t("inventar.reparatur.kostenquelle." ~ q) }}</option>{% endfor %}</select></p>
+          {% endif %}
+          <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.werkstatt.taste.abschliessen") }}</button><button type="button" data-abbrechen>{{ t("inventar.taste.abbrechen") }}</button></p>
+        </form>
+      </details>
+      {{ zurueckziehen("/inventar/werkstatt/reparatur/" ~ r.id ~ "/weiter", "r" ~ r.id, "aktion", "zurueckziehen") }}
+      {% elif r.status == "erledigt" and kosten_pflegen %}
+      <details class="dialog" id="rechnung-{{ r.id }}">
+        <summary class="taste klein">{{ t("inventar.werkstatt.taste.rechnung") }}</summary>
+        <form {{ formular("/inventar/werkstatt/reparatur/" ~ r.id ~ "/weiter") }}>
+          <input type="hidden" name="aktion" value="rechnung">
+          <p><label for="rg-kosten-{{ r.id }}">{{ t("inventar.reparatur.kosten") }}</label> <input type="text" inputmode="decimal" id="rg-kosten-{{ r.id }}" name="kosten" size="10" required></p>
+          <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.taste.speichern") }}</button><button type="button" data-abbrechen>{{ t("inventar.taste.abbrechen") }}</button></p>
+        </form>
+      </details>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+{% endmacro %}
+{% block titel %}{{ t("inventar.menue_werkstatt") }} — {{ t("web.titel") }}{% endblock %}
+{% block inhalt %}
+{% with seite = "inventar_werkstatt", titel = t("inventar.menue_werkstatt") %}{% include "teil_seitenkopf.html" %}{% endwith %}
+{% if fertig %}<p class="gut" role="status" id="werkstatt-fertig">✓ {{ t("inventar.werkstatt.fertig." ~ fertig) }}</p>{% endif %}
+<div id="werkstatt-meldung"></div>
+
+{% if ziel %}
+<details class="dialog" id="reparatur-anlegen" open>
+  <summary class="taste">{{ t("inventar.werkstatt.taste.reparatur_anlegen") }}: {{ ziel.nummer }} {{ ziel.bezeichnung }}</summary>
+  <form {{ formular("/inventar/werkstatt/reparatur") }}>
+    <input type="hidden" name="meldung_id" value="{{ ziel.meldung_id }}"><input type="hidden" name="stueck_id" value="{{ ziel.stueck_id }}">
+    <p><label for="rp-durch">{{ t("inventar.katalog.durchfuehrung") }}</label>
+       <select id="rp-durch" name="durchfuehrung">{% for d in ("intern", "extern") %}<option value="{{ d }}">{{ t("inventar.reparatur.durchfuehrung." ~ d) }}</option>{% endfor %}</select></p>
+    <p>{% with wahl = wahl_lieferant %}{% include "teil_wahl.html" %}{% endwith %}</p>
+    <p><label for="rp-text">{{ t("inventar.reparatur.beschreibung") }}</label><br><textarea id="rp-text" name="beschreibung" rows="2" cols="40">{{ ziel.beschreibung }}</textarea></p>
+    <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.taste.speichern") }}</button><a class="taste" href="/inventar/werkstatt">{{ t("inventar.taste.abbrechen") }}</a></p>
+  </form>
+</details>
+{% endif %}
+
+<section id="werkstatt-offen"><h2>{{ t("inventar.werkstatt.abschnitt.offen") }} ({{ p.offen|length }})</h2>{{ meldungen(p.offen) }}</section>
+<section id="werkstatt-angenommen"><h2>{{ t("inventar.werkstatt.abschnitt.angenommen") }} ({{ p.angenommen|length }})</h2>{{ meldungen(p.angenommen) }}</section>
+<section id="werkstatt-in-arbeit"><h2>{{ t("inventar.werkstatt.abschnitt.in_arbeit") }} ({{ p.in_arbeit|length }})</h2>{{ meldungen(p.in_arbeit) }}</section>
+<section id="werkstatt-reparaturen"><h2>{{ t("inventar.werkstatt.abschnitt.reparaturen") }} ({{ p.reparaturen|length }})</h2>{{ reparaturen(p.reparaturen, darf_kosten_sehen, darf_kosten_pflegen, heute_iso) }}</section>
+<section id="werkstatt-in-reparatur"><h2>{{ t("inventar.werkstatt.abschnitt.in_reparatur") }} ({{ p.stuecke_in_reparatur|length }})</h2>
+  {% if not p.stuecke_in_reparatur %}<p class="leise">{{ t("inventar.werkstatt.leer") }}</p>{% else %}
+  <table class="liste">{% for s in p.stuecke_in_reparatur %}
+    <tr><td><a href="/inventar/stueck/{{ s.id }}">{{ s.nummer }}</a></td><td>{{ s.bezeichnung }}</td><td>{{ s.seit|datum }}</td>
+        <td>{{ einfach("/inventar/werkstatt/stueck/" ~ s.id ~ "/status", "setzen", "0", t("inventar.werkstatt.taste.in_reparatur_aufheben")) }}</td></tr>
+  {% endfor %}</table>
+  <p class="klein leise">{{ t("inventar.werkstatt.buchen_hinweis") }}</p>
+  {% endif %}
+</section>
+<section id="werkstatt-erledigt"><h2>{{ t("inventar.werkstatt.abschnitt.erledigt") }} ({{ p.erledigt|length }})</h2>{{ meldungen(p.erledigt) }}</section>
+<section id="werkstatt-reparaturen-fertig"><h2>{{ t("inventar.werkstatt.abschnitt.reparaturen_fertig") }} ({{ p.reparaturen_fertig|length }})</h2>{{ reparaturen(p.reparaturen_fertig, darf_kosten_sehen, darf_kosten_pflegen, heute_iso) }}</section>
+{% endblock %}

@@ -7,7 +7,7 @@ import signal
 
 from digiassistenz_inventar import erinnern
 from digiassistenz_inventar.dienstlogik import erinnerungen
-from digiassistenz_inventar.erinnern import Takt
+from digiassistenz_inventar.erinnern import Merker, Takt
 
 UHR = dt.datetime(2026, 10, 10, 6, 0, tzinfo=dt.timezone.utc)
 
@@ -88,3 +88,96 @@ def test_der_kern_startet_den_prozess_ueber_die_modulbeschreibung():
 
     assert BESCHREIBUNG.prozesse == ("digiassistenz_inventar.erinnern",)
     assert callable(erinnern.main)
+
+
+class _Sitzung:
+    """Eine Sitzung, die nichts kann außer gezählt zu werden (kein Zugriff auf die Datenbank)."""
+
+    class kontext:
+        mandant_id = 1
+
+    db = object()
+
+
+class _Fabrik:
+    def __init__(self) -> None:
+        self.geoeffnet = 0
+
+    def __call__(self, _zweck: str):
+        from contextlib import nullcontext
+
+        self.geoeffnet += 1
+        return nullcontext(_Sitzung())
+
+
+def _einstellungen(monkeypatch, um: str, letzter: str = "") -> list[str]:
+    gelesen: list[str] = []
+
+    def lesen(_db, _mid, schluessel, standard=""):
+        gelesen.append(schluessel)
+        return {"erinnern_um": um, "erinnern_letzter_lauf": letzter}.get(schluessel, standard)
+
+    monkeypatch.setattr(erinnern.katalog, "einstellung", lesen)
+    monkeypatch.setattr(erinnern.erinnerungen, "tageslauf", lambda *_a, **_k: erinnerungen.Tageslauf(0, 0))
+    return gelesen
+
+
+def test_nachts_oeffnet_der_prozess_hoechstens_einmal_je_stunde_eine_sitzung(monkeypatch):
+    """Kern-Regel: ein Prozess, der wartet, öffnet keine Sitzung — 00:00 bis 05:55 im Takt von 5 Minuten, Uhrzeit 06:00."""
+    _einstellungen(monkeypatch, "06:00")
+    fabrik, merker = _Fabrik(), Merker()
+    nacht = dt.datetime(2026, 10, 10, 0, 0, tzinfo=dt.timezone.utc)
+    for n in range(72):  # 00:00 … 05:55
+        takt = erinnern.tick(nacht + dt.timedelta(minutes=5 * n), fabrik, merker)
+        assert takt == Takt(None, False)
+    assert fabrik.geoeffnet == 6, "ein Lesen je Stunde (vorher 72)"
+    lauf = erinnern.tick(nacht + dt.timedelta(hours=6), fabrik, merker)
+    assert lauf.erledigt and lauf.lauf is not None and fabrik.geoeffnet == 7
+
+
+def test_eine_geaenderte_uhrzeit_gilt_spaetestens_nach_einer_stunde(monkeypatch):
+    _einstellungen(monkeypatch, "06:00")
+    fabrik, merker = _Fabrik(), Merker()
+    start = dt.datetime(2026, 10, 10, 1, 0, tzinfo=dt.timezone.utc)
+    erinnern.tick(start, fabrik, merker)
+    assert merker.um == dt.time(6, 0)
+    _einstellungen(monkeypatch, "03:00")
+    assert erinnern.tick(start + dt.timedelta(minutes=30), fabrik, merker) == Takt(None, False) and fabrik.geoeffnet == 1
+    spaeter = erinnern.tick(start + dt.timedelta(hours=2), fabrik, merker)  # 03:00 erreicht, die neue Uhrzeit wird gelesen
+    assert merker.um == dt.time(3, 0) and spaeter.lauf is not None
+
+
+def test_ohne_merker_wird_jedes_mal_gelesen(monkeypatch):
+    _einstellungen(monkeypatch, "06:00")
+    fabrik = _Fabrik()
+    for n in range(3):
+        erinnern.tick(dt.datetime(2026, 10, 10, 1, n, tzinfo=dt.timezone.utc), fabrik)
+    assert fabrik.geoeffnet == 3
+
+
+def test_die_schleife_nutzt_standardmaessig_den_merker(monkeypatch):
+    _einstellungen(monkeypatch, "06:00")
+    fabrik = _Fabrik()
+    monkeypatch.setattr(erinnern.tick, "__defaults__", (fabrik, None))  # die Fabrik, die `laufen` über `tick` erreicht
+    stand = {"n": 0}
+
+    def uhr():
+        stand["n"] += 1
+        return dt.datetime(2026, 10, 10, 1, 0, tzinfo=dt.timezone.utc) + dt.timedelta(minutes=5 * (stand["n"] - 1))
+
+    n = erinnern.laufen(lambda: stand["n"] >= 13, uhr=uhr, schlafen=lambda _: None, takt=0.0, schritt=1.0)  # 01:00 bis 02:00
+    assert n == 0 and fabrik.geoeffnet == 2, "zweimal gelesen (01:00 und 02:00), dazwischen nur die Uhr"
+
+
+def test_der_prozess_schreibt_auch_auf_den_bildschirm(monkeypatch):
+    """stdout ist das Log des Containers: `hochlaufen(leise=False)`."""
+    aufrufe: list[dict] = []
+    monkeypatch.setattr(erinnern.hochlauf, "hochlaufen", lambda *a, **k: aufrufe.append(k))
+    monkeypatch.setattr(erinnern, "laufen", lambda _anhalten: 0)
+    alt = {n: signal.getsignal(n) for n in (signal.SIGTERM, signal.SIGINT)}
+    try:
+        assert erinnern.main() == 0
+    finally:
+        for nummer, handler in alt.items():
+            signal.signal(nummer, handler)
+    assert aufrufe == [{"leise": False}]

@@ -58,11 +58,14 @@ def anlegen(
     merkmale: dict[str, str] | None = None, besonderheiten: str = "", quelle: str = "web", pruefen: bool = True,
     protokollieren: bool = True,
 ) -> m.Stueck:
-    """Legt ein Stück an, auf Wunsch mit Startstandort (Recht `buchen` dort). Die Nummer: gegeben oder vergeben."""
+    """Legt ein Stück an, auf Wunsch mit Startstandort (Recht `pflegen` dort: das Stück entsteht, es bewegt sich nicht).
+
+    Die Nummer: gegeben oder vergeben. `buchen` braucht erst jede Bewegung danach.
+    """
     if not sitzung.darf("inventar", "pflegen"):
         raise gemeinsam.KeinRecht("inventar", "pflegen")
-    if kostenstelle_id is not None and not sitzung.darf("inventar", "buchen", kostenstelle_id):
-        raise gemeinsam.KeinRecht("inventar", "buchen")
+    if kostenstelle_id is not None and not sitzung.darf("inventar", "pflegen", kostenstelle_id):
+        raise gemeinsam.KeinRecht("inventar", "pflegen")
     if (kaufdatum is not None or kaufpreis is not None) and not sitzung.darf("inventar", "kosten_pflegen"):
         raise gemeinsam.KeinRecht("inventar", "kosten_pflegen")  # Kaufdaten trägt nur ein, wer Kosten pflegen darf
     if not bezeichnung.strip():
@@ -108,6 +111,14 @@ def status_wechseln(sitzung: Any, inventarnummer: str, neu: str, grund: str = ""
     if not sitzung.darf("inventar", aktion):
         raise gemeinsam.KeinRecht("inventar", aktion)
     zeile = finde_stueck(sitzung, inventarnummer, aktion)
+    return status_setzen(sitzung, zeile, neu, grund)
+
+
+def status_setzen(sitzung: Any, zeile: m.Stueck, neu: str, grund: str = "") -> m.Stueck:
+    """Setzt den Status eines gefundenen Stücks (Wechselregeln und Protokoll); das Recht hat der Aufrufer geprüft.
+
+    Die Werkstatt setzt damit `in_reparatur` und hebt es wieder auf, ohne dafür `stilllegen` zu brauchen.
+    """
     jetzt = zeit.jetzt_utc()
     wechsel = stueck_status.wechsle(zeile.status, neu, grund, laden.person(_benutzer(sitzung)), jetzt)
     alt, zeile.status, zeile.status_seit, zeile.status_grund = zeile.status, neu, jetzt, wechsel.grund

@@ -58,7 +58,10 @@ def eintragen(
     arbeitsordner: Path | None = None, quelle: str = "web", pruefer_benutzer_id: int | None = None,
     pruefer_lieferant_id: int | None = None,
 ) -> m.Pruefung:
-    """Trägt eine Prüfung ein; `nachweis` ist (Dateiname, Inhalt). Die nächste Fälligkeit rechnet `rein.pruefung.eintragen`."""
+    """Trägt eine Prüfung ein; `nachweis` ist (Dateiname, Inhalt). Die nächste Fälligkeit rechnet `rein.pruefung.eintragen`.
+
+    Liegt der Zählerstand unter dem letzten Stand, bleibt er nur an der Prüfung; der Satz trägt dann `zaehler_unter` (der letzte Stand).
+    """
     if not sitzung.darf("inventar", "pruefen"):
         raise gemeinsam.KeinRecht("inventar", "pruefen")
     db, mid = sitzung.db, sitzung.kontext.mandant_id
@@ -89,25 +92,29 @@ def eintragen(
         bemerkung=bemerkung.strip(), naechste_am=folge.naechste_am, quelle=quelle, angelegt_von=benutzer)
     db.add(satz)
     db.flush()
-    _zaehlerstand_nachtragen(sitzung, zeile, zaehlerstand)
+    satz.zaehler_unter = _zaehlerstand_nachtragen(sitzung, zeile, zaehlerstand)
     protokoll.schreiben(db, mandant_id=mid, aktion="inventar.pruefung_eingetragen", objekt_typ="inventar.stueck",
                         objekt_id=int(zeile.id), neu_wert=f"{zeile.inventarnummer}: {pruefart} {ergebnis}, nächste {folge.naechste_am}",
                         benutzer_id=benutzer)
     return satz
 
 
-def _zaehlerstand_nachtragen(sitzung: Any, stueck: m.Stueck, stand: Decimal | None) -> None:
-    """Ein Stand aus der Prüfung gilt auch als Ablesung — sonst rechnet die Zähler-Fälligkeit mit einem älteren Stand."""
+def _zaehlerstand_nachtragen(sitzung: Any, stueck: m.Stueck, stand: Decimal | None) -> Decimal | None:
+    """Ein Stand aus der Prüfung gilt auch als Ablesung — sonst rechnet die Zähler-Fälligkeit mit einem älteren Stand.
+
+    Gibt den letzten Stand zurück, wenn der Stand darunter liegt und darum nicht als Ablesung geführt wird; sonst `None`.
+    """
     if stand is None or stueck.zaehler_einheit is None:
-        return
+        return None
     db, mid = sitzung.db, sitzung.kontext.mandant_id
     letzter = db.execute(select(m.Zaehlerstand.stand).where(m.Zaehlerstand.mandant_id == mid, m.Zaehlerstand.stueck_id == stueck.id)
                          .order_by(m.Zaehlerstand.abgelesen_am.desc(), m.Zaehlerstand.id.desc()).limit(1)).scalar_one_or_none()
     if letzter is not None and stand < letzter:
-        return
+        return letzter
     db.add(m.Zaehlerstand(mandant_id=mid, stueck_id=stueck.id, stand=stand, einheit=stueck.zaehler_einheit, abgelesen_am=zeit.jetzt_utc(),
                           abgelesen_von=_benutzer(sitzung), quelle="pruefung"))
     db.flush()
+    return None
 
 
 def nachweis_lesen(sitzung: Any, pruefung_id: int, arbeitsordner: Path) -> tuple[str, bytes]:

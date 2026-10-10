@@ -25,12 +25,12 @@ def lauf(**kw):
 def test_H1_alle_sechs_kacheln_im_beispielbetrieb():
     erg = lauf()
     assert erg == (
-        Kachel("inventar.kachel.pruefungen_faellig", 5, "/inventar/faellig", "inventar.pruefen"),
-        Kachel("inventar.kachel.ohne_nachweis", 3, "/inventar/faellig", "inventar.pruefen"),
-        Kachel("inventar.kachel.transfers_an_mich", 3, "/inventar/hier", "inventar.scannen"),
-        Kachel("inventar.kachel.transfers_ueberfaellig", 1, "/inventar", "inventar.buchen"),
-        Kachel("inventar.kachel.meldungen_offen", 1, "/inventar", "inventar.werkstatt"),
-        Kachel("inventar.kachel.in_arbeit", 1, "/inventar", "inventar.werkstatt"),
+        Kachel("inventar.kachel.pruefungen_faellig", 5, "/inventar/faellig", (("inventar", "pruefen"), ("inventar", "werkstatt"))),
+        Kachel("inventar.kachel.ohne_nachweis", 3, "/inventar/faellig", (("inventar", "pruefen"),)),
+        Kachel("inventar.kachel.transfers_an_mich", 3, "/inventar/hier", (("inventar", "scannen"),)),
+        Kachel("inventar.kachel.transfers_ueberfaellig", 1, "/inventar", (("inventar", "buchen"),)),
+        Kachel("inventar.kachel.meldungen_offen", 1, "/inventar/werkstatt", (("inventar", "werkstatt"),)),
+        Kachel("inventar.kachel.in_arbeit", 1, "/inventar/werkstatt", (("inventar", "werkstatt"),)),
     )
 
 
@@ -69,3 +69,13 @@ def test_H5_angenommene_meldung_zaehlt_als_in_arbeit_und_ein_stueck_nur_einmal()
     assert zahlen.get("meldungen_offen") is None and zahlen["in_arbeit"] == 1
     doppelt = lauf(meldungen=[("KG-00004", angenommen)])  # KG-00004 hat schon eine Reparatur in Arbeit
     assert {k.text_schluessel.split(".")[-1]: k.zahl for k in doppelt}["in_arbeit"] == 1
+
+
+def test_H6_die_pruefungs_kachel_gilt_fuer_pruefen_oder_werkstatt():
+    """Wie der Menüpunkt „Fällig“: Tupel von Paaren, eines genügt (Form von `Menueeintrag.rechte`)."""
+    kachel = next(k for k in lauf() if k.text_schluessel.endswith("pruefungen_faellig"))
+    assert kachel.rechte == (("inventar", "pruefen"), ("inventar", "werkstatt"))
+    ohne_nachweis = next(k for k in lauf() if k.text_schluessel.endswith("ohne_nachweis"))
+    assert ohne_nachweis.rechte == (("inventar", "pruefen"),), "der Nachweis ist Sache der Prüfenden"
+    for k in lauf():
+        assert all(isinstance(r, tuple) and len(r) == 2 for r in k.rechte), k

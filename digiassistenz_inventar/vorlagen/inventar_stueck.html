@@ -11,7 +11,9 @@
     · <span title="{{ t("inventar.pruefung.ampel." ~ ampel) }}">{{ ampel_zeichen }}</span> {{ ampel_hinweis }}
     {% if stueck.status != "aktiv" %} · <span class="warnung">{{ t("inventar.status." ~ stueck.status) }}</span>{% endif %}
   </p>
+  {% if stueck.status == "in_reparatur" %}<p class="klein leise" id="hinweis-in-reparatur">{{ t("inventar.werkstatt.buchen_hinweis") }}</p>{% endif %}
   {% if fertig %}<p class="gut" role="status">✓ {{ t("inventar.fertig." ~ fertig) }}</p>{% endif %}
+  {% if zaehler_hinweis %}<p class="warnung" role="status">{{ zaehler_hinweis }}</p>{% endif %}
   {% if scan_ok %}
   <div class="tastenreihe raster gross" id="scan-tasten">
     <form method="post" action="/inventar/transfer/scan" hx-post="/inventar/transfer/scan" hx-target="#stueck-meldung" hx-swap="innerHTML">
@@ -262,10 +264,19 @@
   <summary>{{ t("inventar.abschnitt.meldungen") }} ({{ meldungen|length + reparaturen|length }})</summary>
   {% if meldungen or reparaturen %}
   <table class="liste">
-    {% for z in meldungen %}<tr><td>{{ t("inventar.meldung.art." ~ z.art) }}</td><td>{{ z.beschreibung }}</td><td>{{ t("inventar.meldung.status." ~ z.status) }}</td><td>{{ z.am|zeitpunkt }} {{ z.von }}</td></tr>{% endfor %}
-    {% for r in reparaturen %}<tr><td>{{ t("inventar.reparatur.werkstatt") }}</td><td>{{ r.beschreibung|oder_strich }}</td><td>{{ t("inventar.reparatur.status." ~ r.status) }}</td><td>{{ r.begonnen|datum }} – {{ r.beendet|datum }}{% if r.kosten is not none %} · {{ r.kosten|betrag }}{% endif %}</td></tr>{% endfor %}
+    {% for z in meldungen %}<tr><td>{{ t("inventar.meldung.art." ~ z.art) }}</td>
+      <td>{{ z.beschreibung }}{% if z.hat_foto %} · <a href="/inventar/meldung/{{ z.id }}/foto" target="_blank" rel="noopener">{{ t("inventar.werkstatt.foto") }}</a>{% endif %}
+        {% if z.rueckmeldung %}<br><span class="klein"><strong>{{ t("inventar.meldung.rueckmeldung") }}:</strong> {{ z.rueckmeldung }}</span>{% endif %}
+        {% if z.grund %}<br><span class="klein leise">{{ t("inventar.meldung.grund") }}: {{ z.grund }}</span>{% endif %}</td>
+      <td>{{ t("inventar.meldung.status." ~ z.status) }}</td>
+      <td>{{ z.am|zeitpunkt }} {{ z.von }}{% if z.bearbeiter %}<br><span class="klein leise">{{ t("inventar.werkstatt.bearbeitet") }}: {{ z.bearbeiter }}{% if z.erledigt_am %}, {{ z.erledigt_am|zeitpunkt }}{% endif %}</span>{% endif %}</td></tr>{% endfor %}
+    {% for r in reparaturen %}<tr><td>{{ t("inventar.reparatur.werkstatt") }} ({{ t("inventar.reparatur.durchfuehrung." ~ r.durchfuehrung) }})</td>
+      <td>{{ r.beschreibung|oder_strich }}{% if r.grund %}<br><span class="klein leise">{{ t("inventar.meldung.grund") }}: {{ r.grund }}</span>{% endif %}</td>
+      <td>{{ t("inventar.reparatur.status." ~ r.status) }}</td><td>{{ r.begonnen|datum }} – {{ r.beendet|datum }}{% if r.kosten is not none %} · {{ r.kosten|betrag }}{% endif %}</td></tr>{% endfor %}
   </table>
   {% else %}<p class="leise">{{ t("inventar.leer") }}</p>{% endif %}
+  {% if darf_werkstatt %}<p class="tastenreihe"><a class="taste" href="/inventar/werkstatt?neu_stueck={{ stueck.id }}#reparatur-anlegen">{{ t("inventar.werkstatt.taste.reparatur_anlegen") }}</a>
+    <a class="taste" href="/inventar/werkstatt">{{ t("inventar.menue_werkstatt") }}</a></p>{% endif %}
 </details>
 
 {% if stueck.zaehler_einheit %}

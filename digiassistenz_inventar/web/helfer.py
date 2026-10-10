@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import uuid
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from fastapi.responses import HTMLResponse
@@ -44,6 +45,30 @@ def ganzzahl(text: str, standard: int | None = None) -> int | None:
         return int(str(text).strip())
     except ValueError:
         return standard
+
+
+def dezimal(text: str) -> Decimal | None:
+    """Eine Zahl mit Komma oder Punkt; leer ist `None`, alles andere ein Fehler mit Satzschlüssel."""
+    text = text.strip().replace(",", ".")
+    if not text:
+        return None
+    try:
+        return Decimal(text)
+    except InvalidOperation:
+        raise ValueError("web.zahl_ungueltig") from None
+
+
+def zahl_text(wert: Decimal) -> str:
+    """Eine Dezimalzahl ohne überflüssige Nullen und ohne Exponent (`1250.500` → `1250.5`)."""
+    return f"{wert.normalize():f}"
+
+
+def zaehler_hinweis(stand: str, letzter: str) -> str:
+    """Der Satz „Zählerstand n liegt unter dem letzten Stand m“; leer, wenn die beiden Angaben keine Zahlen sind."""
+    try:
+        return t("inventar.pruefung.zaehler_unter", stand=zahl_text(Decimal(stand)), letzter=zahl_text(Decimal(letzter)))
+    except (InvalidOperation, ValueError):
+        return ""
 
 
 def datum(text: str) -> dt.date | None:

@@ -14,6 +14,7 @@ from digiassistenz_kern import aehnlichkeit
 from digiassistenz_kern.web import gemeinsam
 
 from .. import modelle as m
+from ..rein.nummernformat import normalisiere
 
 BAUSTEIN_SEHEN = ("inventar", "sehen")
 
@@ -33,6 +34,22 @@ def stuecke(sitzung: Any) -> Select[Any]:
     steht = select(m.Standort.stueck_id).where(m.Standort.bis.is_(None), m.Standort.kostenstelle_id.in_(ks))
     kommt = select(m.Transfer.stueck_id).where(m.Transfer.status == "angekuendigt", m.Transfer.nach_kostenstelle_id.in_(ks))
     return abfrage.where(or_(m.Stueck.id.in_(steht), m.Stueck.id.in_(kommt)))
+
+
+def aufloesen(sitzung: Any, kennung: str) -> m.Stueck | None:
+    """Das Stück zu dem, was ein Scan oder eine Eingabe liefert — die **einzige** Stelle, die das auflöst.
+
+    Zuerst die Inventarnummer, dann die Seriennummer. Der Etikett-Code vorgedruckter QR-Codes (Spec E24, noch nicht gebaut)
+    kommt hier als weiterer Schritt dazu; die Wege `/inventar/s/...` und das Eingabefeld der Scan-Seite ändern sich dafür nicht.
+    """
+    nummer = normalisiere(kennung)
+    if not nummer:
+        return None
+    zeile = sitzung.db.execute(stuecke(sitzung).where(func.upper(m.Stueck.inventarnummer) == nummer)).scalars().first()
+    if zeile is None:
+        zeile = sitzung.db.execute(stuecke(sitzung).where(
+            func.upper(m.Stueck.seriennummer) == nummer).order_by(m.Stueck.inventarnummer)).scalars().first()
+    return zeile
 
 
 def stuecke_je_kostenstelle(sitzung: Any) -> dict[int, int]:
