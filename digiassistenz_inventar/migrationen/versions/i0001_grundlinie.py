@@ -113,6 +113,21 @@ def upgrade() -> None:
     )
 
     op.create_table(
+        'feiertag',
+        sa.Column('id', sa.BigInteger(), sa.Identity(), primary_key=True, nullable=False),
+        sa.Column('mandant_id', sa.BigInteger(), nullable=False),
+        sa.Column('datum', sa.Date(), nullable=False),
+        sa.Column('bezeichnung', sa.Text(), nullable=False),
+        sa.Column('aktiv', sa.Boolean(), server_default=sa.text('true'), nullable=False),
+        sa.Column('angelegt_von', sa.BigInteger(), nullable=True),
+        sa.Column('angelegt_am', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.ForeignKeyConstraint(['angelegt_von'], ['kern.benutzer.id'], name='fk_feiertag_angelegt_von'),
+        sa.ForeignKeyConstraint(['mandant_id'], ['kern.mandant.id'], name='fk_feiertag_mandant_id'),
+        sa.UniqueConstraint('mandant_id', 'datum', name='uq_feiertag_datum'),
+        schema=SCHEMA,
+    )
+
+    op.create_table(
         'gruppe_pruefart',
         sa.Column('id', sa.BigInteger(), sa.Identity(), primary_key=True, nullable=False),
         sa.Column('mandant_id', sa.BigInteger(), nullable=False),

@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse, Response
 from openpyxl.utils.exceptions import InvalidFileException
 from sqlalchemy import func, select
 
-from digiassistenz_kern import Mandant
+from digiassistenz_kern import Mandant, zeit
 from digiassistenz_kern.sitzung import Sitzung
 from digiassistenz_kern.texte import t
 from digiassistenz_kern.web import einstellungen, gemeinsam, wahlfeld
@@ -23,7 +23,8 @@ from .. import dateien
 from .. import modelle as m
 from .. import rechte
 from ..dienstlogik import etiketten as fachetiketten
-from ..dienstlogik import import_lauf, katalog, katalogpflege, liste, testdaten
+from ..dienstlogik import feiertage, import_lauf, katalog, katalogpflege, liste, testdaten
+from ..rein import feiertage as feiertage_rein
 from ..rein import import_vorlage
 from . import helfer
 from .stueck import _text, formular
@@ -247,14 +248,20 @@ def kostensatz_speichern(
 
 @router.get(WEG + "/einstellungen", response_class=HTMLResponse)
 def einstellungen_seite(
-    request: Request, fertig: str = "", sitzung: Sitzung = Depends(gemeinsam.angemeldet),
+    request: Request, fertig: str = "", jahr: str = "", sitzung: Sitzung = Depends(gemeinsam.angemeldet),
     _recht=Depends(gemeinsam.verlangt("inventar", "einstellen")),
 ) -> HTMLResponse:
     mid = sitzung.kontext.mandant_id
     felder = [(s, katalog.einstellung(sitzung.db, mid, s)) for s in katalogpflege.EINSTELLUNGEN_ZAHL + katalogpflege.EINSTELLUNGEN_DEZIMAL
-              + ("nummernmuster", "zins_prozent", "etikett_layout", "erinnern_um")]
+              + ("nummernmuster", "zins_prozent", "etikett_layout", "erinnern_um", "bundesland")]
+    try:
+        jahr_zahl = int(jahr) if jahr.strip() else zeit.heute().year
+    except ValueError:
+        jahr_zahl = zeit.heute().year
     return _seite(request, sitzung, "inventar_verwaltung_einstellungen.html", "einstellungen", felder=felder, fertig=bool(fertig),
-                  auslieferung=katalog.einstellung(sitzung.db, mid, "auslieferung_am"))
+                  auslieferung=katalog.einstellung(sitzung.db, mid, "auslieferung_am"), laender=feiertage_rein.LAENDER,
+                  jahr=jahr_zahl, freie_tage=feiertage.benannt(sitzung.db, mid, jahr_zahl),
+                  eigene=[z for z in feiertage.liste(sitzung.db, mid) if z.datum.year == jahr_zahl])
 
 
 @router.post(WEG + "/einstellungen", response_class=HTMLResponse)
@@ -262,9 +269,19 @@ def einstellungen_speichern(
     request: Request, f: dict[str, Any] = Depends(formular), sitzung: Sitzung = Depends(gemeinsam.angemeldet),
     _recht=Depends(gemeinsam.verlangt("inventar", "einstellen")),
 ) -> HTMLResponse:
-    namen = katalogpflege.EINSTELLUNGEN_ZAHL + katalogpflege.EINSTELLUNGEN_DEZIMAL + ("nummernmuster", "zins_prozent", "etikett_layout", "erinnern_um", "auslieferung_am")
+    namen = katalogpflege.EINSTELLUNGEN_ZAHL + katalogpflege.EINSTELLUNGEN_DEZIMAL + ("nummernmuster", "zins_prozent", "etikett_layout", "erinnern_um", "auslieferung_am", "bundesland")
     return _speichern(request, sitzung, "einstellungen", lambda: katalogpflege.einstellungen_speichern(
         sitzung, {n: _text(f, n) for n in namen if n in f}))
+
+
+@router.post(WEG + "/einstellungen/tage", response_class=HTMLResponse)
+def eigener_tag_speichern(
+    request: Request, f: dict[str, Any] = Depends(formular), sitzung: Sitzung = Depends(gemeinsam.angemeldet),
+    _recht=Depends(gemeinsam.verlangt("inventar", "einstellen")),
+) -> HTMLResponse:
+    """Ein eigener freier Tag: anlegen, Bezeichnung ändern, ein- und abschalten (`aktiv` = „1“); gelöscht wird nichts."""
+    return _speichern(request, sitzung, "einstellungen", lambda: katalogpflege.eigenen_tag_speichern(
+        sitzung, helfer.datum(_text(f, "datum")), _text(f, "bezeichnung"), _text(f, "aktiv") == "1"))
 
 
 # ---- Import -------------------------------------------------------------------------------------------------------

@@ -19,7 +19,7 @@ from digiassistenz_kern.texte import t
 from .. import modelle as m
 from ..rein import transfer as automat
 from ..rein.stueck_status import im_bestand
-from . import benachrichtigen, katalog, laden, pruefstand
+from . import benachrichtigen, feiertage, katalog, laden, pruefstand
 from .stueckseite import ampel_hinweis
 
 FUNKTION_DISPOSITION = "disposition"
@@ -58,10 +58,11 @@ def transfers_erinnern(db: Any, mandant_id: int) -> int:
         select(m.Transfer.stueck_id).where(m.Transfer.mandant_id == mandant_id, m.Transfer.status == "angekuendigt",
                                            m.Transfer.erinnert_am.is_(None))))).scalars().all()
     zustaende = laden.lade_zustaende(db, mandant_id, list(offen))
+    frei = feiertage.frei_fuer_transfers(db, mandant_id, zustaende.values(), heute)
     namen = {s.inventarnummer: s for s in offen}
     gesendet = 0
     for nummer, z in zustaende.items():
-        for ueberfaellig in automat.ueberfaellige(z, heute, frist):
+        for ueberfaellig in automat.ueberfaellige(z, heute, frist, frei):
             erg = automat.erinnert(z, ueberfaellig.id, jetzt)
             laden.speichern(db, mandant_id, namen[nummer], erg)
             melder = laden.benutzer_id(ueberfaellig.abgang_von)

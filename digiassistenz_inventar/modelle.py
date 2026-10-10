@@ -498,6 +498,20 @@ class Einstellung(Basis):
     geaendert_von: Mapped[int | None] = _benutzer("einstellung", "geaendert_von")
 
 
+class Feiertag(Basis):
+    """Eigener freier Tag des Betriebs (zusätzlich zu den Feiertagen des Bundeslandes); abgeschaltet wird über `aktiv`, nichts wird gelöscht."""
+
+    __tablename__ = "feiertag"
+    __table_args__ = (UniqueConstraint("mandant_id", "datum", name="uq_feiertag_datum"),)
+    id: Mapped[int] = id_spalte()
+    mandant_id: Mapped[int] = _mandant("feiertag")
+    datum: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    bezeichnung: Mapped[str] = _text()
+    aktiv: Mapped[bool] = _ja()
+    angelegt_von: Mapped[int | None] = _benutzer("feiertag", "angelegt_von")
+    angelegt_am: Mapped[dt.datetime] = _am()
+
+
 class Zaehler(Basis):
     """Nummernzähler je Mandant und Schlüssel — vergeben unter `SELECT … FOR UPDATE`."""
 

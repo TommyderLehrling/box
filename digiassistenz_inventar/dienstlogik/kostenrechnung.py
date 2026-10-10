@@ -28,7 +28,7 @@ from ..rein import kostenexport
 from ..rein import verrechnung as rein_verrechnung
 from ..rein import werkstatt as rein_werkstatt
 from ..rein.transfer import Standort as ReinStandort
-from . import katalog, sicht
+from . import feiertage, katalog, sicht
 from .transfer import finde_stueck
 
 OBJEKT_TYP = "inventar.stueck"
@@ -282,7 +282,8 @@ def vorhaltung_je_kostenstelle(sitzung: Any, von: dt.date, bis: dt.date) -> Kost
             ohne += 1
             continue
         rechnen.append(rein_verrechnung.VerrechnungsStueck(s.inventarnummer, gruppen[int(s.gruppe_id)], satz.satz_tag, satz.satz_stunde, tuple(orte)))
-    erg = rein_verrechnung.verrechne(rechnen, [], von, bis, werktage=rw.werktage)
+    erg = rein_verrechnung.verrechne(rechnen, [], von, bis, werktage=rw.werktage,
+                                     feiertage=feiertage.freie_tage(sitzung.db, mid, von, bis) if rw.werktage else ())
     namen = sicht.kostenstellen_namen(sitzung, {z.kostenstelle for z in erg.zeilen})
     return KostenstellenKosten(erg, namen, {s.inventarnummer: s.bezeichnung for s in stuecke.values()}, ohne)
 
@@ -319,7 +320,8 @@ def miete_gegen_eigen(sitzung: Any, von: dt.date, bis: dt.date, vergleich: str =
         elif satz.satz_tag is not None:
             vs.append(rein_verrechnung.VerrechnungsStueck(s.inventarnummer, schluessel, satz.satz_tag, satz.satz_stunde, ()))
             eigene.append(s.inventarnummer)
-    zeilen = rein_verrechnung.miete_gegen_eigen(vs, von, bis, rw.werktage, vergleichsstueck=vergleich or None)
+    zeilen = rein_verrechnung.miete_gegen_eigen(vs, von, bis, rw.werktage, feiertage.freie_tage(sitzung.db, mid, von, bis) if rw.werktage else (),
+                                                vergleichsstueck=vergleich or None)
     return MieteErgebnis(zeilen, {s.inventarnummer: s.bezeichnung for s in alle}, unvollstaendig, tuple(eigene))
 
 

@@ -180,7 +180,11 @@ KONTEXT = {
     "inventar_verwaltung_kostensaetze.html": dict(KATALOG_FERTIG, heute=HEUTE, gruppen=[("bm", "Baumaschinen")], zeilen=[
         {"gruppe": "Baumaschinen", "ab": HEUTE, "nutzungsdauer": 96, "zins": Decimal("4"), "reparatur": Decimal("2"), "restwert": None,
          "monat": Decimal("100"), "tag": None, "woche": None, "stunde": None, "quelle": "manuell", "basis": None, "gerechnet_am": JETZT}]),
-    "inventar_verwaltung_einstellungen.html": dict(KATALOG_FERTIG, auslieferung="", felder=[("nummernmuster", "{gruppe}-{nr:5}"), ("tage_je_monat", "30")]),
+    "inventar_verwaltung_einstellungen.html": dict(
+        KATALOG_FERTIG, auslieferung="", felder=[("nummernmuster", "{gruppe}-{nr:5}"), ("tage_je_monat", "30"), ("bundesland", "SN")],
+        laender=("BW", "SN"), jahr=2026,
+        freie_tage=[(dt.date(2026, 11, 18), "inventar.feiertag.buss_und_bettag", False), (dt.date(2026, 12, 24), "Betriebsruhe", True)],
+        eigene=[SimpleNamespace(datum=dt.date(2026, 12, 24), bezeichnung="Betriebsruhe", aktiv=True)]),
     "inventar_verwaltung_import.html": dict(bericht={
         "fehler": [{"zeile": 3, "spalte": "Gruppe", "text": "import.fehler.gruppe_unbekannt", "wert": "xx"}], "hinweise": [{"zeile": 2, "text": "import.hinweis.beispiel_uebersprungen"}],
         "gelesen": 5, "je_gruppe": [{"gruppe": "bm", "art": "gross", "neu": 2, "unveraendert": 1, "abweichend": 0}],

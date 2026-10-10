@@ -14,7 +14,7 @@ from digiassistenz_kern import zeit
 
 from . import modelle as m
 from .dienste import stueck_infos
-from .dienstlogik import laden, pruefstand, sicht
+from .dienstlogik import feiertage, laden, pruefstand, sicht
 from .rein import kacheln as rein_kacheln
 from .rein import werkstatt
 
@@ -51,5 +51,6 @@ def kacheln(db: Session, sitzung: Any) -> tuple[Kachel, ...]:
     frist = int(pruefstand._einstellung(db, mid, "transfer_frist_werktage", "3"))
     alle = rein_kacheln.kacheln(
         [(infos[n], zustaende[n]) for n in infos], pruefstand.staende(db, mid, zeilen, heute),
-        _meldungen(db, sitzung, nummern), heute, _reparaturen(db, sitzung, nummern), meine, frist)
+        _meldungen(db, sitzung, nummern), heute, _reparaturen(db, sitzung, nummern), meine, frist,
+        feiertage.frei_fuer_transfers(db, mid, zustaende.values(), heute))
     return tuple(k for k in alle if any(sitzung.darf(modul, aktion) for modul, aktion in k.rechte))
