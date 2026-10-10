@@ -14,11 +14,12 @@ Mit Datenbank (Kern 0.15.2 als Wheel, PostgreSQL 16 mit contrib, `pg_dump` 16; A
 
 ```
 cd <wurzel mit konfig.env> && DIGIASSISTENZ_WURZEL=$PWD python -m pytest <pfad>/tests/integration/test_t_i_5.py \
-    <pfad>/tests/integration/test_dienstlogik_db.py <pfad>/tests/integration/test_migration_gegen_modelle.py
+    <pfad>/tests/integration/test_dienstlogik_db.py <pfad>/tests/integration/test_migration_gegen_modelle.py \
+    <pfad>/tests/integration/test_seiten_db.py
 ```
 
 Stand Box (Python 3.12.3, Kern-Wheel 0.15.2, PostgreSQL 16.15): `tests` 280 passed, `tests/integration` 28 passed (T-I-5, Anwendungsfälle,
-Modelle gegen Kette), jeweils `skipped = 0`. **T-I-6** (mit Belegerfassung) hat Box nicht gefahren — sie fehlt ihr.
+Modelle gegen Kette, Seiten), jeweils `skipped = 0`. **T-I-6** (mit Belegerfassung) hat Box nicht gefahren — sie fehlt ihr.
 
 ## Aufbau
 
@@ -32,7 +33,7 @@ Modelle gegen Kette), jeweils `skipped = 0`. **T-I-6** (mit Belegerfassung) hat 
 | `dienstlogik/` | Anwendungsfälle: Nummer, Stück, Transfer, Import, Testdaten, Etiketten, Prüfung, Erinnerung |
 | `dienste.py`, `kacheln.py` | Dienste `bestand` und `stueck` (noch nicht beim Kern angemeldet), Kacheln |
 | `erinnern.py` | `python -m digiassistenz_inventar.erinnern` — einmal am Tag per Cron |
-| `web/`, `vorlagen/`, `statisch/` | Seiten Übersicht, Hier, Fällig, Verwaltung (Gerüst), Reiter und Übersicht an Kern-Seiten |
+| `web/`, `vorlagen/`, `statisch/` | Seiten Liste, Stück, Verwaltung, Hier, Scan, Transfer (L11/L12), Fällig (Hinweis bis L13), Reiter an Kern-Seiten |
 | `texte/de.json` | alle Texte; `app.modul` setzt das Inventar nicht (Steckbrief 11) |
 | `rein/` | die reinen Module mit Katalogen (`rein/daten`) — Prüffälle in `tests/rein` |
 | `compose.yml`, `docker/`, `konfig.env.beispiel` | Aufbau mit Docker (von Box nicht gebaut) |
