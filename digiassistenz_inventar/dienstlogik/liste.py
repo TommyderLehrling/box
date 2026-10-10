@@ -184,7 +184,6 @@ def gruppen_auswahl(sitzung: Any) -> list[tuple[str, str]]:
     return [(g.schluessel, g.bezeichnung) for g in zeilen]
 
 
-
 def nummern(sitzung: Any, f: Filter, hoechstens: int = 2000) -> list[str]:
     """Die Inventarnummern der Auswahl, wie die Liste sie zeigt (für den Etikettenbogen)."""
     return list(sitzung.db.execute(_ordnung(_abfrage(sitzung, f), "nummer", False).with_only_columns(m.Stueck.inventarnummer)
