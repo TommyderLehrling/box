@@ -849,7 +849,7 @@
   "inventar.inventur.stichtag_hinweis": "Leer lassen nimmt den Stichtag zurück.",
   "inventar.inventur.kein_stichtag": "Es ist kein Stichtag gesetzt.",
   "inventar.inventur.stand": "Stichtag {stichtag}: {gesehen} gesehen, {nicht} nicht gesehen",
-  "inventar.inventur.hinweis": "Gesehen heißt: seit dem Stichtag gescannt oder angekommen. Was nicht gesehen wurde, wird nur vorgeschlagen; als vermisst trägt es niemand von selbst ein.",
+  "inventar.inventur.hinweis": "Gesehen heißt: seit dem Stichtag gescannt oder angekommen; bei Mengenartikeln gilt die beim Scan genannte Menge (die jüngste). Was nicht gesehen wurde, wird nur vorgeschlagen; als vermisst trägt es niemand von selbst ein.",
   "inventar.inventur.erwartet": "Erwartet",
   "inventar.inventur.gesehen_menge": "Gesehen",
   "inventar.inventur.ergebnis": "Ergebnis",
@@ -931,5 +931,7 @@
   "inventar.land.SN": "Sachsen (SN)",
   "inventar.land.ST": "Sachsen-Anhalt (ST)",
   "inventar.land.SH": "Schleswig-Holstein (SH)",
-  "inventar.land.TH": "Thüringen (TH)"
+  "inventar.land.TH": "Thüringen (TH)",
+  "inventar.inventur.menge_vor_ort": "Menge vor Ort",
+  "inventar.inventur.menge_hinweis": "Gebucht sind {buch}. Die Zahl wird nur für die Inventur gemerkt, gebucht wird nichts; was fehlt, erscheint als Fehlmenge."
 }

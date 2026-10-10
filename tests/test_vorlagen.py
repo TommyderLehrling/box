@@ -80,7 +80,7 @@ STUECK_SEITE = dict(
     verlauf=[{"am": JETZT, "text": "Stück angelegt", "alt": None, "neu": "BM-00001", "wer": "Eins", "fuer": "Zwei"}],
     lieferant="Händler", steht_auf="79795 Husum", seit=JETZT, angekuendigt_auf="79800 Nord", fertig="angelegt", wahl_nach=wahl("nach"),
     von_ks=[OFFEN], melde_ks=[OFFEN], bauteile_katalog=[(1, "B1 Filter")], status_moeglich=["vermisst"], hauptlage="eingang", buchung="k-1",
-    scan_ks="5", scan_ok=True, scan_art="kamera",
+    scan_ks="5", scan_ok=True, scan_art="kamera", zaehl_menge=None,
     pruefen_arten=[{"schluessel": "uvv", "bezeichnung": "UVV"}, {"schluessel": "sp", "bezeichnung": "Sicherheitsprüfung"}], pruefen_vorgabe="uvv", pruefen_offen=True,
     pruefen_weiter="faellig", benutzer_auswahl=[(1, "Eins"), (2, "Zwei")], benutzer_ich=1, wahl_pruefer_lieferant=wahl("pruefer_lieferant_id"),
     heute_iso=HEUTE.isoformat(), zaehler_hinweis="",
@@ -264,6 +264,13 @@ def test_stueck_ohne_rechte_hat_keine_tasten_und_keine_preise(umgebung):
 def test_scan_tasten_nur_mit_ks_und_recht(umgebung):
     assert 'id="scan-tasten"' in render(umgebung, "inventar_stueck.html")
     assert 'id="scan-tasten"' not in render(umgebung, "inventar_stueck.html", scan_ok=False)
+
+
+def test_L16_mengenabfrage_nur_mit_laufender_inventur(umgebung):
+    ohne = render(umgebung, "inventar_stueck.html")
+    assert 'id="zaehl-abfrage"' not in ohne and 'name="gesehen_menge"' not in ohne
+    mit = render(umgebung, "inventar_stueck.html", zaehl_menge=12)
+    assert 'id="zaehl-abfrage"' in mit and 'name="gesehen_menge"' in mit and 'value="12"' in mit and "Menge vor Ort" in mit
 
 
 def test_hier_hat_zwei_bloecke_und_scannen_taste(umgebung):

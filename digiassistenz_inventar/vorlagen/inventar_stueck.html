@@ -19,6 +19,9 @@
     <form method="post" action="/inventar/transfer/scan" hx-post="/inventar/transfer/scan" hx-target="#stueck-meldung" hx-swap="innerHTML">
       <input type="hidden" name="stueck_id" value="{{ stueck.id }}"><input type="hidden" name="kostenstelle" value="{{ scan_ks }}">{% if scan_art %}<input type="hidden" name="art" value="{{ scan_art }}">{% endif %}
       <input type="hidden" name="eintrag_schluessel" value="{{ buchung }}">
+      {% if zaehl_menge %}<p id="zaehl-abfrage"><label for="zaehl-menge">{{ t("inventar.inventur.menge_vor_ort") }}</label>
+        <input type="number" id="zaehl-menge" name="gesehen_menge" min="1" value="{{ zaehl_menge }}" size="6" inputmode="numeric">
+        <span class="klein leise">{{ t("inventar.inventur.menge_hinweis", buch=zaehl_menge) }}</span></p>{% endif %}
       <button type="submit" class="haupt gross">{{ t("inventar.transfer.taste.hier") }}</button>
     </form>
     {% if von_ks %}<a class="taste gross" href="#abgang-von">{{ t("inventar.transfer.taste.abgang_nach") }}</a>{% endif %}

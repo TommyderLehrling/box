@@ -17,7 +17,7 @@ from digiassistenz_kern.web import gemeinsam, wahlfeld
 from .. import dateien
 from .. import modelle as m
 from .. import rechte
-from ..dienstlogik import kostenrechnung, liste, nummer as nummernvergabe, pflege, stueck as fachstueck, stueckseite
+from ..dienstlogik import inventur, kostenrechnung, liste, nummer as nummernvergabe, pflege, stueck as fachstueck, stueckseite
 from . import helfer, pruefdialog
 
 router = APIRouter()
@@ -228,7 +228,9 @@ def stueck_seite(
         zaehler_hinweis=helfer.zaehler_hinweis(stand, letzter) if fertig == "pruefung" else "",
         von_ks=von_ks, melde_ks=melde_ks, bauteile_katalog=bauteile_katalog, status_moeglich=status_moeglich, hauptlage=hauptlage,
         buchung=helfer.neuer_schluessel(), scan_ks=ks if ks.isdigit() else "", scan_art="kamera" if art == "kamera" else "",
-        scan_ok=ks.isdigit() and bool(sitzung.darf("inventar", "scannen", int(ks))), rueckmeldung_objekt=("inventar.stueck", stueck_id),
+        scan_ok=ks.isdigit() and bool(sitzung.darf("inventar", "scannen", int(ks))),
+        zaehl_menge=inventur.zaehlen_abfragen(sitzung, zeile, int(ks)) if ks.isdigit() and sitzung.darf("inventar", "scannen", int(ks)) else None,
+        rueckmeldung_objekt=("inventar.stueck", stueck_id),
         **pruefdialog.werte(sitzung, zeile, pruefart, weiter), **d, **rechte.darf_alle(sitzung))
     return antwort
 

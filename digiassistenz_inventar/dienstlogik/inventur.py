@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from digiassistenz_kern import Protokoll, protokoll, zeit
 from digiassistenz_kern.web import gemeinsam
@@ -25,7 +25,7 @@ from . import katalog, kostenrechnung, sicht
 from . import stueck as fachstueck
 
 EINSTELLUNG = "inventur_stichtag"
-_ORT = re.compile(r"^ks:(\d+)$")
+_ORT = re.compile(r"^ks:(\d+)(?:;menge:(\d+))?$")  # Ort der Sichtung, auf Wunsch mit der gezählten Menge
 
 
 def _benutzer(sitzung: Any) -> int | None:
@@ -88,21 +88,52 @@ class Bericht:
 
 
 def _gesehen_seit(sitzung: Any, anfang: dt.datetime, nummern: dict[int, str], erlaubt: tuple[int, ...] | None) -> list[tuple[int, int, int | None]]:
-    """(Stück, Kostenstelle, Menge oder `None` = so viel wie erwartet) aus Scans und bestätigten Eingängen seit dem Stichtag."""
+    """(Stück, Kostenstelle, Menge oder `None` = so viel wie erwartet) aus Scans und bestätigten Eingängen seit dem Stichtag.
+
+    Mehrere Sichtungen desselben Stücks auf derselben Kostenstelle ergeben **eine** (die jüngste gilt): wer neu zählt, ersetzt die alte Zahl.
+    """
     db, mid = sitzung.db, sitzung.kontext.mandant_id
-    ergebnis: list[tuple[int, int, int | None]] = []
+    letzte: dict[tuple[int, int], int | None] = {}
     abfrage = select(Protokoll).where(Protokoll.mandant_id == mid, Protokoll.aktion == "inventar.inventur_gesehen", Protokoll.zeitpunkt >= anfang,
-                                      Protokoll.objekt_typ == "inventar.stueck")
+                                      Protokoll.objekt_typ == "inventar.stueck").order_by(Protokoll.zeitpunkt, Protokoll.id)
     for p in db.execute(abfrage).scalars():
         treffer = _ORT.match(p.alt_wert or "")
         if treffer is not None and p.objekt_id is not None and (erlaubt is None or int(treffer.group(1)) in erlaubt):
-            ergebnis.append((int(p.objekt_id), int(treffer.group(1)), None))
+            schluessel = (int(p.objekt_id), int(treffer.group(1)))
+            menge = None if treffer.group(2) is None else int(treffer.group(2))
+            if menge is None and letzte.get(schluessel) is not None:
+                continue  # ein gewöhnlicher Scan macht eine genannte Menge nicht rückgängig
+            letzte[schluessel] = menge
+    ergebnis: list[tuple[int, int, int | None]] = [(sid, ks, menge) for (sid, ks), menge in letzte.items()]
     q = select(m.Standort).where(m.Standort.mandant_id == mid, m.Standort.transfer_id.is_not(None), m.Standort.von >= anfang)
     if erlaubt is not None:
         q = q.where(m.Standort.kostenstelle_id.in_(erlaubt))
     for s in db.execute(q).scalars():
         ergebnis.append((int(s.stueck_id), int(s.kostenstelle_id), int(s.menge)))
     return ergebnis
+
+
+def zaehlen_abfragen(sitzung: Any, stueck: m.Stueck, kostenstelle_id: int) -> int | None:
+    """Die Buchmenge, wenn beim Scan jetzt gezählt werden soll — sonst `None`.
+
+    Gezählt wird, wenn eine Inventur läuft (Stichtag gesetzt), das Stück ein Mengenartikel ist, auf dieser Kostenstelle steht und dort seit dem
+    Stichtag noch nicht gesehen wurde. Das Feld „Menge vor Ort“ ist dann mit der Buchmenge vorbelegt. Gebucht wird dabei nichts.
+    """
+    if stueck.art != "menge" or stueck.status in ENDZUSTAENDE:
+        return None
+    db, mid = sitzung.db, sitzung.kontext.mandant_id
+    tag = stichtag(db, mid)
+    if tag is None:
+        return None
+    buch = db.execute(select(func.coalesce(func.sum(m.Standort.menge), 0)).where(
+        m.Standort.mandant_id == mid, m.Standort.stueck_id == stueck.id, m.Standort.kostenstelle_id == kostenstelle_id,
+        m.Standort.bis.is_(None))).scalar_one()
+    if int(buch) < 1:
+        return None
+    anfang = dt.datetime.combine(tag, dt.time.min, tzinfo=zeit.zeitzone())
+    if any(sid == int(stueck.id) and ks == kostenstelle_id for sid, ks, _ in _gesehen_seit(sitzung, anfang, {}, None)):
+        return None
+    return int(buch)
 
 
 def bericht(sitzung: Any) -> Bericht | None:
@@ -191,4 +222,4 @@ def exportieren(sitzung: Any, arbeitsordner: Path) -> Path:
     return kostenrechnung.schreibe_csv(sitzung, "inventur", zeilen_fuer_export(b), arbeitsordner)
 
 
-__all__ = ["Bericht", "Zeile", "als_vermisst_eintragen", "bericht", "exportieren", "stichtag", "stichtag_setzen"]
+__all__ = ["Bericht", "Zeile", "als_vermisst_eintragen", "bericht", "exportieren", "stichtag", "stichtag_setzen", "zaehlen_abfragen"]

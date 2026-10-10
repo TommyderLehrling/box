@@ -41,7 +41,12 @@ def _benutzer(sitzung: Any) -> int | None:
     return None if sitzung.benutzer is None else int(sitzung.benutzer.id)
 
 
-def _protokollieren(sitzung: Any, stueck: m.Stueck, ergebnis: automat.Ergebnis, kostenstelle_id: int | None) -> None:
+def ort_vermerk(kostenstelle_id: int, gezaehlt: int | None = None) -> str:
+    """Der Vermerk im Protokoll `inventar.inventur_gesehen`: wo gesehen, und auf Wunsch wie viel (die Inventur liest ihn wieder)."""
+    return f"ks:{kostenstelle_id}" if gezaehlt is None else f"ks:{kostenstelle_id};menge:{gezaehlt}"
+
+
+def _protokollieren(sitzung: Any, stueck: m.Stueck, ergebnis: automat.Ergebnis, kostenstelle_id: int | None, gezaehlt: int | None = None) -> None:
     neu = next((a.daten for a in ergebnis.aenderungen if a.art == "transfer_neu"), None)
     detail = stueck.inventarnummer
     if neu is not None:
@@ -50,7 +55,7 @@ def _protokollieren(sitzung: Any, stueck: m.Stueck, ergebnis: automat.Ergebnis, 
         protokoll.schreiben(
             sitzung.db, mandant_id=sitzung.kontext.mandant_id, aktion=laden.aktion_aus(schluessel),
             objekt_typ=OBJEKT_TYP, objekt_id=int(stueck.id), neu_wert=detail, benutzer_id=_benutzer(sitzung),
-            alt_wert=f"ks:{kostenstelle_id}" if schluessel == "inventur.gesehen" and kostenstelle_id is not None else None,  # die Inventur liest den Ort
+            alt_wert=ort_vermerk(kostenstelle_id, gezaehlt) if schluessel == "inventur.gesehen" and kostenstelle_id is not None else None,
             kostenstelle_id=kostenstelle_id)
 
 
@@ -63,10 +68,10 @@ def _zubehoer(sitzung: Any, stueck: m.Stueck) -> list[m.Stueck]:
 
 
 def _speichern(sitzung: Any, stueck: m.Stueck, ergebnis: automat.Ergebnis, kostenstelle_id: int | None,
-               folgt: bool, jetzt: dt.datetime) -> automat.Ergebnis:
+               folgt: bool, jetzt: dt.datetime, gezaehlt: int | None = None) -> automat.Ergebnis:
     db, mid = sitzung.db, sitzung.kontext.mandant_id
     laden.speichern(db, mid, stueck, ergebnis)
-    _protokollieren(sitzung, stueck, ergebnis, kostenstelle_id)
+    _protokollieren(sitzung, stueck, ergebnis, kostenstelle_id, gezaehlt)
     if folgt and ergebnis.aenderungen:
         zub = _zubehoer(sitzung, stueck)
         if zub:
@@ -111,14 +116,18 @@ def eingang_bestaetigen(
 
 def scan_ist_hier(
     sitzung: Any, inventarnummer: str, ks: int, eintrag_schluessel: str, menge: int | None = None, quelle: Quelle = "handy",
+    gezaehlt: int | None = None,
 ) -> automat.Ergebnis:
+    """Scan „Ist hier“. `gezaehlt` ist die Menge vor Ort bei einer laufenden Inventur: sie steht nur im Vermerk der Sichtung, gebucht wird nichts."""
     if not sitzung.darf("inventar", "scannen", ks):
         raise gemeinsam.KeinRecht("inventar", "scannen")
+    if gezaehlt is not None and gezaehlt < 1:
+        raise ValueError("inventur.menge_ungueltig")
     stueck = finde_stueck(sitzung, inventarnummer, "scannen")
     jetzt = zeit.jetzt_utc()
     erg = automat.scan_ist_hier(zustand(sitzung, stueck), stueck.inventarnummer, ks,
                                 laden.person(_benutzer(sitzung)), jetzt, quelle, eintrag_schluessel, menge)  # type: ignore[arg-type]
-    return _speichern(sitzung, stueck, erg, ks, True, jetzt)
+    return _speichern(sitzung, stueck, erg, ks, True, jetzt, gezaehlt)
 
 
 def zurueckziehen(

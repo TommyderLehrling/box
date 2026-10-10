@@ -12,7 +12,7 @@ from digiassistenz_kern.sitzung import Sitzung
 from digiassistenz_kern.web import gemeinsam
 
 from .. import modelle as m
-from ..dienstlogik import liste, stueckseite, transfer
+from ..dienstlogik import inventur, liste, stueckseite, transfer
 from . import helfer
 from .stueck import _text, formular
 
@@ -64,8 +64,12 @@ def scan(
     stueck_id = helfer.ganzzahl(_text(f, "stueck_id"), 0) or 0
     zeile = stueckseite.holen(sitzung, stueck_id)
     try:
-        transfer.scan_ist_hier(sitzung, zeile.inventarnummer, helfer.ganzzahl(_text(f, "kostenstelle"), 0) or 0,
-                               _text(f, "eintrag_schluessel"), None, "handy" if _text(f, "art") == "kamera" else "web")
+        ks = helfer.ganzzahl(_text(f, "kostenstelle"), 0) or 0
+        gezaehlt = helfer.ganzzahl(_text(f, "gesehen_menge"))
+        if gezaehlt is not None and inventur.zaehlen_abfragen(sitzung, zeile, ks) is None:
+            gezaehlt = None  # die Inventur läuft nicht mehr oder das Stück wurde schon gesehen: ein gewöhnlicher Scan
+        transfer.scan_ist_hier(sitzung, zeile.inventarnummer, ks, _text(f, "eintrag_schluessel"), None,
+                               "handy" if _text(f, "art") == "kamera" else "web", gezaehlt)
     except ValueError as fehler:
         sitzung.db.rollback()
         return helfer.fehlerteil(fehler)
