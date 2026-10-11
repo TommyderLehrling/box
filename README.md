@@ -7,7 +7,7 @@ Kette `i0001…`, Bausteine `inventar.*`. Die Fachlogik liegt in `digiassistenz_
 ## Prüfen
 
 ```
-python -m pytest -q                    # im Ordner Inventar; ohne Datenbank; erwartet: 410 passed, skipped = 0
+python -m pytest -q                    # im Ordner Inventar; ohne Datenbank; erwartet: 412 passed, skipped = 0
 ```
 
 Mit Datenbank (Kern 0.15.4 als Wheel, PostgreSQL 16 mit contrib, `pg_dump` 16; Anleitung `tests/integration/laufen.md`) — alle Dateien außer T-I-6:
@@ -18,7 +18,7 @@ cd <wurzel mit konfig.env> && DIGIASSISTENZ_WURZEL=$PWD python -m pytest --rootd
 
 Browser (Playwright, **von VSC zu fahren**; Anleitung `tests/browser/README.md`): `python -m pytest tests/browser` gegen eine laufende Box, `BROWSER_BASIS_URL` setzen.
 
-Stand Box (Python 3.12.3, Kern-Wheel 0.15.4, PostgreSQL 16.15): `tests` **410 passed**, `tests/integration` **66 passed** (T-I-5, Anwendungsfälle, Modelle gegen Kette, Seiten, Prüfungen, L13a, Werkstatt,
+Stand Box (Python 3.12.3, Kern-Wheel 0.15.4, PostgreSQL 16.15): `tests` **412 passed**, `tests/integration` **66 passed** (T-I-5, Anwendungsfälle, Modelle gegen Kette, Seiten, Prüfungen, L13a, Werkstatt,
 Kosten und Inventur, Feiertage, Mengenabfrage, Zählerstand-Import), jeweils `skipped = 0`. **T-I-6** (mit Belegerfassung) hat Box nicht gefahren — sie fehlt ihr; VSC hat es nach L13 mit 0.15.3 gefahren (3 passed).
 Browserfälle: siehe `docs/L16/README.md` (Stand der Läufe).
 
