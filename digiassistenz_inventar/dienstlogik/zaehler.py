@@ -27,6 +27,7 @@ def letzter_stand(db: Any, mandant_id: int, stueck_id: int) -> Decimal | None:
 
 def eintragen(
     sitzung: Any, stueck: m.Stueck, stand: Decimal, quelle: str, kostenstelle_id: int | None = None, *, protokollieren: bool = False,
+    abgelesen_am: Any = None,
 ) -> tuple[m.Zaehlerstand | None, Decimal | None]:
     """Trägt den Stand ein und liefert `(Zeile, letzter Stand)`; liegt er unter dem letzten, ist die Zeile `None`."""
     if stueck.zaehler_einheit is None:
@@ -38,7 +39,7 @@ def eintragen(
     if letzter is not None and stand < letzter:
         return None, letzter
     benutzer = None if sitzung.benutzer is None else int(sitzung.benutzer.id)
-    satz = m.Zaehlerstand(mandant_id=mid, stueck_id=stueck.id, stand=stand, einheit=stueck.zaehler_einheit, abgelesen_am=zeit.jetzt_utc(),
+    satz = m.Zaehlerstand(mandant_id=mid, stueck_id=stueck.id, stand=stand, einheit=stueck.zaehler_einheit, abgelesen_am=abgelesen_am or zeit.jetzt_utc(),
                           abgelesen_von=benutzer, quelle=quelle, kostenstelle_id=kostenstelle_id)
     db.add(satz)
     db.flush()

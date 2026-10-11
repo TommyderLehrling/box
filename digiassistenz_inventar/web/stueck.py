@@ -207,7 +207,7 @@ def aendern_speichern(
 @router.get(WEG + "/{stueck_id}", response_class=HTMLResponse)
 def stueck_seite(
     stueck_id: int, request: Request, ks: str = "", art: str = "", fertig: str = "", pruefart: str = "", weiter: str = "", stand: str = "",
-    letzter: str = "", sitzung: Sitzung = Depends(gemeinsam.angemeldet),
+    letzter: str = "", mehr: str = "", sitzung: Sitzung = Depends(gemeinsam.angemeldet),
     _recht=Depends(gemeinsam.verlangt("inventar", "sehen")),
 ) -> HTMLResponse:
     zeile = stueckseite.holen(sitzung, stueck_id)
@@ -226,6 +226,7 @@ def stueck_seite(
     antwort = gemeinsam.seite(
         request, sitzung, "inventar_stueck.html", aktiv="inventar", brotkrumen=_krumen(zeile), fertig=fertig, wahl_nach=wahl_nach,
         zaehler_hinweis=helfer.zaehler_hinweis(stand, letzter) if fertig == "pruefung" else "",
+        mehr_hinweis=helfer.mehrmenge_hinweis(mehr) if fertig == "scan" else "",
         von_ks=von_ks, melde_ks=melde_ks, bauteile_katalog=bauteile_katalog, status_moeglich=status_moeglich, hauptlage=hauptlage,
         buchung=helfer.neuer_schluessel(), scan_ks=ks if ks.isdigit() else "", scan_art="kamera" if art == "kamera" else "",
         scan_ok=ks.isdigit() and bool(sitzung.darf("inventar", "scannen", int(ks))),

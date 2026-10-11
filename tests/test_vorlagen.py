@@ -57,7 +57,7 @@ OFFEN = {"kostenstelle_id": 5, "kostenstelle": "79795 Husum", "menge": 1, "seit"
 TRANSFER = {"id": 9, "menge": 1, "von": "79795 Husum", "nach": "79800 Nord", "nach_id": 6, "abgang_am": JETZT, "grund": "", "darf_eingang": True,
             "darf_zurueck": True}
 STUECK_SEITE = dict(
-    stueck=STUECK, gruppe=SimpleNamespace(bezeichnung="Baumaschinen"), merkmale=[{"bezeichnung": "Gewicht", "wert": "12", "einheit": "t"}],
+    stueck=STUECK, mehr_hinweis="", gruppe=SimpleNamespace(bezeichnung="Baumaschinen"), merkmale=[{"bezeichnung": "Gewicht", "wert": "12", "einheit": "t"}],
     offen=[OFFEN], verlauf_orte=[{"kostenstelle": "79795 Husum", "menge": 1, "von": JETZT, "bis": None, "quelle": "web"}],
     transfers=[TRANSFER], pruefstaende=[{"art": "UVV", "ampel": "gelb", "zeichen": "⚠", "faellig_am": HEUTE, "hinweis": "fällig in 5 Tagen"}],
     ampel="gelb", ampel_zeichen="⚠", ampel_hinweis="fällig in 5 Tagen",
@@ -120,7 +120,7 @@ KOSTEN_OHNE = SimpleNamespace(**{**vars(KOSTEN_ZEILE), "id": 2, "nummer": "BM-00
 KOSTEN = dict(
     von="2026-10-01", bis="2026-10-31", zeitraum_ersetzt=False, kostenstelle="", gruppe="", vergleich="", gruppen=[("bm", "Baumaschinen")], wahl_ks=wahl(),
     summen=[{"name": "79795 Husum", "tage": 31, "betrag": Decimal("5.27")}],
-    einzeln=[{"ks": "79795 Husum", "nummer": "BM-00001", "bezeichnung": "Bagger", "tage": 31, "betrag": Decimal("5.27")}], ohne_satz=1, werktage=False,
+    einzeln=[{"ks": "79795 Husum", "nummer": "BM-00001", "bezeichnung": "Bagger", "tage": 31, "betrag": Decimal("5.27")}], ohne_satz=1, werktage=False, region_hinweis="",
     tage_je_monat=Decimal("30"), stuecke=[KOSTEN_ZEILE, KOSTEN_OHNE], stuecke_gesamt=600,
     miete=SimpleNamespace(zeilen=(SimpleNamespace(inventarnummer="BM-00009", gruppe="bm", tage=10, miete=Decimal("800"), eigen=Decimal("1.70"),
                                                   differenz=Decimal("798.30")),
@@ -136,7 +136,7 @@ INVENTUR_ZEILEN = [
 INVENTUR = dict(
     stichtag=HEUTE, bericht=SimpleNamespace(stichtag=HEUTE, je_kostenstelle={5: INVENTUR_ZEILEN}, namen={5: "79795 Husum", 6: "79800 Nord"}, gesehen=2,
                                             nicht_gesehen=1, unbekannt=("XX-1",)),
-    fertig="stichtag", heute_iso=HEUTE.isoformat(), exporte=[], **darf())
+    fertig="stichtag", heute_iso=HEUTE.isoformat(), exporte=[], letzte=(HEUTE, "export/inventur_x.csv"), **darf())
 FORM = dict(zeile=None, titel_form="Neues Stück", gruppen=[("baumaschinen", "Baumaschinen")], gruppe_gewaehlt=1,
             felder=[{"schluessel": "gewicht", "bezeichnung": "Gewicht", "typ": "zahl", "einheit": "t", "auswahl": [], "pflicht": True, "wert": ""},
                     {"schluessel": "klasse", "bezeichnung": "Klasse", "typ": "auswahl", "einheit": "", "auswahl": ["a", "b"], "pflicht": False, "wert": "a"},
@@ -181,10 +181,10 @@ KONTEXT = {
         {"gruppe": "Baumaschinen", "ab": HEUTE, "nutzungsdauer": 96, "zins": Decimal("4"), "reparatur": Decimal("2"), "restwert": None,
          "monat": Decimal("100"), "tag": None, "woche": None, "stunde": None, "quelle": "manuell", "basis": None, "gerechnet_am": JETZT}]),
     "inventar_verwaltung_einstellungen.html": dict(
-        KATALOG_FERTIG, auslieferung="", felder=[("nummernmuster", "{gruppe}-{nr:5}"), ("tage_je_monat", "30"), ("bundesland", "SN")],
-        laender=("BW", "SN"), jahr=2026,
-        freie_tage=[(dt.date(2026, 11, 18), "inventar.feiertag.buss_und_bettag", False), (dt.date(2026, 12, 24), "Betriebsruhe", True)],
-        eigene=[SimpleNamespace(datum=dt.date(2026, 12, 24), bezeichnung="Betriebsruhe", aktiv=True)]),
+        KATALOG_FERTIG, auslieferung="", felder=[("nummernmuster", "{gruppe}-{nr:5}"), ("tage_je_monat", "30")],
+        region="DE-SN", region_hinweis="", jahr=2026,
+        freie_tage=[(dt.date(2026, 11, 18), "Buß- und Bettag", False), (dt.date(2026, 12, 24), "Betriebsruhe", True)],
+        eigene=[SimpleNamespace(datum=dt.date(2026, 12, 24), bezeichnung="Betriebsruhe", aktiv=True, jaehrlich=True)]),
     "inventar_verwaltung_import.html": dict(bericht={
         "fehler": [{"zeile": 3, "spalte": "Gruppe", "text": "import.fehler.gruppe_unbekannt", "wert": "xx"}], "hinweise": [{"zeile": 2, "text": "import.hinweis.beispiel_uebersprungen"}],
         "gelesen": 5, "je_gruppe": [{"gruppe": "bm", "art": "gross", "neu": 2, "unveraendert": 1, "abweichend": 0}],
@@ -500,3 +500,20 @@ def test_L16_jede_seite_mit_formular_laedt_das_skript_fuer_409():
         text = datei.read_text(encoding="utf-8")
         if "hx-post" in text:
             assert 'statisch("inventar.js")' in text, datei.name
+
+
+def test_L16a_feiertagsregion_hinweis_auf_kosten_und_einstellungen(umgebung):
+    assert "hinweis-feiertagsregion" not in render(umgebung, "inventar_kosten.html")
+    assert 'id="hinweis-feiertagsregion"' in render(umgebung, "inventar_kosten.html", werktage=True, region_hinweis="feiertagsregion_fehlt")
+    leer = render(umgebung, "inventar_verwaltung_einstellungen.html", region="", region_hinweis="feiertagsregion_fehlt")
+    assert 'id="hinweis-feiertagsregion"' in leer and "Montag bis Freitag" in leer
+    mit = render(umgebung, "inventar_verwaltung_einstellungen.html")
+    assert "DE-SN" in mit and 'id="hinweis-feiertagsregion"' not in mit and "name=\"bundesland\"" not in mit and 'id="t-jaehrlich"' in mit
+
+
+def test_L16a_mehrmengen_hinweis_und_inventur_abschliessen(umgebung):
+    assert 'id="hinweis-mehrmenge"' not in render(umgebung, "inventar_stueck.html")
+    assert 'id="hinweis-mehrmenge"' in render(umgebung, "inventar_stueck.html", mehr_hinweis="5 vor Ort, 3 gebucht")
+    html = render(umgebung, "inventar_verwaltung_inventur.html")
+    assert 'id="inventur-abschliessen"' in html and 'id="inventur-letzte"' in html
+    assert 'id="inventur-letzte"' not in render(umgebung, "inventar_verwaltung_inventur.html", letzte=None)

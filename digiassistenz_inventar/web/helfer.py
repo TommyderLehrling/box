@@ -71,6 +71,14 @@ def zaehler_hinweis(stand: str, letzter: str) -> str:
         return ""
 
 
+def mehrmenge_hinweis(mehr: str) -> str:
+    """Der Satz „n vor Ort, m gebucht — Überschuss nicht gebucht“ aus `mehr=<n>-<m>`; leer, wenn die Angabe nicht passt."""
+    teile = mehr.split("-")
+    if len(teile) != 2 or not all(x.isdigit() for x in teile):
+        return ""
+    return t("inventar.inventur.mehrmenge", n=int(teile[0]), m=int(teile[1]))
+
+
 def datum(text: str) -> dt.date | None:
     text = text.strip()
     if not text:

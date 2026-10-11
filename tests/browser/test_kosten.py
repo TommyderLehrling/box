@@ -37,7 +37,7 @@ def test_kosten_export_und_download(verwalter: Page) -> None:
     links = verwalter.locator("a[href^='/inventar/kosten/auszug/']")
     expect(links).to_have_count(vorher + 2, timeout=15_000)
     with verwalter.expect_download() as geladen:
-        links.last.click()
+        verwalter.locator("a[href^='/inventar/kosten/auszug/kosten_kostenstelle_']").last.click()  # (die Liste führt auch Inventur-Dateien)
     datei = geladen.value
     assert datei.suggested_filename.startswith("kosten_kostenstelle_") and datei.suggested_filename.endswith(".csv")
     inhalt = open(datei.path(), "rb").read()

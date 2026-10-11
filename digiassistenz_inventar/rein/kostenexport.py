@@ -20,12 +20,15 @@ KOPF = {
     "miete": ("inventarnummer", "gruppe", "miettage", "miete", "eigen", "differenz"),
     "anlagenbuch": ("inventarnummer", "bezeichnung", "gruppe", "kaufdatum", "kaufpreis", "lieferant", "buchwert_extern", "afa_hinweis"),
     "inventur": ("kostenstelle", "inventarnummer", "bezeichnung", "erwartet", "gesehen", "ergebnis"),
+    "inventur_abschluss": ("kostenstelle", "inventarnummer", "bezeichnung", "erwartet", "gesehen", "ergebnis", "vermisst_vorschlag"),
 }
 
 
 def _zelle(wert: object) -> str:
     if wert is None:
         return ""
+    if isinstance(wert, bool):
+        return "ja" if wert else "nein"
     if isinstance(wert, Decimal):
         return f"{wert:f}".replace(".", ",")
     if isinstance(wert, datetime):
@@ -48,9 +51,16 @@ def csv_text(block: str, zeilen: Iterable[Sequence[object]]) -> str:
     return puffer.getvalue()
 
 
-def dateiname(block: str, zeitpunkt: datetime) -> str:
-    """`kosten_<block>_<JJJJMMTT-HHMMSS>.csv` — der Zeitstempel macht den Namen eindeutig, überschrieben wird nie (siehe `dateien.speichern`)."""
+def dateiname(block: str, zeitpunkt: datetime, stichtag: date | None = None) -> str:
+    """`kosten_<block>_<JJJJMMTT-HHMMSS>.csv` — der Zeitstempel macht den Namen eindeutig, überschrieben wird nie (siehe `dateien.speichern`).
+
+    Der Abschluss einer Inventur nennt den Stichtag: `inventur_<JJJJ-MM-TT>_<JJJJMMTT-HHMMSS>.csv`."""
     if block not in KOPF:
         raise ValueError("kosten.block_unbekannt")
+    stempel = zeitpunkt.strftime("%Y%m%d-%H%M%S")
+    if block == "inventur_abschluss":
+        if stichtag is None:
+            raise ValueError("kosten.block_unbekannt")
+        return f"inventur_{stichtag.isoformat()}_{stempel}.csv"
     praefix = "inventur" if block == "inventur" else f"kosten_{block}"
-    return f"{praefix}_{zeitpunkt.strftime('%Y%m%d-%H%M%S')}.csv"
+    return f"{praefix}_{stempel}.csv"

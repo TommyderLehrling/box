@@ -47,9 +47,9 @@ def test_I1_vorlage_hat_kopf_beispiele_dropdowns_und_kommentare(tmp_path: Path):
     wb = load_workbook(datei)
     ws = wb["Inventar"]
     kopf = [c.value for c in ws[1]]
-    assert tuple(kopf[:15]) == SPALTEN and kopf[14] == "Zählerstand"
+    assert tuple(kopf[:16]) == SPALTEN and kopf[14] == "Zählerstand" and kopf[15] == "Ablesedatum"
     assert "m:kennzeichen" in kopf and "m:schutzklasse" in kopf
-    assert len(kopf) == 15 + len({m.schluessel for m in MERKMALE})
+    assert len(kopf) == 16 + len({m.schluessel for m in MERKMALE})
     assert ws["A2"].value and ws["A3"].value and ws["A4"].value is None
     kommentar = ws.cell(row=1, column=kopf.index("m:kennzeichen") + 1).comment.text
     assert "gruppe=fahrzeug" in kommentar and "pflicht=1" in kommentar
@@ -229,6 +229,7 @@ def test_I16_jeder_fehlerschluessel_ist_erreichbar(tmp_path: Path):
         {**GUT, "Inventarnummer": "H2", "Baujahr": 1900}, {**GUT, "Inventarnummer": "H3"}, {**GUT, "Inventarnummer": "H3"},
         {**GUT, "Inventarnummer": "H4", "m:kennzeichen": "x"}, {**GUT, "Gruppe": "fahrzeug", "Inventarnummer": "H5"},
         {**GUT, "Inventarnummer": "H6", "m:betriebsgewicht": "x"}, {**GUT, "Gruppe": "fahrzeug", "Inventarnummer": "H7", "m:kennzeichen": "MZ-1", "m:hu_faellig": "x"},
+        {**GUT, "Inventarnummer": "A1", "Ablesedatum": "x"}, {**GUT, "Inventarnummer": "A2", "Ablesedatum": "01.01.2999"},
         {**GUT, "Inventarnummer": "Z1", "Zählerstand": "x"}, {**GUT, "Inventarnummer": "Z2", "Zählerstand": -5},
         {**GUT, "Inventarnummer": "H8", "m:schnellwechsler": "x"}, {**GUT, "Gruppe": "container", "Inventarnummer": "H9", "m:beheizt": "x"},
     ]
@@ -256,3 +257,14 @@ def test_L16_alte_kopfzeile_ohne_zaehlerstand_wird_weiter_gelesen(tmp_path: Path
     assert fehler == () and len(zeilen) == 1 and zeilen[0].zaehlerstand is None
     zeilen, fehler = lese(tmp_path, [{**GUT, "m:kennzeichen": None}], kopf=list(SPALTEN[:14]) + ["m:kennzeichen"])
     assert fehler == () and len(zeilen) == 1
+
+
+def test_L16a_ablesedatum_leer_vergangen_zukunft_und_altes_format(tmp_path: Path):
+    zeilen, fehler = lese(tmp_path, [{**GUT, "Zählerstand": 5}, {**GUT, "Inventarnummer": "BM-2", "Zählerstand": 6, "Ablesedatum": "03.02.2025"},
+                                     {**GUT, "Inventarnummer": "BM-3", "Zählerstand": 7, "Ablesedatum": date(2025, 1, 2)}])
+    assert fehler == () and [z.ablesedatum for z in zeilen] == [None, date(2025, 2, 3), date(2025, 1, 2)]
+    zeilen, fehler = lese(tmp_path, [{**GUT, "Ablesedatum": "x"}, {**GUT, "Inventarnummer": "BM-2", "Ablesedatum": "01.01.2999"}])
+    assert zeilen == () and schluessel(fehler) == [(2, "Ablesedatum", "import.fehler.ablesedatum_ungueltig"),
+                                                   (3, "Ablesedatum", "import.fehler.ablesedatum_zukunft")]
+    zeilen, fehler = lese(tmp_path, [GUT], kopf=list(SPALTEN[:15]))  # Datei aus L16 ohne die Spalte
+    assert fehler == () and len(zeilen) == 1 and zeilen[0].ablesedatum is None

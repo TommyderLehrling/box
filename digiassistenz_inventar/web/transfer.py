@@ -20,11 +20,11 @@ router = APIRouter()
 WEG = "/inventar/transfer"
 
 
-def _weiter(request: Request, f: dict[str, Any], stueck_id: int, fertig: str) -> HTMLResponse:
-    """Zurück dorthin, wo gebucht wurde: auf die Hier-Seite oder die Stück-Seite — mit Vermerk ✓."""
+def _weiter(request: Request, f: dict[str, Any], stueck_id: int, fertig: str, zusatz: str = "") -> HTMLResponse:
+    """Zurück dorthin, wo gebucht wurde: auf die Hier-Seite oder die Stück-Seite — mit Vermerk ✓ (und auf Wunsch einem Zusatz in der Adresse)."""
     if _text(f, "weiter") == "hier":
         return gemeinsam.umleiten(f"/inventar/hier?fertig={fertig}", request)
-    return gemeinsam.umleiten(f"/inventar/stueck/{stueck_id}?fertig={fertig}", request)
+    return gemeinsam.umleiten(f"/inventar/stueck/{stueck_id}?fertig={fertig}{zusatz}", request)
 
 
 def _transfer(sitzung: Sitzung, transfer_id: int) -> tuple[m.Transfer, m.Stueck]:
@@ -67,13 +67,15 @@ def scan(
         ks = helfer.ganzzahl(_text(f, "kostenstelle"), 0) or 0
         gezaehlt = helfer.ganzzahl(_text(f, "gesehen_menge"))
         if gezaehlt is not None and inventur.zaehlen_abfragen(sitzung, zeile, ks) is None:
-            gezaehlt = None  # die Inventur läuft nicht mehr oder das Stück wurde schon gesehen: ein gewöhnlicher Scan
+            gezaehlt = None  # es läuft keine Inventur, oder das Stück ist kein Mengenartikel auf dieser Kostenstelle: ein gewöhnlicher Scan
         transfer.scan_ist_hier(sitzung, zeile.inventarnummer, ks, _text(f, "eintrag_schluessel"), None,
                                "handy" if _text(f, "art") == "kamera" else "web", gezaehlt)
+        buch = inventur.buchmenge(sitzung.db, sitzung.kontext.mandant_id, int(zeile.id), ks) if gezaehlt is not None else 0
     except ValueError as fehler:
         sitzung.db.rollback()
         return helfer.fehlerteil(fehler)
-    return _weiter(request, f, stueck_id, "scan")
+    zusatz = f"&mehr={gezaehlt}-{buch}" if gezaehlt is not None and gezaehlt > buch else ""  # Mehrmenge: die Seite sagt es, gebucht wird nichts
+    return _weiter(request, f, stueck_id, "scan", zusatz)
 
 
 @router.post(WEG + "/{transfer_id}/eingang", response_class=HTMLResponse)

@@ -17,13 +17,12 @@ from digiassistenz_kern import protokoll, zeit
 from digiassistenz_kern.web import gemeinsam
 
 from .. import modelle as m
-from ..rein import feiertage as rein_feiertage
 from ..rein import zeitplan
 from ..rein.nummernformat import pruefe_muster
 from . import katalog
 
 EINSTELLUNGEN_ZAHL = ("transfer_frist_werktage", "tage_je_monat", "gelb_ab_tagen", "zaehler_gelb_prozent", "pruefung_erinnern_tage")
-EINSTELLUNGEN_TEXT = ("nummernmuster", "etikett_layout", "zins_prozent", "auslieferung_am", "erinnern_um", "bundesland")
+EINSTELLUNGEN_TEXT = ("nummernmuster", "etikett_layout", "zins_prozent", "auslieferung_am", "erinnern_um")
 EINSTELLUNGEN_DEZIMAL = ("werktage",)  # Werktage je Monat dürfen eine Dezimalzahl sein (z. B. 21,67); 0 = nicht verwendet
 _SCHLUESSEL = re.compile(r"^[a-z][a-z0-9_]{0,39}$")
 _KUERZEL = re.compile(r"^[A-Z]{2}$")
@@ -293,10 +292,6 @@ def einstellungen_speichern(sitzung: Any, werte: dict[str, str]) -> list[str]:
                 zeitplan.uhrzeit(wert)
             except ValueError as ursache:
                 raise ValueError("katalog.uhrzeit_ungueltig") from ursache
-        elif schluessel == "bundesland":
-            wert = wert.upper()
-            if wert and wert not in rein_feiertage.LAENDER:
-                raise ValueError("katalog.bundesland_ungueltig")
         elif schluessel == "auslieferung_am" and wert:
             try:
                 dt.date.fromisoformat(wert)
@@ -316,8 +311,11 @@ def einstellungen_speichern(sitzung: Any, werte: dict[str, str]) -> list[str]:
 
 # ---- Eigene freie Tage --------------------------------------------------------------------------------------------
 
-def eigenen_tag_speichern(sitzung: Any, datum: dt.date | None, bezeichnung: str, aktiv: bool = True) -> m.Feiertag:
-    """Legt einen eigenen freien Tag an oder ändert Bezeichnung und `aktiv` des vorhandenen (je Datum einer); gelöscht wird nichts."""
+def eigenen_tag_speichern(sitzung: Any, datum: dt.date | None, bezeichnung: str, aktiv: bool = True, jaehrlich: bool | None = None) -> m.Feiertag:
+    """Legt einen eigenen freien Tag an oder ändert Bezeichnung, `aktiv` und `jaehrlich` des vorhandenen (je Datum einer); gelöscht wird nichts.
+
+    `jaehrlich = None` lässt den Haken eines vorhandenen Tages unberührt (neu: nicht jährlich). Jährlich heißt: jedes Jahr am selben Tag und Monat.
+    """
     _fordern(sitzung)
     db, mid = sitzung.db, sitzung.kontext.mandant_id
     if datum is None:
@@ -327,14 +325,15 @@ def eigenen_tag_speichern(sitzung: Any, datum: dt.date | None, bezeichnung: str,
         raise ValueError("katalog.bezeichnung_fehlt")
     zeile = db.execute(select(m.Feiertag).where(m.Feiertag.mandant_id == mid, m.Feiertag.datum == datum)).scalar_one_or_none()
     if zeile is None:
-        zeile = m.Feiertag(mandant_id=mid, datum=datum, bezeichnung=bezeichnung, aktiv=aktiv, angelegt_von=_benutzer(sitzung))
+        zeile = m.Feiertag(mandant_id=mid, datum=datum, bezeichnung=bezeichnung, aktiv=aktiv, jaehrlich=bool(jaehrlich), angelegt_von=_benutzer(sitzung))
         db.add(zeile)
         db.flush()
-        _protokoll(sitzung, "feiertag_angelegt", "feiertag", None, f"{datum} {bezeichnung}")
+        _protokoll(sitzung, "feiertag_angelegt", "feiertag", None, f"{datum} {bezeichnung} jaehrlich={bool(jaehrlich)}")
         return zeile
-    alt = f"{zeile.datum} {zeile.bezeichnung} aktiv={zeile.aktiv}"
-    if zeile.bezeichnung != bezeichnung or zeile.aktiv != aktiv:
-        zeile.bezeichnung, zeile.aktiv = bezeichnung, aktiv
+    neu_jaehrlich = zeile.jaehrlich if jaehrlich is None else jaehrlich
+    alt = f"{zeile.datum} {zeile.bezeichnung} aktiv={zeile.aktiv} jaehrlich={zeile.jaehrlich}"
+    if zeile.bezeichnung != bezeichnung or zeile.aktiv != aktiv or zeile.jaehrlich != neu_jaehrlich:
+        zeile.bezeichnung, zeile.aktiv, zeile.jaehrlich = bezeichnung, aktiv, neu_jaehrlich
         db.flush()
-        _protokoll(sitzung, "feiertag_geaendert", "feiertag", alt, f"{datum} {bezeichnung} aktiv={aktiv}")
+        _protokoll(sitzung, "feiertag_geaendert", "feiertag", alt, f"{datum} {bezeichnung} aktiv={aktiv} jaehrlich={neu_jaehrlich}")
     return zeile

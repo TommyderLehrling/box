@@ -1,13 +1,13 @@
-# DOKON Inventar — `digiassistenz_inventar` (Modul `inventar`, Gesamtübersicht L10–L16, Entwurf)
+# DOKON Inventar — `digiassistenz_inventar` (Modul `inventar`, Gesamtübersicht L10–L16a, Entwurf)
 
 Geräteverwaltung einer Baufirma als Modul des Kerns `digiassistenz_kern` ≥ 0.15.3 (gebaut und geprüft mit 0.15.4): Schema `inventar`, Konto `inventar_nutzer`,
 Kette `i0001…`, Bausteine `inventar.*`. Die Fachlogik liegt in `digiassistenz_inventar/rein/` (reine Module, keine Datenbank).
-**Entwurf**, bis VSC das Modul auf dem echten Kern fährt (Aufträge 01–03, Lieferungen L1–L16, Aufträge 04 bis 07). L16 ist die letzte Lieferung von Box.
+**Entwurf**, bis VSC das Modul auf dem echten Kern fährt (Aufträge 01–03, Lieferungen L1–L16a, Aufträge 04 bis 08). L16a ist die letzte Lieferung von Box.
 
 ## Prüfen
 
 ```
-python -m pytest -q                    # im Ordner Inventar; ohne Datenbank; erwartet: 412 passed, skipped = 0
+python -m pytest -q                    # im Ordner Inventar; ohne Datenbank; erwartet: 417 passed, skipped = 0
 ```
 
 Mit Datenbank (Kern 0.15.4 als Wheel, PostgreSQL 16 mit contrib, `pg_dump` 16; Anleitung `tests/integration/laufen.md`) — alle Dateien außer T-I-6:
@@ -16,11 +16,13 @@ Mit Datenbank (Kern 0.15.4 als Wheel, PostgreSQL 16 mit contrib, `pg_dump` 16; A
 cd <wurzel mit konfig.env> && DIGIASSISTENZ_WURZEL=$PWD python -m pytest --rootdir=<pfad> $(ls <pfad>/tests/integration/test_*.py | grep -v test_t_i_6)
 ```
 
-Browser (Playwright, **von VSC zu fahren**; Anleitung `tests/browser/README.md`): `python -m pytest tests/browser` gegen eine laufende Box, `BROWSER_BASIS_URL` setzen.
+Einmal die Prüfpakete: `pip install -e <pfad>/Inventar[pruefung]` (pytest, httpx, pyflakes, **playwright==1.49.1**); danach `python -m playwright install chromium`.
 
-Stand Box (Python 3.12.3, Kern-Wheel 0.15.4, PostgreSQL 16.15): `tests` **412 passed**, `tests/integration` **66 passed** (T-I-5, Anwendungsfälle, Modelle gegen Kette, Seiten, Prüfungen, L13a, Werkstatt,
+Browser (Playwright 1.49.1, **von VSC zu fahren**; Anleitung `tests/browser/README.md`): `python -m pytest tests/browser` gegen eine laufende Box, `BROWSER_BASIS_URL` setzen.
+
+Stand Box (Python 3.12.3, Kern-Wheel 0.15.4, PostgreSQL 16.15): `tests` **417 passed**, `tests/integration` **69 passed** (T-I-5, Anwendungsfälle, Modelle gegen Kette, Seiten, Prüfungen, L13a, Werkstatt,
 Kosten und Inventur, Feiertage, Mengenabfrage, Zählerstand-Import), jeweils `skipped = 0`. **T-I-6** (mit Belegerfassung) hat Box nicht gefahren — sie fehlt ihr; VSC hat es nach L13 mit 0.15.3 gefahren (3 passed).
-Browserfälle: siehe `docs/L16/README.md` (Stand der Läufe).
+Browserfälle: **30 passed** (Chromium 141 headless, Playwright 1.49.1-Treiber); siehe `docs/L16a/README.md` (Stand der Läufe).
 
 ## Was das Modul kann (nach Lieferung)
 
@@ -33,7 +35,8 @@ Browserfälle: siehe `docs/L16/README.md` (Stand der Läufe).
 | L13 / L13a | kern-0.15.3; Prüfungen und Fällig-Liste, Nachweis, Erinnerungen als Modulprozess; Startstandort Pflicht, Rechte `pflegen`/`buchen` getrennt |
 | L14 / L14a | Werkstatt: Posteingang, Reparatur-Vorgang, Pflichtangaben beim Abschließen, Haken „Meldung erledigen“, eine Mailstelle, Foto am Stück |
 | L15 / L15a | Kosten (Sätze, Seite, CSV-Auszüge mit Download, Vergleichszeile geplant/angefallen), Zählerstände, Stichtags-Inventur |
-| **L16** | **Feiertage** (Bundesland, eigene Tage, ein Datenzugriff), **Mengenabfrage** bei laufender Inventur, **Zählerstand** im Excel-Import, Browser-Prüffälle (`tests/browser/`), diese Übersicht |
+| **L16a** | Feiertagsregion aus dem Kern, Rechner auf `holidays==0.60`, „jährlich“ für eigene Tage, Mehrmenge-Hinweis und zweiter Scan mit Zahl bei der Inventur, **Inventur abschließen** (CSV), Spalte „Ablesedatum“ im Excel-Import, Playwright 1.49.1 |
+| **L16** | **Feiertage** (Region, eigene Tage, ein Datenzugriff), **Mengenabfrage** bei laufender Inventur, **Zählerstand** im Excel-Import, Browser-Prüffälle (`tests/browser/`), diese Übersicht |
 
 ## Seiten, Wege, Rechte
 
@@ -61,8 +64,9 @@ Die elf Bausteine: `sehen`, `scannen`, `buchen`, `melden`, `pflegen`, `pruefen`,
 | `tage_je_monat` / `werktage` | 30 / 0 | Tagessatz aus Monatssatz; `werktage` > 0 (z. B. 21,67) rechnet nach Werktagen |
 | `gelb_ab_tagen`, `zaehler_gelb_prozent`, `pruefung_erinnern_tage` | 30, 10, 14 | Ampel und Vorlauf der Erinnerung |
 | `zins_prozent`, `etikett_layout`, `erinnern_um` | 4.0, `70x36_3x8`, `06:00` | Kosten, Etikettenbogen, Uhrzeit des Tageslaufs |
-| **`bundesland`** (L16) | leer | `BW BY BE BB HB HH HE MV NI NW RP SL SN ST SH TH`; leer = keine Feiertage |
-| **eigene freie Tage** (L16) | – | Tabelle `inventar.feiertag`; je Datum ein Tag, ein- und abschaltbar, nie gelöscht |
+| **Feiertagsregion** (L16a) | – | keine Einstellung des Moduls: sie steht im Kern am Mandanten (`mandant.feiertagsregion`, `DE`, `DE-NI` …; leer = keine Feiertage, mit Hinweis); die Tage kommen aus `holidays==0.60` |
+| **eigene freie Tage** (L16, L16a) | – | Tabelle `inventar.feiertag`; je Datum ein Tag, ein- und abschaltbar, nie gelöscht; Haken „jährlich“ (`jaehrlich`) |
+| `inventur_letzte` (L16a) | leer | `<Stichtag>\|<CSV>` der zuletzt abgeschlossenen Inventur (Verwaltung → Inventur → „Inventur abschließen“) |
 | `inventur_stichtag` | leer | gesetzt in Verwaltung → Inventur; bei laufender Inventur fragt der Scan eines Mengenartikels die Menge |
 | `auslieferung_am` | leer | ab dem Datum verschwinden die Testdaten für immer |
 

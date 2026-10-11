@@ -87,11 +87,15 @@ def test_mengenabfrage_merkt_die_menge_und_bucht_nichts(box) -> None:
     assert _db("SELECT menge, bis FROM inventar.standort WHERE stueck_id = :i", i=menge) == [(10, None)], "nichts gebucht"
     assert _db("SELECT count(*) FROM inventar.transfer WHERE stueck_id = :i", i=menge) == [(0,)], "kein Transfer entstanden"
     assert _zeile(k, menge, a) == ("10", "7", "Teilweise gesehen")
-    # gesehen: kein zweites Mal fragen; ein gewöhnlicher Scan macht die Zahl nicht rückgängig
-    assert 'id="zaehl-abfrage"' not in k.get(f"/inventar/stueck/{menge}", params={"ks": str(a)}).text
+    # L16a: die Zahl bleibt änderbar — das Feld wird wieder angeboten (vorbelegt mit der gezählten Menge);
+    # ein gewöhnlicher Scan ohne Zahl macht sie nicht rückgängig, ein zweiter mit Zahl überschreibt die letzte Sichtung
+    seite = k.get(f"/inventar/stueck/{menge}", params={"ks": str(a)}).text
+    assert 'id="zaehl-abfrage"' in seite and 'value="7"' in seite
     assert _scan(k, menge, a).status_code == 303
-    assert _scan(k, menge, a, gesehen_menge="10").status_code == 303
     assert _zeile(k, menge, a) == ("10", "7", "Teilweise gesehen")
+    assert _scan(k, menge, a, gesehen_menge="10").status_code == 303
+    assert _zeile(k, menge, a) == ("10", "10", "Gesehen")
+    assert _db("SELECT menge FROM inventar.standort WHERE stueck_id = :i AND bis IS NULL", i=menge) == [(10,)], "weiterhin nichts gebucht"
 
 
 def test_volle_menge_gilt_als_gesehen_und_zu_viel_wird_nicht_gebucht(box) -> None:
@@ -105,3 +109,31 @@ def test_volle_menge_gilt_als_gesehen_und_zu_viel_wird_nicht_gebucht(box) -> Non
     assert _zeile(k, voll, a) == ("10", "10", "Gesehen")
     assert _zeile(k, viel, a) == ("4", "6", "Gesehen")
     assert _db("SELECT menge FROM inventar.standort WHERE stueck_id = :i AND bis IS NULL", i=viel) == [(4,)]
+    # L16a: der Überschuss wird nicht gebucht und mit Hinweis gemeldet
+    antwort = _scan(k, viel, a, gesehen_menge="6")
+    assert antwort.status_code == 303 and "mehr=6-4" in antwort.headers["location"]
+    assert "6 vor Ort, 4 gebucht — Überschuss nicht gebucht; bitte im Büro klären" in k.get(antwort.headers["location"]).text
+    assert "hinweis-mehrmenge" not in k.get(f"/inventar/stueck/{viel}", params={"ks": str(a)}).text
+
+
+def test_inventur_abschliessen_schreibt_csv_merkt_sich_den_abschluss_und_loescht_den_stichtag(box) -> None:
+    k = box.klient
+    a = _ks(k, "70101")
+    sid = _stueck(k, "Schalungsträger", "schalung_ruestung", "menge", "10")
+    _stichtag(k)
+    assert _scan(k, sid, a, gesehen_menge="7").status_code == 303
+    antwort = k.post("/inventar/verwaltung/inventur", data={"aktion": "abschliessen"}, follow_redirects=False)
+    assert antwort.status_code == 303 and "fertig=abgeschlossen" in antwort.headers["location"]
+    seite = k.get("/inventar/verwaltung/inventur").text
+    assert 'id="inventur-letzte"' in seite and HEUTE.strftime("%d.%m.%Y") in seite, "letzte Inventur mit Stichtag"
+    assert 'id="inventur-stichtag"' in seite and "inventur-ks-" not in seite, "Stichtag gelöscht: nichts mehr zu zeigen"
+    letzte = _db("SELECT wert FROM inventar.einstellung WHERE schluessel = 'inventur_letzte'")[0][0]
+    stichtag, _, pfad = letzte.partition("|")
+    assert stichtag == HEUTE.isoformat() and re.search(rf"export/inventur_{stichtag}_\d{{8}}-\d{{6}}\.csv", pfad), pfad
+    assert _db("SELECT wert FROM inventar.einstellung WHERE schluessel = 'inventur_stichtag'") in ([], [("",)])
+    assert _db("SELECT count(*) FROM kern.protokoll WHERE aktion = 'inventar.inventur_abgeschlossen'") == [(1,)]
+    datei = k.get(f"/inventar/kosten/auszug/{pfad.rsplit('/', 1)[-1]}")
+    assert datei.status_code == 200 and "Schalungsträger" in datei.content.decode("utf-8-sig")
+    assert _db("SELECT menge FROM inventar.standort WHERE stueck_id = :i AND bis IS NULL", i=sid) == [(10,)], "Abschließen bucht nichts"
+    # ohne laufende Inventur gibt es nichts abzuschließen
+    assert k.post("/inventar/verwaltung/inventur", data={"aktion": "abschliessen"}, follow_redirects=False).status_code == 409

@@ -55,7 +55,9 @@ def naechste_nach_zaehler(stand_bei_pruefung: Decimal, zaehler_intervall: int) -
 
 
 def werktage_zwischen(von: date, bis: date, feiertage: Iterable[date] = ()) -> int:
-    """Zaehlt Mo-Fr ohne Feiertage in (von, bis]; ist bis nicht nach von, ergibt es 0."""
+    """Zaehlt Mo-Fr ohne Feiertage in (von, bis] — die Regel der **Fristen**; ist bis nicht nach von, ergibt es 0.
+
+    Zeitraeume mit beiden Enden zaehlt `dienstlogik.feiertage.werktage` ([von, bis]). Nie eine Funktion mit zwei Regeln."""
     frei = frozenset(feiertage)
     anzahl = 0
     tag = von + timedelta(days=1)

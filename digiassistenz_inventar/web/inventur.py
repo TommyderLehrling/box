@@ -18,7 +18,7 @@ from .stueck import _text, formular
 
 router = APIRouter()
 WEG = "/inventar/verwaltung/inventur"
-FERTIG = ("stichtag", "vermisst", "export")
+FERTIG = ("stichtag", "vermisst", "export", "abgeschlossen")
 _RECHT = gemeinsam.verlangt_eines(("inventar", "stilllegen"), ("inventar", "einstellen"))
 
 
@@ -31,7 +31,7 @@ def inventur_seite(
     krumen = [(t("inventar.menue_verwaltung"), "/inventar/verwaltung"), (t("inventar.verwaltung.inventur"), "")]
     return gemeinsam.seite(
         request, sitzung, "inventar_verwaltung_inventur.html", aktiv="verwaltung", brotkrumen=krumen, stichtag=tag,
-        bericht=inventur.bericht(sitzung), fertig=fertig if fertig in FERTIG else "", heute_iso=helfer.heute().isoformat(),
+        bericht=inventur.bericht(sitzung), letzte=inventur.letzte(sitzung.db, mid), fertig=fertig if fertig in FERTIG else "", heute_iso=helfer.heute().isoformat(),
         exporte=kostenrechnung.exportierte_dateien(sitzung, helfer.arbeitsordner()), **rechte.darf_alle(sitzung))
 
 
@@ -47,6 +47,9 @@ def inventur_aendern(
         elif aktion == "vermisst":
             inventur.als_vermisst_eintragen(sitzung, helfer.ganzzahl(_text(f, "stueck_id"), 0) or 0, _text(f, "grund"))
             fertig = "vermisst"
+        elif aktion == "abschliessen":
+            inventur.abschliessen(sitzung, helfer.arbeitsordner())
+            fertig = "abgeschlossen"
         elif aktion == "export":
             inventur.exportieren(sitzung, helfer.arbeitsordner())
             fertig = "export"

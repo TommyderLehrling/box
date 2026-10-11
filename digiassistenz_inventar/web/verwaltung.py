@@ -24,7 +24,6 @@ from .. import modelle as m
 from .. import rechte
 from ..dienstlogik import etiketten as fachetiketten
 from ..dienstlogik import feiertage, import_lauf, katalog, katalogpflege, liste, testdaten
-from ..rein import feiertage as feiertage_rein
 from ..rein import import_vorlage
 from . import helfer
 from .stueck import _text, formular
@@ -253,15 +252,16 @@ def einstellungen_seite(
 ) -> HTMLResponse:
     mid = sitzung.kontext.mandant_id
     felder = [(s, katalog.einstellung(sitzung.db, mid, s)) for s in katalogpflege.EINSTELLUNGEN_ZAHL + katalogpflege.EINSTELLUNGEN_DEZIMAL
-              + ("nummernmuster", "zins_prozent", "etikett_layout", "erinnern_um", "bundesland")]
+              + ("nummernmuster", "zins_prozent", "etikett_layout", "erinnern_um")]
     try:
         jahr_zahl = int(jahr) if jahr.strip() else zeit.heute().year
     except ValueError:
         jahr_zahl = zeit.heute().year
     return _seite(request, sitzung, "inventar_verwaltung_einstellungen.html", "einstellungen", felder=felder, fertig=bool(fertig),
-                  auslieferung=katalog.einstellung(sitzung.db, mid, "auslieferung_am"), laender=feiertage_rein.LAENDER,
+                  auslieferung=katalog.einstellung(sitzung.db, mid, "auslieferung_am"),
+                  region=feiertage.region(sitzung.db, mid), region_hinweis=feiertage.hinweis(sitzung.db, mid),
                   jahr=jahr_zahl, freie_tage=feiertage.benannt(sitzung.db, mid, jahr_zahl),
-                  eigene=[z for z in feiertage.liste(sitzung.db, mid) if z.datum.year == jahr_zahl])
+                  eigene=feiertage.eigene_im_jahr(sitzung.db, mid, jahr_zahl))
 
 
 @router.post(WEG + "/einstellungen", response_class=HTMLResponse)
@@ -269,7 +269,7 @@ def einstellungen_speichern(
     request: Request, f: dict[str, Any] = Depends(formular), sitzung: Sitzung = Depends(gemeinsam.angemeldet),
     _recht=Depends(gemeinsam.verlangt("inventar", "einstellen")),
 ) -> HTMLResponse:
-    namen = katalogpflege.EINSTELLUNGEN_ZAHL + katalogpflege.EINSTELLUNGEN_DEZIMAL + ("nummernmuster", "zins_prozent", "etikett_layout", "erinnern_um", "auslieferung_am", "bundesland")
+    namen = katalogpflege.EINSTELLUNGEN_ZAHL + katalogpflege.EINSTELLUNGEN_DEZIMAL + ("nummernmuster", "zins_prozent", "etikett_layout", "erinnern_um", "auslieferung_am")
     return _speichern(request, sitzung, "einstellungen", lambda: katalogpflege.einstellungen_speichern(
         sitzung, {n: _text(f, n) for n in namen if n in f}))
 
@@ -279,9 +279,10 @@ def eigener_tag_speichern(
     request: Request, f: dict[str, Any] = Depends(formular), sitzung: Sitzung = Depends(gemeinsam.angemeldet),
     _recht=Depends(gemeinsam.verlangt("inventar", "einstellen")),
 ) -> HTMLResponse:
-    """Ein eigener freier Tag: anlegen, Bezeichnung ändern, ein- und abschalten (`aktiv` = „1“); gelöscht wird nichts."""
+    """Ein eigener freier Tag: anlegen, Bezeichnung ändern, ein- und abschalten (`aktiv` = „1“), jährlich (`jaehrlich` = „1“); gelöscht wird nichts."""
     return _speichern(request, sitzung, "einstellungen", lambda: katalogpflege.eigenen_tag_speichern(
-        sitzung, helfer.datum(_text(f, "datum")), _text(f, "bezeichnung"), _text(f, "aktiv") == "1"))
+        sitzung, helfer.datum(_text(f, "datum")), _text(f, "bezeichnung"), _text(f, "aktiv") == "1",
+        None if "jaehrlich" not in f else _text(f, "jaehrlich") == "1"))
 
 
 # ---- Import -------------------------------------------------------------------------------------------------------

@@ -13,6 +13,7 @@
 {% if zeitraum_ersetzt %}<p class="warnung" role="status">{{ t("inventar.kosten.zeitraum_ersetzt") }}</p>{% endif %}
 <div id="kosten-meldung"></div>
 <p class="klein leise">{{ t("inventar.kosten.hinweis") }} · {% if werktage %}{{ t("inventar.kosten.modus_werktage", tage=tage_je_monat) }}{% else %}{{ t("inventar.kosten.modus_kalender", tage=tage_je_monat) }}{% endif %}</p>
+{% if region_hinweis %}<p class="warnung" id="hinweis-feiertagsregion" role="status">{{ t("inventar.hinweis." ~ region_hinweis) }}</p>{% endif %}
 
 <form method="get" action="/inventar/kosten" class="filterzeile" id="kosten-filter">
   <label for="k-von">{{ t("inventar.von") }}</label> <input type="date" id="k-von" name="von" value="{{ von }}">

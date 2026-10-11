@@ -14,6 +14,7 @@
   {% if stueck.status == "in_reparatur" %}<p class="klein leise" id="hinweis-in-reparatur">{{ t("inventar.werkstatt.buchen_hinweis") }}</p>{% endif %}
   {% if fertig %}<p class="gut" role="status">✓ {{ t("inventar.fertig." ~ fertig) }}</p>{% endif %}
   {% if zaehler_hinweis %}<p class="warnung" role="status">{{ zaehler_hinweis }}</p>{% endif %}
+  {% if mehr_hinweis %}<p class="warnung" id="hinweis-mehrmenge" role="status">{{ mehr_hinweis }}</p>{% endif %}
   {% if scan_ok %}
   <div class="tastenreihe raster gross" id="scan-tasten">
     <form method="post" action="/inventar/transfer/scan" hx-post="/inventar/transfer/scan" hx-target="#stueck-meldung" hx-swap="innerHTML">

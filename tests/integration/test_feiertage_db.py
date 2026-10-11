@@ -1,4 +1,4 @@
-"""L16 Feiertage durch die echte Anwendung: Bundesland und eigene Tage in den Einstellungen, Wirkung auf Werktage, Vorhaltung und Fristen."""
+"""L16/L16a Feiertage durch die echte Anwendung: Region aus dem Kern (`mandant.feiertagsregion`), eigene Tage in den Einstellungen, Wirkung auf Werktage, Vorhaltung und Fristen."""
 
 from __future__ import annotations
 
@@ -48,6 +48,12 @@ def _mandant() -> int:
         return int(db.execute(select(Mandant.id)).scalar_one())
 
 
+def _region(wert: str) -> None:
+    """Die Region setzt die Verwaltung im Kern (heute per Befehl); die Prüfung schreibt sie direkt."""
+    with systemsitzung("pruefung.l16a") as db:
+        db.execute(text("UPDATE kern.mandant SET feiertagsregion = :r"), {"r": wert})
+
+
 def _einstellen(k, **werte):
     return k.post("/inventar/verwaltung/einstellungen", data=werte, follow_redirects=False)
 
@@ -57,17 +63,25 @@ def _tage(html: str) -> dict[str, str]:
     return {n: (t, b) for n, t, b in ZEILE.findall(block)}
 
 
-def test_bundesland_und_eigene_tage_in_den_einstellungen(box) -> None:
+def test_region_aus_dem_kern_und_eigene_tage_in_den_einstellungen(box) -> None:
     k = box.klient
     _ks(k, "70101")
+    _region("")
     seite = k.get("/inventar/verwaltung/einstellungen", params={"jahr": "2026"}).text
-    assert 'id="e-bundesland"' in seite and "freie-tage-leer" in seite, "Standard: kein Bundesland, keine Feiertage"
-    assert _einstellen(k, bundesland="XX").status_code == 409
-    assert _einstellen(k, bundesland="sn").status_code == 303
-    assert _db("SELECT wert FROM inventar.einstellung WHERE schluessel = 'bundesland'") == [("SN",)]
+    assert 'id="hinweis-feiertagsregion"' in seite and "freie-tage-leer" in seite, "Standard: keine Region, keine Feiertage, ein Hinweis"
+    assert 'id="e-bundesland"' not in seite and _db("SELECT wert FROM inventar.einstellung WHERE schluessel = 'bundesland'") == []
+    _region("XX-YY")
+    assert "feiertagsregion" in k.get("/inventar/verwaltung/einstellungen", params={"jahr": "2026"}).text
+    with systemsitzung("pruefung.l16a") as db:
+        assert feiertage.hinweis(db, _mandant()) == "feiertagsregion_unbekannt"
+    _region("DE-SN")
     seite = k.get("/inventar/verwaltung/einstellungen", params={"jahr": "2026"}).text
+    assert 'id="hinweis-feiertagsregion"' not in seite and "DE-SN" in seite
     assert "Buß- und Bettag" in seite and "18.11.2026" in seite and "Tag der Deutschen Einheit" in seite
-    assert "Fronleichnam" not in seite, "Sachsen hat keinen landesweiten Fronleichnam"
+    assert "Fronleichnam" not in seite.split('id="freie-tage-liste"', 1)[1], "Sachsen hat keinen landesweiten Fronleichnam"
+    _region("DE")
+    assert "Buß- und Bettag" not in k.get("/inventar/verwaltung/einstellungen", params={"jahr": "2026"}).text.split('id="freie-tage-liste"', 1)[1], "DE allein: nur bundesweit"
+    _region("DE-NI")
     # eigener Tag: anlegen, ändern, abschalten, wieder einschalten — gelöscht wird nichts
     assert k.post("/inventar/verwaltung/einstellungen/tage", data={"datum": "2026-12-24", "bezeichnung": "Betriebsruhe", "aktiv": "1"},
                   follow_redirects=False).status_code == 303
@@ -86,16 +100,36 @@ def test_bundesland_und_eigene_tage_in_den_einstellungen(box) -> None:
     assert aktionen == {"inventar.feiertag_angelegt", "inventar.feiertag_geaendert"}
 
 
+def test_jaehrlicher_eigener_tag_gilt_in_jedem_folgejahr_und_wird_abgeschaltet_statt_geloescht(box) -> None:
+    k = box.klient
+    _ks(k, "70101")
+    _region("")
+    mid = _mandant()
+    assert k.post("/inventar/verwaltung/einstellungen/tage", data={"datum": "2026-12-24", "bezeichnung": "Heiligabend", "aktiv": "1", "jaehrlich": "1"},
+                  follow_redirects=False).status_code == 303
+    assert _db("SELECT jaehrlich, aktiv FROM inventar.feiertag WHERE datum = '2026-12-24'") == [(True, True)]
+    with systemsitzung("pruefung.l16a") as db:
+        assert feiertage.eigene_tage(db, mid, dt.date(2026, 12, 1), dt.date(2028, 12, 31)) == {
+            dt.date(2026, 12, 24), dt.date(2027, 12, 24), dt.date(2028, 12, 24)}
+        assert feiertage.eigene_tage(db, mid, dt.date(2025, 12, 1), dt.date(2025, 12, 31)) == set(), "nicht vor dem ersten Eintrag"
+    assert k.post("/inventar/verwaltung/einstellungen/tage", data={"datum": "2026-12-24", "bezeichnung": "Heiligabend", "aktiv": "0", "jaehrlich": "1"},
+                  follow_redirects=False).status_code == 303
+    assert _db("SELECT jaehrlich, aktiv FROM inventar.feiertag WHERE datum = '2026-12-24'") == [(True, False)], "abgeschaltet, nicht gelöscht"
+    with systemsitzung("pruefung.l16a") as db:
+        assert feiertage.eigene_tage(db, mid, dt.date(2026, 12, 1), dt.date(2028, 12, 31)) == set()
+
+
 def test_werktage_an_einer_stelle(box) -> None:
     k = box.klient
     _ks(k, "70101")
+    _region("")
     mid = _mandant()
     # Mo 16.11. bis Fr 20.11.2026
     von, bis = dt.date(2026, 11, 16), dt.date(2026, 11, 20)
     with systemsitzung("pruefung.l16") as db:
-        assert feiertage.werktage(db, von, bis, mid) == 5, "ohne Bundesland nur Montag bis Freitag"
+        assert feiertage.werktage(db, von, bis, mid) == 5, "ohne Region nur Montag bis Freitag"
         assert feiertage.werktage(db, bis, von, mid) == 0
-    assert _einstellen(k, bundesland="SN").status_code == 303
+    _region("DE-SN")
     with systemsitzung("pruefung.l16") as db:
         assert feiertage.werktage(db, von, bis, mid) == 4, "Buß- und Bettag fällt aus"
     assert k.post("/inventar/verwaltung/einstellungen/tage", data={"datum": "2026-11-20", "bezeichnung": "Brückentag", "aktiv": "1"},
@@ -115,6 +149,7 @@ def test_werktage_an_einer_stelle(box) -> None:
 def test_vorhaltung_nach_werktagen_ohne_feiertage(box) -> None:
     k = box.klient
     _ks(k, "70101")
+    _region("")
     antwort = k.post("/inventar/stueck/neu", follow_redirects=False, data={
         "bezeichnung": "Schalungsträger", "gruppe": "schalung_ruestung", "art": "menge", "inventarnummer": "", "kostenstelle": "70101", "menge": "1",
         "kaufpreis": "1000"})
@@ -123,8 +158,10 @@ def test_vorhaltung_nach_werktagen_ohne_feiertage(box) -> None:
     _tun("UPDATE inventar.standort SET von = '2026-11-01 08:00:00+01' WHERE stueck_id = :i", i=sid)
     assert _einstellen(k, werktage="21,67").status_code == 303
     zeitraum = {"von": "2026-11-16", "bis": "2026-11-20"}
+    assert 'id="hinweis-feiertagsregion"' in k.get("/inventar/kosten", params=zeitraum).text, "Werktage ohne Region: ein Hinweis"
     assert _tage(k.get("/inventar/kosten", params=zeitraum).text) == {"70101 Baustelle 70101": ("5", "3,30")}
-    assert _einstellen(k, bundesland="SN").status_code == 303
+    _region("DE-SN")
+    assert 'id="hinweis-feiertagsregion"' not in k.get("/inventar/kosten", params=zeitraum).text
     assert _tage(k.get("/inventar/kosten", params=zeitraum).text) == {"70101 Baustelle 70101": ("4", "2,64")}
     assert k.post("/inventar/verwaltung/einstellungen/tage", data={"datum": "2026-11-20", "bezeichnung": "Brückentag", "aktiv": "1"},
                   follow_redirects=False).status_code == 303

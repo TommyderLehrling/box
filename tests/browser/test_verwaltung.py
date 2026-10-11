@@ -1,4 +1,4 @@
-"""Verwaltung (L16): Feiertage und eigene freie Tage in den Einstellungen; Zählerstand-Spalte im Excel-Import."""
+"""Verwaltung (L16, L16a): Feiertage und eigene freie Tage in den Einstellungen; Zählerstand-Spalte im Excel-Import."""
 
 from __future__ import annotations
 
@@ -9,19 +9,17 @@ from openpyxl import load_workbook
 from playwright.sync_api import Page, expect
 
 
-def test_feiertage_bundesland_und_eigene_tage(verwalter: Page) -> None:
-    """Sollwert: Standard ohne Bundesland zeigt „keine Feiertage“; mit Sachsen steht der Buß- und Bettag 18.11.2026 in der Liste (Fronleichnam nicht);
-    ein eigener Tag lässt sich eintragen, abschalten und wieder einschalten; ein ungültiges Datum wird mit einem Satz abgewiesen."""
+def test_feiertage_region_und_eigene_tage(verwalter: Page) -> None:
+    """Sollwert: die Region kommt aus dem Kern (die Box setzt `DE-SN`), die Seite zeigt sie ohne Auswahlfeld und ohne Hinweis; der Buß- und Bettag
+    18.11.2026 steht in der Liste (Fronleichnam nicht); ein eigener Tag lässt sich eintragen, abschalten und wieder einschalten, auch als jährlicher Tag."""
     verwalter.goto("/inventar/verwaltung/einstellungen?jahr=2026")
-    assert verwalter.input_value("#e-bundesland") in ("", "SN")
-    verwalter.select_option("#e-bundesland", "SN")
-    with verwalter.expect_navigation(url=re.compile(r"fertig=")):
-        verwalter.click("form[action='/inventar/verwaltung/einstellungen'] button.haupt")
-    verwalter.goto("/inventar/verwaltung/einstellungen?jahr=2026")
+    expect(verwalter.locator("#feiertagsregion")).to_contain_text("DE-SN")
+    assert verwalter.locator("#e-bundesland").count() == 0, "kein Bundesland-Feld mehr"
+    assert verwalter.locator("#hinweis-feiertagsregion").count() == 0, "Region gesetzt: kein Hinweis"
     liste = verwalter.locator("#freie-tage-liste")
     expect(liste).to_contain_text("Buß- und Bettag")
     expect(liste.locator("tr", has_text="Buß- und Bettag")).to_contain_text("18.11.2026")
-    expect(liste).not_to_contain_text("Fronleichnam")
+    expect(liste).not_to_contain_text("Fronleichnam")  # (der Hilfetext darüber nennt das Wort, die Liste nicht)
     expect(liste).to_contain_text("Tag der Deutschen Einheit")
 
     name = "Betriebsausflug"
@@ -42,12 +40,14 @@ def test_feiertage_bundesland_und_eigene_tage(verwalter: Page) -> None:
         verwalter.locator("#eigene-tage tr", has_text=name).locator("button").click()
     verwalter.goto("/inventar/verwaltung/einstellungen?jahr=2026")
     expect(verwalter.locator("#freie-tage-liste")).to_contain_text("12.06.2026")
-    # zurück auf „keines“: danach zählen wieder nur Montag bis Freitag (der eigene Tag bleibt)
-    verwalter.select_option("#e-bundesland", "")
+    # jährlicher Tag: ein Haken, er steht dann auch im Folgejahr in der Liste
+    verwalter.fill("#t-datum", "2026-12-24")
+    verwalter.fill("#t-bez", "Heiligabend")
+    verwalter.check("#t-jaehrlich")
     with verwalter.expect_navigation(url=re.compile(r"fertig=")):
-        verwalter.click("form[action='/inventar/verwaltung/einstellungen'] button.haupt")
-    verwalter.goto("/inventar/verwaltung/einstellungen?jahr=2026")
-    expect(verwalter.locator("#freie-tage-liste")).not_to_contain_text("Buß- und Bettag")
+        verwalter.click("form[action='/inventar/verwaltung/einstellungen/tage']:has(#t-datum) button.haupt")
+    verwalter.goto("/inventar/verwaltung/einstellungen?jahr=2027")
+    expect(verwalter.locator("#freie-tage-liste")).to_contain_text("24.12.2027")
 
 
 def test_import_zaehlerstand_spalte(verwalter: Page, tmp_path) -> None:

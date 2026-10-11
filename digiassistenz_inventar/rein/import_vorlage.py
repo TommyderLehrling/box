@@ -22,7 +22,9 @@ SPALTEN_ALT = (
     "Baujahr", "Kaufdatum", "Kaufpreis", "Lieferant", "Kostenstelle", "Menge", "Besonderheiten",
 )
 ZAEHLERSTAND = "Zählerstand"
-SPALTEN = SPALTEN_ALT + (ZAEHLERSTAND,)  # Dateien ohne die letzte Spalte (bis L15) werden weiter gelesen
+ABLESEDATUM = "Ablesedatum"
+SPALTEN_15 = SPALTEN_ALT + (ZAEHLERSTAND,)  # Dateien aus L16 (15 Spalten) und bis L15 (14 Spalten) werden weiter gelesen
+SPALTEN = SPALTEN_15 + (ABLESEDATUM,)
 ARTEN = ("gross", "klein", "menge")
 BLATT = "Inventar"
 LISTEN = "Listen"
@@ -36,6 +38,7 @@ FEHLER_SCHLUESSEL = (
     "import.fehler.merkmal_unbekannt_fuer_gruppe", "import.fehler.merkmal_pflicht_fehlt",
     "import.fehler.merkmal_zahl", "import.fehler.merkmal_datum", "import.fehler.merkmal_ja_nein",
     "import.fehler.merkmal_auswahl", "import.fehler.zaehlerstand_ungueltig",
+    "import.fehler.ablesedatum_ungueltig", "import.fehler.ablesedatum_zukunft",
 )
 HINWEIS_BEISPIEL = "import.hinweis.beispiel_uebersprungen"
 BEISPIEL_MARKE = "BEISPIEL"  # Besonderheiten beginnt damit: Zeile wird ignoriert
@@ -76,6 +79,7 @@ class ImportZeile:
     besonderheiten: str
     merkmale: dict[str, str]
     zaehlerstand: Decimal | None = None
+    ablesedatum: date | None = None  # leer = Zeitpunkt des Imports
 
 
 @dataclass(frozen=True)
@@ -245,6 +249,8 @@ def lies_mit_hinweisen(
     fehler: list[ImportFehler] = []
     if tuple(kopf[: len(SPALTEN)]) == SPALTEN:
         festes = len(SPALTEN)
+    elif tuple(kopf[: len(SPALTEN_15)]) == SPALTEN_15:
+        festes = len(SPALTEN_15)
     elif tuple(kopf[: len(SPALTEN_ALT)]) == SPALTEN_ALT:
         festes = len(SPALTEN_ALT)
     else:
@@ -325,6 +331,14 @@ def lies_mit_hinweisen(
             if zaehlerstand is None or zaehlerstand < 0:
                 zaehlerstand = None
                 fehl(ZAEHLERSTAND, "import.fehler.zaehlerstand_ungueltig")
+        ablesedatum = None
+        if _text(werte.get(ABLESEDATUM)) != "":
+            ablesedatum = _datum(werte[ABLESEDATUM])
+            if ablesedatum is None:
+                fehl(ABLESEDATUM, "import.fehler.ablesedatum_ungueltig")
+            elif heute is not None and ablesedatum > heute:
+                ablesedatum = None
+                fehl(ABLESEDATUM, "import.fehler.ablesedatum_zukunft")
         werte_m: dict[str, str] = {}
         erlaubt = je_gruppe.get(gruppe, {})
         for name in kopf[festes:]:
@@ -349,7 +363,7 @@ def lies_mit_hinweisen(
             ok[nr] = ImportZeile(
                 nr, nummer, _text(werte["Bezeichnung"]), gruppe, art, _text(werte["Hersteller"]),
                 _text(werte["Typ"]), _text(werte["Seriennummer"]), baujahr, kaufdatum, kaufpreis,
-                _text(werte["Lieferant"]), ks or 0, menge, _text(werte["Besonderheiten"]), werte_m, zaehlerstand)
+                _text(werte["Lieferant"]), ks or 0, menge, _text(werte["Besonderheiten"]), werte_m, zaehlerstand, ablesedatum)
     nummern: dict[str, list[int]] = {}
     for z in _nummern(ws, beispiele):
         nummern.setdefault(z[1], []).append(z[0])

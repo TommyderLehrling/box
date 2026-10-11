@@ -59,6 +59,7 @@ def aufbauen(weiter: bool = False) -> None:
     with systemsitzung("browser.aufbau") as db:
         mandant = db.execute(select(Mandant)).scalars().one()
         mandant.ordnername = "browserbetrieb"
+        mandant.feiertagsregion = "DE-SN"  # die Region stellt im Betrieb die Verwaltung im Kern ein (L16a); der Fall prüft die Wirkung
         stellen = {}
         for nummer in KOSTENSTELLEN:
             stellen[nummer] = Kostenstelle(mandant_id=mandant.id, nummer=nummer, bezeichnung=f"Baustelle {nummer}", strasse="Weg 1", plz="25813", ort="Husum")

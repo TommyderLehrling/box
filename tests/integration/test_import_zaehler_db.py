@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from decimal import Decimal
 from pathlib import Path
 
@@ -81,6 +82,30 @@ def test_zaehlerstand_aus_dem_import(box, tmp_path: Path) -> None:
         erg = import_lauf.einspielen(s, dritte)
         assert erg.zaehlerstaende == (("BM-00002", Decimal("75")),) and erg.zaehler_hinweise == ()
     assert len(_staende()) == 3
+
+
+def test_ablesedatum_aus_dem_import(box, tmp_path: Path) -> None:
+    _ks(box.klient, "1000")
+    pfad = tmp_path / "ablesung.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.title = BLATT
+    ws.append(list(SPALTEN))
+    for nummer, stand, datum in (("BM-00001", 120, "03.02.2025"), ("BM-00002", 50, None), ("BM-00003", 70, "2999-01-01")):
+        ws.append([nummer, f"Gerät {nummer}", "baumaschine", "gross", "", "", "", None, None, None, "", 1000, 1, "", stand, datum])
+    wb.save(pfad)
+    with _sitzung() as s:
+        assert [f.text_schluessel for f in import_lauf.pruefen(s, pfad).fehler] == ["import.fehler.ablesedatum_zukunft"]
+        with pytest.raises(ValueError, match="fehler_in_datei"):
+            import_lauf.einspielen(s, pfad)
+    ws["P4"] = "01.03.2025"
+    wb.save(pfad)
+    with _sitzung() as s:
+        import_lauf.einspielen(s, pfad)
+    with systemsitzung("pruefung.l16a") as db:
+        zeiten = dict(db.execute(text("SELECT s.inventarnummer, z.abgelesen_am FROM inventar.zaehlerstand z JOIN inventar.stueck s ON s.id = z.stueck_id")).all())
+    assert zeiten["BM-00001"].date().isoformat() == "2025-02-03" and zeiten["BM-00003"].date().isoformat() == "2025-03-01"
+    assert zeiten["BM-00002"].date() >= dt.date.today() - dt.timedelta(days=1), "leer = Zeitpunkt des Imports"
 
 
 def test_import_seite_zeigt_zaehlerstaende_und_hinweise(box, tmp_path: Path) -> None:

@@ -25,6 +25,7 @@ from . import katalog, kostenrechnung, sicht
 from . import stueck as fachstueck
 
 EINSTELLUNG = "inventur_stichtag"
+EINSTELLUNG_LETZTE = "inventur_letzte"  # `<Stichtag>|<Pfad der CSV relativ zum Arbeitsordner>` der zuletzt abgeschlossenen Inventur
 _ORT = re.compile(r"^ks:(\d+)(?:;menge:(\d+))?$")  # Ort der Sichtung, auf Wunsch mit der gezählten Menge
 
 
@@ -87,10 +88,11 @@ class Bericht:
     unbekannt: tuple[str, ...] = field(default_factory=tuple)
 
 
-def _gesehen_seit(sitzung: Any, anfang: dt.datetime, nummern: dict[int, str], erlaubt: tuple[int, ...] | None) -> list[tuple[int, int, int | None]]:
-    """(Stück, Kostenstelle, Menge oder `None` = so viel wie erwartet) aus Scans und bestätigten Eingängen seit dem Stichtag.
+def _sichtungen(sitzung: Any, anfang: dt.datetime, erlaubt: tuple[int, ...] | None) -> dict[tuple[int, int], int | None]:
+    """(Stück, Kostenstelle) → genannte Menge oder `None` (= so viel wie erwartet), aus den Scans „Ist hier“ seit dem Stichtag.
 
-    Mehrere Sichtungen desselben Stücks auf derselben Kostenstelle ergeben **eine** (die jüngste gilt): wer neu zählt, ersetzt die alte Zahl.
+    Mehrere Sichtungen desselben Stücks auf derselben Kostenstelle ergeben **eine** (die jüngste gilt): wer sich vertippt hat, scannt noch einmal
+    und nennt die richtige Zahl. Ein gewöhnlicher Scan ohne Menge macht eine genannte Menge nicht rückgängig.
     """
     db, mid = sitzung.db, sitzung.kontext.mandant_id
     letzte: dict[tuple[int, int], int | None] = {}
@@ -104,7 +106,13 @@ def _gesehen_seit(sitzung: Any, anfang: dt.datetime, nummern: dict[int, str], er
             if menge is None and letzte.get(schluessel) is not None:
                 continue  # ein gewöhnlicher Scan macht eine genannte Menge nicht rückgängig
             letzte[schluessel] = menge
-    ergebnis: list[tuple[int, int, int | None]] = [(sid, ks, menge) for (sid, ks), menge in letzte.items()]
+    return letzte
+
+
+def _gesehen_seit(sitzung: Any, anfang: dt.datetime, nummern: dict[int, str], erlaubt: tuple[int, ...] | None) -> list[tuple[int, int, int | None]]:
+    """(Stück, Kostenstelle, Menge oder `None` = so viel wie erwartet) aus Scans und bestätigten Eingängen seit dem Stichtag."""
+    db, mid = sitzung.db, sitzung.kontext.mandant_id
+    ergebnis: list[tuple[int, int, int | None]] = [(sid, ks, menge) for (sid, ks), menge in _sichtungen(sitzung, anfang, erlaubt).items()]
     q = select(m.Standort).where(m.Standort.mandant_id == mid, m.Standort.transfer_id.is_not(None), m.Standort.von >= anfang)
     if erlaubt is not None:
         q = q.where(m.Standort.kostenstelle_id.in_(erlaubt))
@@ -114,10 +122,11 @@ def _gesehen_seit(sitzung: Any, anfang: dt.datetime, nummern: dict[int, str], er
 
 
 def zaehlen_abfragen(sitzung: Any, stueck: m.Stueck, kostenstelle_id: int) -> int | None:
-    """Die Buchmenge, wenn beim Scan jetzt gezählt werden soll — sonst `None`.
+    """Die Zahl, mit der das Feld „Menge vor Ort“ beim Scan vorbelegt ist — sonst `None` (es wird nicht gefragt).
 
-    Gezählt wird, wenn eine Inventur läuft (Stichtag gesetzt), das Stück ein Mengenartikel ist, auf dieser Kostenstelle steht und dort seit dem
-    Stichtag noch nicht gesehen wurde. Das Feld „Menge vor Ort“ ist dann mit der Buchmenge vorbelegt. Gebucht wird dabei nichts.
+    Gefragt wird, wenn eine Inventur läuft (Stichtag gesetzt), das Stück ein Mengenartikel ist und auf dieser Kostenstelle steht. Vorbelegt ist die
+    Buchmenge; wurde hier seit dem Stichtag schon gezählt, die zuletzt genannte Menge — wer sich vertippt hat, scannt noch einmal und
+    nennt die richtige Zahl (die jüngste Sichtung gilt). Gebucht wird dabei nichts.
     """
     if stueck.art != "menge" or stueck.status in ENDZUSTAENDE:
         return None
@@ -125,15 +134,19 @@ def zaehlen_abfragen(sitzung: Any, stueck: m.Stueck, kostenstelle_id: int) -> in
     tag = stichtag(db, mid)
     if tag is None:
         return None
-    buch = db.execute(select(func.coalesce(func.sum(m.Standort.menge), 0)).where(
-        m.Standort.mandant_id == mid, m.Standort.stueck_id == stueck.id, m.Standort.kostenstelle_id == kostenstelle_id,
-        m.Standort.bis.is_(None))).scalar_one()
-    if int(buch) < 1:
+    buch = buchmenge(db, mid, int(stueck.id), kostenstelle_id)
+    if buch < 1:
         return None
     anfang = dt.datetime.combine(tag, dt.time.min, tzinfo=zeit.zeitzone())
-    if any(sid == int(stueck.id) and ks == kostenstelle_id for sid, ks, _ in _gesehen_seit(sitzung, anfang, {}, None)):
-        return None
-    return int(buch)
+    genannt = _sichtungen(sitzung, anfang, None).get((int(stueck.id), kostenstelle_id))
+    return buch if genannt is None else genannt
+
+
+def buchmenge(db: Any, mandant_id: int, stueck_id: int, kostenstelle_id: int) -> int:
+    """Die gebuchte Menge des Stücks auf der Kostenstelle (offene Standorte)."""
+    return int(db.execute(select(func.coalesce(func.sum(m.Standort.menge), 0)).where(
+        m.Standort.mandant_id == mandant_id, m.Standort.stueck_id == stueck_id, m.Standort.kostenstelle_id == kostenstelle_id,
+        m.Standort.bis.is_(None))).scalar_one())
 
 
 def bericht(sitzung: Any) -> Bericht | None:
@@ -222,4 +235,37 @@ def exportieren(sitzung: Any, arbeitsordner: Path) -> Path:
     return kostenrechnung.schreibe_csv(sitzung, "inventur", zeilen_fuer_export(b), arbeitsordner)
 
 
-__all__ = ["Bericht", "Zeile", "als_vermisst_eintragen", "bericht", "exportieren", "stichtag", "stichtag_setzen", "zaehlen_abfragen"]
+def abschliessen(sitzung: Any, arbeitsordner: Path) -> Path:
+    """„Inventur abschließen“ (Recht `einstellen`): friert das Ergebnis als CSV `export/inventur_<stichtag>_<zeitstempel>.csv` ein
+    (je Kostenstelle gesehen / nicht gesehen, dazu die Vermisst-Vorschläge), merkt Stichtag und Pfad in `inventur_letzte`, leert den Stichtag
+    und schreibt `inventar.inventur_abgeschlossen`. Den Status `vermisst` setzt das nicht — das bleibt Handarbeit je Stück."""
+    if not sitzung.darf("inventar", "einstellen"):
+        raise gemeinsam.KeinRecht("inventar", "einstellen")
+    b = bericht(sitzung)
+    if b is None:
+        raise ValueError("inventur.stichtag_fehlt")
+    db, mid = sitzung.db, sitzung.kontext.mandant_id
+    zeilen = [(ort, z.nummer, z.bezeichnung, z.erwartet, z.gesehen, z.ergebnis, z.vorschlag) for ort, zs in
+              ((b.namen.get(ks, str(ks)), zs) for ks, zs in b.je_kostenstelle.items()) for z in zs]
+    pfad = kostenrechnung.schreibe_csv(sitzung, "inventur_abschluss", zeilen, arbeitsordner, stichtag=b.stichtag, vermerk=False)
+    relativ = str(pfad.relative_to(arbeitsordner))
+    alt = katalog.einstellung(db, mid, EINSTELLUNG_LETZTE)
+    katalog.setze_einstellung(db, mid, EINSTELLUNG_LETZTE, f"{b.stichtag.isoformat()}|{relativ}", _benutzer(sitzung))
+    katalog.setze_einstellung(db, mid, EINSTELLUNG, "", _benutzer(sitzung))
+    protokoll.schreiben(db, mandant_id=mid, aktion="inventar.inventur_abgeschlossen", objekt_typ="inventar.einstellung", alt_wert=alt or None,
+                        neu_wert=f"{b.stichtag.isoformat()} {relativ} gesehen={b.gesehen} nicht_gesehen={b.nicht_gesehen}", benutzer_id=_benutzer(sitzung))
+    return pfad
+
+
+def letzte(db: Any, mandant_id: int) -> tuple[dt.date, str] | None:
+    """Stichtag und Dateiname (ohne Ordner) der zuletzt abgeschlossenen Inventur; `None`, wenn es noch keine gibt."""
+    text = katalog.einstellung(db, mandant_id, EINSTELLUNG_LETZTE)
+    tag, _, pfad = text.partition("|")
+    try:
+        return dt.date.fromisoformat(tag), Path(pfad).name
+    except ValueError:
+        return None
+
+
+__all__ = ["Bericht", "Zeile", "abschliessen", "als_vermisst_eintragen", "bericht", "buchmenge", "exportieren", "letzte", "stichtag", "stichtag_setzen",
+           "zaehlen_abfragen"]

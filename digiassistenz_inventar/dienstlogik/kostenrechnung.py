@@ -440,15 +440,19 @@ def zeilen_fuer_export(sitzung: Any, block: str, von: dt.date, bis: dt.date, kos
     raise ValueError("kosten.block_unbekannt")
 
 
-def schreibe_csv(sitzung: Any, block: str, zeilen: list[tuple[object, ...]], arbeitsordner: Path) -> Path:
-    """Legt die CSV unter `export/` ab: Name mit Zeitstempel, nichts wird überschrieben (ein Zähler im Namen, wenn es ihn schon gibt)."""
+def schreibe_csv(sitzung: Any, block: str, zeilen: list[tuple[object, ...]], arbeitsordner: Path, *, stichtag: dt.date | None = None,
+                 vermerk: bool = True) -> Path:
+    """Legt die CSV unter `export/` ab: Name mit Zeitstempel, nichts wird überschrieben (ein Zähler im Namen, wenn es ihn schon gibt).
+
+    `vermerk=False`: kein Protokolleintrag `inventar.kosten_export` (der Abschluss einer Inventur schreibt seinen eigenen)."""
     db, mid = sitzung.db, sitzung.kontext.mandant_id
     text = kostenexport.csv_text(block, zeilen)
     ordnername = db.execute(select(Mandant.ordnername).where(Mandant.id == mid)).scalar_one()
-    ziel, summe = dateien.speichern(dateien.exportordner(arbeitsordner, ordnername), kostenexport.dateiname(block, zeit.jetzt_ortszeit()),
+    ziel, summe = dateien.speichern(dateien.exportordner(arbeitsordner, ordnername), kostenexport.dateiname(block, zeit.jetzt_ortszeit(), stichtag),
                                     text.encode("utf-8-sig"))
-    protokoll.schreiben(db, mandant_id=mid, aktion="inventar.kosten_export", objekt_typ=None, neu_wert=f"{ziel.relative_to(arbeitsordner)} {summe[:12]}",
-                        benutzer_id=_benutzer(sitzung))
+    if vermerk:
+        protokoll.schreiben(db, mandant_id=mid, aktion="inventar.kosten_export", objekt_typ=None, neu_wert=f"{ziel.relative_to(arbeitsordner)} {summe[:12]}",
+                            benutzer_id=_benutzer(sitzung))
     return ziel
 
 

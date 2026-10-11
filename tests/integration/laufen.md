@@ -1,6 +1,6 @@
 # Integrationsläufe des Inventars — wie man sie startet
 
-**Grundlinie `i0001`: offen** (Stand 11.10.2026, L16 — sie hat zuletzt die Tabelle `inventar.feiertag` bekommen; 19 Tabellen). Sie bleibt änderbar bis zur **ersten Box mit Inventar-Daten** (auch eine behaltene Test-Box); danach ist sie eingefroren und alles
+**Grundlinie `i0001`: offen** (Stand 11.10.2026, L16a — zuletzt `inventar.feiertag` und dort die Spalte `jaehrlich`; 19 Tabellen). Sie bleibt änderbar bis zur **ersten Box mit Inventar-Daten** (auch eine behaltene Test-Box); danach ist sie eingefroren und alles
 Weitere kommt additiv (`i0002` …, wie beim Kern mit `SPAETER`). Dann hier eintragen: „i0001 eingefroren am …“.
 
 Jeder Lauf braucht **seinen** Aufbau und steht darum nicht im gewöhnlichen Lauf (`pytest.ini`: `norecursedirs`). Steht der
@@ -14,7 +14,7 @@ falsche Aufbau da, wird die Datei rot (`aufbau_pruefen`), nie übersprungen. Pr�
 | **T-I-6**, T-K-14 | Kern + Belegerfassung + Inventar | `tests/integration/test_t_i_6.py` |
 | **Browser** (Playwright) | laufende Box aus `tests/browser/box_starten.py` | `tests/browser/` — **nicht** hier, siehe `tests/browser/README.md` |
 
-Alle Dateien außer T-I-6 in einem Aufruf (Stand Box: 66 passed, `skipped = 0`):
+Alle Dateien außer T-I-6 in einem Aufruf (Stand Box: 69 passed, `skipped = 0`):
 
 ```
 DIGIASSISTENZ_WURZEL=$PWD python -m pytest --rootdir=<pfad> $(ls <pfad>/tests/integration/test_*.py | grep -v test_t_i_6)
@@ -24,9 +24,9 @@ DIGIASSISTENZ_WURZEL=$PWD python -m pytest --rootdir=<pfad> $(ls <pfad>/tests/in
 
 ```
 python3.12 -m venv v && . v/bin/activate
-pip install -r requirements.txt                       # die des Kerns, dazu openpyxl, weasyprint
+pip install -r requirements.txt                       # die des Kerns, dazu openpyxl, weasyprint (und holidays==0.60, steht in requirements-modul.txt)
 pip install --no-deps digiassistenz_kern-0.15.4-py3-none-any.whl
-pip install --no-deps -e <pfad>/Inventar              # Einstiegspunkt digiassistenz.module → inventar
+pip install -e <pfad>/Inventar[pruefung]              # H1: pytest, httpx, pyflakes, playwright==1.49.1 (die Abhängigkeiten des Kerns sind schon da)
 cd <wurzel mit konfig.env>                            # ARBEITSORDNER, DB_URL, MANDANT_NAME, WEB_GEHEIMNIS
 DIGIASSISTENZ_WURZEL=$PWD python -m pytest <pfad>/Inventar/tests/integration/test_t_i_5.py
 ```

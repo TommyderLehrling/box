@@ -1,3 +1,4 @@
 # Zusätzlich zu den festen Paketen des Kerns (requirements.txt des Kerns, segno 1.6.1 ist dort).
 openpyxl==3.1.5
 weasyprint==70.0
+holidays==0.60                  # Feiertage je Region (rein/feiertage.py); wie bei den Belegen festgelegt

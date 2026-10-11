@@ -119,6 +119,7 @@ def upgrade() -> None:
         sa.Column('datum', sa.Date(), nullable=False),
         sa.Column('bezeichnung', sa.Text(), nullable=False),
         sa.Column('aktiv', sa.Boolean(), server_default=sa.text('true'), nullable=False),
+        sa.Column('jaehrlich', sa.Boolean(), server_default=sa.text('false'), nullable=False),
         sa.Column('angelegt_von', sa.BigInteger(), nullable=True),
         sa.Column('angelegt_am', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.ForeignKeyConstraint(['angelegt_von'], ['kern.benutzer.id'], name='fk_feiertag_angelegt_von'),

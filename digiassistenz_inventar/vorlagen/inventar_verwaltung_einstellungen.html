@@ -5,15 +5,7 @@
 {% if fertig %}<p class="gut" role="status">✓ {{ t("inventar.fertig.gespeichert") }}</p>{% endif %}
 <form method="post" action="/inventar/verwaltung/einstellungen" hx-post="/inventar/verwaltung/einstellungen" hx-target="#katalog-meldung" hx-swap="innerHTML">
   {% for schluessel, wert in felder %}
-  {% if schluessel == "bundesland" %}
-  <p><label for="e-bundesland">{{ t("inventar.einstellung.bundesland") }}</label>
-     <select id="e-bundesland" name="bundesland">
-       <option value=""{% if not wert %} selected{% endif %}>{{ t("inventar.einstellung.bundesland_keines") }}</option>
-       {% for land in laender %}<option value="{{ land }}"{% if wert == land %} selected{% endif %}>{{ t("inventar.land." ~ land) }}</option>{% endfor %}
-     </select> <span class="klein leise">{{ t("inventar.einstellung.bundesland_hinweis") }}</span></p>
-  {% else %}
   <p><label for="e-{{ schluessel }}">{{ t("inventar.einstellung." ~ schluessel) }}</label> <input id="e-{{ schluessel }}" name="{{ schluessel }}" size="24" value="{{ wert }}">{% if schluessel == "werktage" %} <span class="klein leise">{{ t("inventar.einstellung.werktage_hinweis") }}</span>{% endif %}</p>
-  {% endif %}
   {% endfor %}
   <p><label for="e-auslieferung">{{ t("inventar.einstellung.auslieferung_am") }}</label>
      <input id="e-auslieferung" name="auslieferung_am" type="date" value="{{ auslieferung }}"{% if auslieferung %} readonly{% endif %}>
@@ -22,26 +14,30 @@
 </form>
 <div id="katalog-meldung"></div>
 <h2 id="freie-tage">{{ t("inventar.feiertag.kopf") }} {{ jahr }}</h2>
+<p id="feiertagsregion"><strong>{{ t("inventar.feiertag.region") }}:</strong> {{ region if region else t("inventar.feiertag.region_keine") }}</p>
+{% if region_hinweis %}<p class="warnung" id="hinweis-feiertagsregion" role="status">{{ t("inventar.hinweis." ~ region_hinweis) }}</p>{% endif %}
+<p class="klein leise">{{ t("inventar.feiertag.region_hilfe") }}</p>
 <p class="tastenreihe"><a class="taste klein" href="/inventar/verwaltung/einstellungen?jahr={{ jahr - 1 }}#freie-tage">{{ jahr - 1 }}</a>
    <a class="taste klein" href="/inventar/verwaltung/einstellungen?jahr={{ jahr + 1 }}#freie-tage">{{ jahr + 1 }}</a></p>
 {% if not freie_tage %}<p class="leise" id="freie-tage-leer">{{ t("inventar.feiertag.leer") }}</p>{% else %}
 <table class="liste" id="freie-tage-liste">
   <tr><th>{{ t("inventar.feiertag.datum") }}</th><th>{{ t("inventar.feiertag.name") }}</th><th>{{ t("inventar.feiertag.art") }}</th></tr>
   {% for tag, name, eigen in freie_tage %}
-  <tr><td>{{ tag|datum }}</td><td>{{ t(name) if not eigen else name }}</td><td>{{ t("inventar.feiertag.art_eigen") if eigen else t("inventar.feiertag.art_land") }}</td></tr>
+  <tr><td>{{ tag|datum }}</td><td>{{ name }}</td><td>{{ t("inventar.feiertag.art_eigen") if eigen else t("inventar.feiertag.art_land") }}</td></tr>
   {% endfor %}
 </table>
 {% endif %}
 {% if eigene %}
 <h3>{{ t("inventar.feiertag.eigene") }}</h3>
 <table class="liste" id="eigene-tage">
-  <tr><th>{{ t("inventar.feiertag.datum") }}</th><th>{{ t("inventar.feiertag.name") }}</th><th>{{ t("web.status") }}</th><th></th></tr>
+  <tr><th>{{ t("inventar.feiertag.datum") }}</th><th>{{ t("inventar.feiertag.name") }}</th><th>{{ t("inventar.feiertag.jaehrlich") }}</th><th>{{ t("web.status") }}</th><th></th></tr>
   {% for z in eigene %}
   <tr{% if not z.aktiv %} class="leise"{% endif %}><td>{{ z.datum|datum }}</td><td>{{ z.bezeichnung }}</td>
+    <td>{{ t("inventar.ja") if z.jaehrlich else t("inventar.nein") }}</td>
     <td>{{ t("inventar.katalog.aktiv") if z.aktiv else t("inventar.katalog.inaktiv") }}</td>
     <td><form method="post" action="/inventar/verwaltung/einstellungen/tage" hx-post="/inventar/verwaltung/einstellungen/tage" hx-target="#katalog-meldung" hx-swap="innerHTML">
       <input type="hidden" name="datum" value="{{ z.datum.isoformat() }}"><input type="hidden" name="bezeichnung" value="{{ z.bezeichnung }}">
-      <input type="hidden" name="aktiv" value="{{ '0' if z.aktiv else '1' }}">
+      <input type="hidden" name="aktiv" value="{{ '0' if z.aktiv else '1' }}"><input type="hidden" name="jaehrlich" value="{{ '1' if z.jaehrlich else '0' }}">
       <button type="submit" class="klein">{{ t("inventar.feiertag.abschalten") if z.aktiv else t("inventar.feiertag.einschalten") }}</button></form></td></tr>
   {% endfor %}
 </table>
@@ -51,6 +47,7 @@
   <p><label for="t-datum">{{ t("inventar.feiertag.datum") }}</label> <input id="t-datum" name="datum" type="date" required>
      <label for="t-bez">{{ t("inventar.feiertag.name") }}</label> <input id="t-bez" name="bezeichnung" size="30" required>
      <input type="hidden" name="aktiv" value="1">
+     <input type="hidden" name="jaehrlich" value="0"><label><input type="checkbox" id="t-jaehrlich" name="jaehrlich" value="1"> {{ t("inventar.feiertag.jaehrlich_haken") }}</label>
      <button type="submit" class="haupt">{{ t("inventar.taste.speichern") }}</button></p>
 </form>
 <script src="{{ statisch("inventar.js") }}" defer></script>

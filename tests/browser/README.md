@@ -1,12 +1,12 @@
 # Browser-Prüffälle (Playwright) — `tests/browser/`
 
 Die Fälle sprechen mit einer **laufenden Box** im echten Browser. Sie stehen nicht im gewöhnlichen Lauf (`pytest.ini`: `norecursedirs`). Fehlt die Box, ist jeder Fall **rot**, nie übersprungen.
-VSC fährt sie auf Chromium und Firefox; der Zoom-Fall auch in WebKit. Box hat **Chromium (headless, Playwright 1.56)** selbst gefahren — Firefox und WebKit sind in der Box nicht eingebaut.
+VSC fährt sie auf Chromium und Firefox; der Zoom-Fall auch in WebKit. Box hat **Chromium (headless, Playwright 1.49.1)** selbst gefahren — Firefox und WebKit sind in der Box nicht eingebaut.
 
 ## Aufbau
 
 ```
-pip install playwright==1.56.0            # oder die Fassung, zu der die Browser auf dem Rechner passen
+pip install playwright==1.49.1            # festgelegt; auch über `pip install -e <pfad>/Inventar[pruefung]`
 python -m playwright install chromium firefox webkit     # nur dort, wo das Netz es erlaubt (in der Box: Chromium liegt schon da)
 
 # frische, leere Prüfdatenbank in DB_URL (konfig.env im Arbeitsverzeichnis); Kern 0.15.4 und das Inventar sind eingebaut

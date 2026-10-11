@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 from dataclasses import dataclass, replace
 from decimal import Decimal
 from pathlib import Path
@@ -68,6 +69,13 @@ def _zahl(wert: Decimal) -> str:
     return format(wert.normalize(), "f")
 
 
+def _ablesezeit(tag: Any) -> Any:
+    """Das Ablesedatum der Datei als Zeitpunkt (Mittag UTC, damit der Tag in jeder Zeitzone derselbe bleibt); leer = Zeitpunkt des Imports."""
+    if tag is None:
+        return None
+    return datetime.datetime(tag.year, tag.month, tag.day, 12, 0, tzinfo=datetime.timezone.utc)
+
+
 def _zaehlerplan(db: Any, mid: int, zeilen: tuple[ImportZeile, ...]) -> tuple[tuple[tuple[str, Decimal], ...], tuple[tuple[str, str], ...]]:
     """Welche Zählerstände der Datei eingetragen werden und welche nur einen Hinweis bekommen (gleiche Plausibilität wie bei der Prüfung)."""
     mit_stand = [z for z in zeilen if z.zaehlerstand is not None]
@@ -132,10 +140,12 @@ def einspielen(sitzung: Any, pfad: Path, quelle: str = "import") -> Bericht:
     # Zählerstände erst nach dem Anlegen (die neuen Stücke brauchen ihre Zeile); ein Stand unter dem letzten wird nicht geführt, nur vermerkt
     hinweise = list(erg.zaehler_hinweise)
     eingetragen = []
+    ablesungen = {normalisiere(z.inventarnummer): z.ablesedatum for z in erg.lesen.zeilen if z.ablesedatum is not None}
     for nummer, stand in erg.zaehlerstaende:
         zeile = sitzung.db.execute(select(m.Stueck).where(m.Stueck.mandant_id == sitzung.kontext.mandant_id,
                                                           m.Stueck.inventarnummer == nummer)).scalar_one()
-        satz, letzter = fachzaehler.eintragen(sitzung, zeile, stand, quelle, protokollieren=True)
+        satz, letzter = fachzaehler.eintragen(sitzung, zeile, stand, quelle, protokollieren=True,
+                                           abgelesen_am=_ablesezeit(ablesungen.get(nummer)))
         if satz is None:
             hinweise.append(("import.hinweis.zaehlerstand_zu_niedrig", f"{nummer}: {_zahl(stand)} < {_zahl(letzter)}"))
         else:

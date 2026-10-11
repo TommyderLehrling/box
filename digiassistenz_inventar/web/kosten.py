@@ -15,7 +15,7 @@ from digiassistenz_kern.web import gemeinsam, wahlfeld
 
 from .. import modelle as m
 from .. import rechte
-from ..dienstlogik import kostenrechnung, liste, sicht, zaehler
+from ..dienstlogik import feiertage, kostenrechnung, liste, sicht, zaehler
 from . import helfer
 from .stueck import _text, formular
 
@@ -74,6 +74,7 @@ def kosten_seite(
     return gemeinsam.seite(
         request, sitzung, "inventar_kosten.html", aktiv="inventar_kosten", von=anfang.isoformat(), bis=ende.isoformat(), zeitraum_ersetzt=ersetzt,
         kostenstelle=kostenstelle, gruppe=gruppe, vergleich=vergleich, gruppen=liste.gruppen_auswahl(sitzung), wahl_ks=wahl, summen=summen,
+        region_hinweis=feiertage.hinweis(db, mid) if rw.werktage else "",
         einzeln=einzeln, ohne_satz=vorhaltung.ohne_satz, werktage=rw.werktage, tage_je_monat=rw.tage_je_monat, stuecke=zeilen, stuecke_gesamt=gesamt,
         miete=miete, miete_fehler=fehler, verlauf=verlauf, gewaehlt=gewaehlt, exporte=kostenrechnung.exportierte_dateien(sitzung, helfer.arbeitsordner()),
         fertig=fertig if fertig in FERTIG else "", filterweg=_filterweg(anfang, ende, kostenstelle, gruppe, vergleich), **rechte.darf_alle(sitzung))
