@@ -1,6 +1,6 @@
 # Integrationsläufe des Inventars — wie man sie startet
 
-**Grundlinie `i0001`: offen** (Stand 11.10.2026, L14a/L15). Sie bleibt änderbar bis zur **ersten Box mit Inventar-Daten** (auch eine behaltene Test-Box); danach ist sie eingefroren und alles
+**Grundlinie `i0001`: offen** (Stand 11.10.2026, L16 — sie hat zuletzt die Tabelle `inventar.feiertag` bekommen; 19 Tabellen). Sie bleibt änderbar bis zur **ersten Box mit Inventar-Daten** (auch eine behaltene Test-Box); danach ist sie eingefroren und alles
 Weitere kommt additiv (`i0002` …, wie beim Kern mit `SPAETER`). Dann hier eintragen: „i0001 eingefroren am …“.
 
 Jeder Lauf braucht **seinen** Aufbau und steht darum nicht im gewöhnlichen Lauf (`pytest.ini`: `norecursedirs`). Steht der
@@ -10,8 +10,15 @@ falsche Aufbau da, wird die Datei rot (`aufbau_pruefen`), nie übersprungen. Pr�
 | Lauf | Aufbau | Datei |
 |---|---|---|
 | **T-I-5** | Kern + Inventar | `tests/integration/test_t_i_5.py` |
-| Seiten L11–L15, Anwendungsfälle, Modelle gegen Kette | Kern + Inventar | `test_seiten_db.py`, `test_pruefungen_db.py`, `test_l13a_db.py`, `test_werkstatt_db.py`, `test_kosten_db.py`, `test_dienstlogik_db.py`, `test_migration_gegen_modelle.py` |
+| Seiten L11–L16, Anwendungsfälle, Modelle gegen Kette | Kern + Inventar | `test_seiten_db.py`, `test_pruefungen_db.py`, `test_l13a_db.py`, `test_werkstatt_db.py`, `test_kosten_db.py`, `test_feiertage_db.py`, `test_inventur_menge_db.py`, `test_import_zaehler_db.py`, `test_dienstlogik_db.py`, `test_migration_gegen_modelle.py` |
 | **T-I-6**, T-K-14 | Kern + Belegerfassung + Inventar | `tests/integration/test_t_i_6.py` |
+| **Browser** (Playwright) | laufende Box aus `tests/browser/box_starten.py` | `tests/browser/` — **nicht** hier, siehe `tests/browser/README.md` |
+
+Alle Dateien außer T-I-6 in einem Aufruf (Stand Box: 66 passed, `skipped = 0`):
+
+```
+DIGIASSISTENZ_WURZEL=$PWD python -m pytest --rootdir=<pfad> $(ls <pfad>/tests/integration/test_*.py | grep -v test_t_i_6)
+```
 
 ## Ohne Docker (Anleitung VSC `LAUFEN_OHNE_DOCKER.md`, geprüft auf PostgreSQL 16; Superuser, und seit dem Nachtrag 10.10. auch Nicht-Superuser)
 

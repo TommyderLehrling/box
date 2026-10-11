@@ -1,19 +1,20 @@
-# INTEGRATION_VSC — was VSC mit `digiassistenz_inventar` tut (L10–L15, Aufträge 05 und 06, Box, 11.10.2026)
+# INTEGRATION_VSC — was VSC mit `digiassistenz_inventar` tut (L10–L16, Aufträge 05 bis 07, Box, 11.10.2026) — final
 
 Gebaut gegen **KERN_STECKBRIEF_kern-0.15.4**. Alles hier gilt als Entwurf, bis es auf dem echten Kern läuft. Schon gefahren (Auftrag 05, Abschnitt 5): Kern-Start
-mit `prozesse` (GER am Kern ohne Docker, VSC im Container) und **T-I-6** nach L13 (VSC, 3 passed). Neu seit L14a/L15 ist nur, was in Abschnitt 1 und in den Zeilen „L14a“ und „L15“ der Tabelle in Abschnitt 3 steht.
+mit `prozesse` (GER am Kern ohne Docker, VSC im Container) und **T-I-6** nach L13 (VSC, 3 passed). Neu mit L16: Feiertage, Mengenabfrage, Zählerstand im Import, die Browser-Dateien unter `tests/browser/` (Abschnitt 4) und drei Funde aus dem Browser (Abschnitt 2, „Funde“).
 
 ## 1. Was Box schon gefahren hat (Python 3.12.3, Wheel 0.15.4 nicht editierbar, PostgreSQL 16.15, Superuser)
 
-* `python -m pytest -q -W error`: **360** passed, 0 skipped.
+* `python -m pytest -q -W error`: **412** passed, 0 skipped.
 * Kette `k0001…k0004` → `i0001`, Startdaten, zweiter Start ändert nichts.
-* `tests/integration` (ohne `test_t_i_6.py`): **56** passed, 0 skipped — T-I-5 (8), Anwendungsfälle gegen die echte Datenbank (13), Modelle gegen Kette (2),
-  Seiten L11/L12 (5), Prüfungen/Erinnerung/Kaufdaten/Scan-Quelle/Startstandort L13 (8), L13a (3), Werkstatt L14/L14a (**10**), **Kosten und Inventur L15 (7)**.
+* `tests/integration` (ohne `test_t_i_6.py`): **66** passed, 0 skipped — T-I-5 (8), Anwendungsfälle gegen die echte Datenbank (13), Modelle gegen Kette (2),
+  Seiten L11/L12 (5), Prüfungen/Erinnerung/Kaufdaten/Scan-Quelle/Startstandort L13 (8), L13a (3), Werkstatt L14/L14a/L15a (**12**), Kosten und Inventur L15/L15a (**7**), **Feiertage (3), Mengenabfrage (3), Zählerstand-Import (2) — L16**.
+* **Browser (L16): `tests/browser`, Chromium 141 headless (Playwright 1.56) gegen eine Prüf-Box aus `box_starten.py`: 29 passed, 0 skipped** (frische Box, 106 s; Kamera-Attrappe, Import mit 2.500 Stücken). Firefox und WebKit hat Box nicht gefahren (nicht eingebaut).
 * Der Prozess `python -m digiassistenz_inventar.erinnern` von Hand gestartet und mit SIGTERM beendet: schreibt auf stdout und in
   `log/digiassistenz-inventar-erinnern.log` (Kern 0.15.4, eine Logdatei je Prozess), `inventar.erinnern_start` und `inventar.erinnern_ende`.
 * Kern-Start mit `prozesse`: **ist gefahren** — GER am Kern 0.15.3/0.15.4 ohne Docker; VSC im Container (Prozess im Bild gefunden, `kill -9` → Neustart durch Docker,
   `docker stop` → `erinnern_ende`, Exit 0); **T-I-6 nach L13 grün (VSC)**. Box hat das nicht selbst gefahren.
-* Nicht gefahren: Docker (`compose.yml`, `docker/Dockerfile`), Browser, Kamera, Druck.
+* Nicht gefahren: Docker (`compose.yml`, `docker/Dockerfile`), Firefox und WebKit, das Erkennen eines echten QR-Etiketts mit der Handykamera, der Probedruck auf Etikettenpapier.
 
 ## 2. Einbauen
 
@@ -49,6 +50,17 @@ python -m digiassistenz_kern.start                                             #
 * **Datenbank (L14a):** zwei neue Spalten an `inventar.reparatur` — `arbeit` und `durchgefuehrt_von` (benannter Fremdschlüssel `fk_reparatur_durchgefuehrt_von` auf `kern.benutzer`) —,
   beide **in `i0001`** (die Grundlinie bleibt änderbar bis zur ersten Box mit Inventar-Daten; Stand „i0001 offen“, siehe `tests/integration/laufen.md`). Eine Datenbank, die `i0001` schon
   durchlaufen hat, muss neu aufgebaut werden.
+
+* **Neu mit L16 (Auftrag 07):**
+  * **Feiertage.** Einstellung `bundesland` (Verwaltung › Einstellungen; leer = keine Feiertage; `BW BY BE BB HB HH HE MV NI NW RP SL SN ST SH TH`), gerechnet in `rein/feiertage.py` (feste Tage und Tage nach Ostern; nur landesweite Feiertage). Eigene freie Tage
+    in der neuen Tabelle **`inventar.feiertag`** (`mandant_id, datum, bezeichnung, aktiv`, je Datum eine Zeile, abgeschaltet statt gelöscht) — **in `i0001`**: das Modul hat jetzt **19 Tabellen** (T-I-5 zählt 19). Ein Datenzugriff: `dienstlogik/feiertage.py`
+    (`werktage(db, von, bis, mandant_id)`, beide Tage eingeschlossen). Er wirkt in der Vorhaltung nach Werktagen (Einstellung `werktage` > 0), der Transfer-Frist (`transfer_frist_werktage`), der Kachel „Transfers überfällig“ und der Erinnerung.
+  * **Mengenabfrage.** Läuft eine Inventur (Stichtag gesetzt), fragt der Scan eines Mengenartikels auf der Stück-Seite die „Menge vor Ort“ (vorbelegt mit der Buchmenge); gebucht wird nichts, `inventar.inventur_gesehen` trägt die Menge
+    (`alt_wert = ks:<id>;menge:<n>`). Mehrere Sichtungen derselben Kostenstelle ergeben eine (die jüngste gilt; ein gewöhnlicher Scan macht eine genannte Menge nicht rückgängig).
+  * **Zählerstand im Import.** Neue 15. Spalte „Zählerstand“ in der Vorlage (alte Dateien mit 14 Spalten werden weiter gelesen); Quelle `import`, zu niedrig oder ohne Zähler: nur ein Hinweis im Bericht.
+  * **Funde aus dem Browser** (alle drei im Modul behoben, Tests dazu): (1) **htmx 2 tauscht eine Antwort 409 nicht ein** — der Satz zu einer abgewiesenen Handlung (`fehlerteil`) blieb in jedem Browser unsichtbar; `statisch/inventar.js` tauscht 409 ein, jede Vorlage mit `hx-post` lädt es.
+    Der saubere Ort wäre der Kern (`rahmen.html`: `htmx.config.responseHandling`), siehe `docs/L16/FRAGEN_L16.md` Nr. 1. (2) Auf der Werkstatt-Seite stand ein `<script>` im Titelblock und erschien als Text im Tab. (3) Der Export-Knopf der Kosten-Seite leitete mit `#exporte`
+    auf dieselbe Adresse um; ein zweiter Klick lud nichts neu. Dazu: auf schmalen Bildschirmen (Handy, Zoom 200–400 %) liefen Tabellen und Wahlfelder über die Seite hinaus; der Stil des Inventars (`.inventar-seite`) hält sie jetzt in der Seite.
 
 ### Pakete (Auftrag 04 Abschnitt 4, Auftrag 05 Abschnitt 3)
 
@@ -86,13 +98,47 @@ Alles unter `<ARBEITSORDNER>/inventar/<mandant.ordnername>/`; nichts wird gelös
 | Seiten L11/L12 durch die Anwendung | Kern + Inventar | `tests/integration/test_seiten_db.py` (5 Fälle) |
 | Prüfungen, Erinnerung, Kaufdaten, Scan-Quelle, Startstandort (L13) | Kern + Inventar | `tests/integration/test_pruefungen_db.py` (8 Fälle) |
 | Startstandort mit `pflegen`, Import nach Rechten, Kachel für `werkstatt` (L13a) | Kern + Inventar | `tests/integration/test_l13a_db.py` (3 Fälle) |
-| Werkstatt: Posteingang, Rückmeldung, Reparatur, `in_reparatur` (L14) und **L14a** (Hand bleibt Hand, Pflichtangaben beim Abschluss, Haken „Meldung damit erledigen“, Fehlerfall Mail, Zurückziehen, Foto am Stück) | Kern + Inventar | `tests/integration/test_werkstatt_db.py` (**10** Fälle) |
-| **L15:** Vorhaltung über Transfer und Teil-Eingang, Miete gegen eigen, CSV im Exportordner, Rechte, Kostensatz je Stück, Stichtags-Inventur, Zählerstand aus der Werkstatt | Kern + Inventar | `tests/integration/test_kosten_db.py` (7 Fälle) |
+| Werkstatt: Posteingang, Rückmeldung, Reparatur, `in_reparatur` (L14) und **L14a** (Hand bleibt Hand, Pflichtangaben beim Abschluss, Haken „Meldung damit erledigen“, Fehlerfall Mail, Zurückziehen, Foto am Stück), **L15a** (nicht zugestellt, Reihenfolge der Personen) | Kern + Inventar | `tests/integration/test_werkstatt_db.py` (**12** Fälle) |
+| **L15/L15a:** Vorhaltung über Transfer und Teil-Eingang, Miete gegen eigen, CSV im Exportordner, Download, Rechte, Kostensatz je Stück, Stichtags-Inventur, Zählerstand aus der Werkstatt | Kern + Inventar | `tests/integration/test_kosten_db.py` (7 Fälle) |
+| **L16:** Bundesland und eigene Tage, Werktage an einer Stelle, Vorhaltung ohne Feiertage | Kern + Inventar | `tests/integration/test_feiertage_db.py` (3 Fälle) |
+| **L16:** Mengenabfrage bei laufender Inventur | Kern + Inventar | `tests/integration/test_inventur_menge_db.py` (3 Fälle) |
+| **L16:** Zählerstand im Excel-Import | Kern + Inventar | `tests/integration/test_import_zaehler_db.py` (2 Fälle) |
+| **L16 Browser** | laufende Box (`tests/browser/box_starten.py`) | `tests/browser/` (29 Fälle, Anleitung `tests/browser/README.md`) |
 | **T-I-6**, T-K-14 | Kern + Belegerfassung + Inventar | `tests/integration/test_t_i_6.py` (Muster T-I-4; von VSC nach L13 gefahren: 3 passed) |
 
 Aufruf und Stolpersteine (auch Nicht-Superuser): `tests/integration/laufen.md`.
 
-## 4. Browserfälle (Playwright, Chromium + Firefox, Zoom in WebKit) — Seiten aus L11–L14
+## 4. Browserfälle — jetzt als Dateien unter `tests/browser/` (Playwright; Chromium + Firefox, Zoom auch in WebKit)
+
+Aufbau, Konten und Aufruf: **`tests/browser/README.md`**. Die Fälle fahren gegen eine laufende Box (`box_starten.py` baut Ketten, Startdaten, Kostenstellen und vier Konten und startet den Server; `BROWSER_BASIS_URL`, `BROWSER_ENGINES`). Box hat sie auf
+**Chromium headless** gefahren: **29 passed, 0 skipped**; Firefox und WebKit sind bei Box nicht eingebaut — das fährt VSC. Je Fall: Aufbau (Seed der Testdaten oder ein eigenes Stück mit eindeutiger Bezeichnung), Schritte, Sollwert im Docstring.
+
+| Nr. aus der Liste unten | Datei :: Fall |
+|---|---|
+| 1 Statuszeile | `test_oberflaeche.py::test_F01_…` |
+| 2 Tasten gleich hoch | `test_oberflaeche.py::test_F02_…` |
+| 3 kein Link ohne Recht | `test_oberflaeche.py::test_F03_…` (dazu `test_kosten.py::test_polier_sieht_keine_preise…`) |
+| 4 Import mit 2.500 Stücken | `test_zz_import_gross.py::test_F04_…` (zuletzt; legt 2.500 Stücke an) |
+| 5 Etiketten-PDF | `test_etiketten.py::test_F05_…` |
+| 6 Scan-Weg, Kamera-Attrappe | `test_scan_transfer.py::test_F06a_…`, `…F06b_…`, `…F06c_…` |
+| 7 Suchfeld 250 ms | `test_oberflaeche.py::test_F07_…` |
+| 8 Dialoge | `test_oberflaeche.py::test_F08_…` |
+| 9 Merkmale / Nummernvorschlag | `test_oberflaeche.py::test_F09_…` |
+| 10 Foto-Upload | `test_oberflaeche.py::test_F10_…` |
+| 11 Probedruck | `test_etiketten.py::test_F11_…` (ohne Papier; **der Druck auf 70 × 36 mm bleibt Handarbeit**) |
+| 12 Fällig-Liste mit Rücksprung | `test_pruefungen.py::test_F12_…`, `…F12b_…` |
+| 13 Nachweis inline | `test_pruefungen.py::test_F13_…` |
+| 14 Startstandort Pflicht, Büro | `test_oberflaeche.py::test_F14_…` |
+| 15–17 Werkstatt (Posteingang, Foto der Meldung, Abschluss-Dialog mit Haken und Vorfüll-Skript, Zurückziehen) | `test_werkstatt.py` (3 Fälle) |
+| 18–19 Kosten (Export, Download, Kostensatz überschreiben, Vergleichszeile) | `test_kosten.py` (3 Fälle) |
+| 20 Inventur (Stichtag, Mengenabfrage, „als vermisst“ mit Grund) | `test_inventur.py` |
+| L16 Feiertage, Zählerstand im Import | `test_verwaltung.py` (2 Fälle) |
+| Zoom 200 % / 400 % | `test_zoom.py` (in WebKit fahren) |
+
+**Von Hand bleibt:** der Probedruck auf Etikettenpapier; das Erkennen eines echten QR-Etiketts mit der Handykamera (die Attrappe liefert den Text, nicht das Bild); Firefox und WebKit. Die Fälle brauchen jedes Mal eine **frische Box** (Fall 4 legt 2.500 Stücke an, Fall „Inventur“ setzt einen Stichtag).
+
+Die ursprüngliche Beschreibung der Fälle (zum Nachlesen):
+
 
 1. Die Statuszeile ist das erste Element unter dem Seitenkopf der Stück-Seite (`#statuszeile`, vor allen `<details>`).
 2. Die Tasten einer Reihe sind gleich hoch (`.tastenreihe`, auch `#haupttasten` und `#scan-tasten`).
@@ -133,7 +179,7 @@ Aufruf und Stolpersteine (auch Nicht-Superuser): `tests/integration/laufen.md`.
 * `Verbindung(braucht="baustelle", menuepunkte=())`: leer, bis APP den Weg nennt; der Schlüssel (`app` oder `baustelle`) steht nur als `MODUL_BAUSTELLE`.
 * `app.modul` setzt das Inventar nicht; der Titel ist mit dem Inventar allein „DOKON“.
 * Seiten: L11–L14 bringen Liste, Stück-Seite, Pflege, Verwaltung (Kataloge, Import, Etiketten, Testdaten), Hier-Seite, Buchungen, Scan, die Prüfungen
-  (Fällig-Liste, Prüfung eintragen mit Nachweis, Prüfarten je Gruppe und Stück) und die Werkstatt (Posteingang, Reparatur-Vorgang). Kosten und Inventur (L15) sind da; die Browser-Prüffälle (L16) fehlen noch.
+  (Fällig-Liste, Prüfung eintragen mit Nachweis, Prüfarten je Gruppe und Stück) und die Werkstatt (Posteingang, Reparatur-Vorgang). Kosten und Inventur (L15), Feiertage, Mengenabfrage und Zählerstand im Import (L16) sind da; die Browser-Prüffälle stehen unter `tests/browser/` (Abschnitt 4).
 * **Vorgesehen, nicht gebaut (Thomas, Auftrag 05 Abschnitt 7):** vorgedruckte QR-Etiketten. Spec E24: Feld `etikett_code` je Stück (eindeutig je Mandant), der Scan löst zuerst die
   Inventarnummer, dann den Etikett-Code auf, „Etikett zuordnen“ an der Stück-Seite, Protokoll `inventar.etikett_zugeordnet`. Vorbereitet: die Auflösung steht an **einer** Stelle
   (`dienstlogik/sicht.aufloesen`), der Etikett-Code kommt dort als weiterer Schritt dazu, ohne dass sich Wege oder Seiten ändern.
