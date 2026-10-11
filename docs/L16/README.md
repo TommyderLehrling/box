@@ -1,7 +1,7 @@
 # L16 — Nachbesserung L15a, Feiertage, Mengenabfrage, Zählerstand im Import, Browser-Prüffälle, Abschluss (Auftrag 07)
 
 Letzte Lieferung der Vorarbeit. Gebaut und geprüft mit **kern-0.15.4**; `kern_mindestens` bleibt `"0.15.3"`, `pyproject.toml` bleibt `>=0.15.3`. Entwurf, bis VSC es fährt.
-Mit L16 kommen **alle Dateien, die seit L10 je geändert wurden** (197), noch einmal flach mit Sortiertabelle (`00_INFO_FUER_GER.md`), damit nichts am Git hängt.
+Mit L16 kommen **alle Dateien, die seit L10 je geändert wurden** (200), noch einmal flach mit Sortiertabelle (`00_INFO_FUER_GER.md`), damit nichts am Git hängt.
 
 ```
 python -m pytest -q -W error        # im Ordner Inventar; ohne Datenbank → 412 passed, skipped = 0

@@ -16,7 +16,7 @@ Bezug: `BOX_AUFTRAG_07.md`; Antworten GER in `FRAGEN_L15.md` („Antworten GER�
 | 10 | L16 Browser-Prüffälle unter `tests/browser/` (29), `box_starten.py`, `README.md` | Chromium headless selbst gefahren: 29 passed |
 | 11 | Funde im Browser behoben: 409 wird nicht getauscht · `<script>` im Titelblock der Werkstatt · Export-Weiterleitung mit Fragment · schmale Bildschirme | `tests/test_vorlagen.py` (2 neu), Browser `test_werkstatt.py`, `test_kosten.py`, `test_zoom.py` |
 | 12 | Abschluss: `README.md` (Wurzel), `INTEGRATION_VSC.md` final, `laufen.md` final, `docs/L16/*`, dieses Protokoll | — |
-| 13 | Lieferung „komplett“: alle 197 Dateien, die seit L10 geändert wurden, flach mit Sortiertabelle | `00_INFO_FUER_GER.md` |
+| 13 | Lieferung „komplett“: alle 200 Dateien, die seit L10 geändert wurden, flach mit Sortiertabelle | `00_INFO_FUER_GER.md` |
 | 14 | Abschnitt 7 (Etikett-Code) weiter nur vorgesehen | — |
 
 ## Stand der Läufe
@@ -29,4 +29,4 @@ Bezug: `BOX_AUFTRAG_07.md`; Antworten GER in `FRAGEN_L15.md` („Antworten GER�
 Docker-Bild, Firefox und WebKit, das Erkennen eines echten QR-Etiketts mit der Handykamera, Probedruck auf Etikettenpapier, T-I-6 (Belegerfassung fehlt Box), der Prozess `erinnern` im Container (VSC); die Browser-Fälle auf Firefox/WebKit (VSC).
 Fragen und Funde in `docs/L16/FRAGEN_L16.md`.
 
-Verbraucht: rund 0,7 Mio. Tokens dieses Auftrags (L15a, Feiertage, Mengenabfrage, Zählerstand-Import, Browser-Fälle, Abschluss); Rest beim Abschluss rund 14,3 Mio.
+Guthaben beim Abschluss: rund 14,3 Mio. Tokens.
