@@ -1,6 +1,6 @@
 {% extends "rahmen.html" %}
 {% block titel %}{{ t("inventar.verwaltung.inventur") }} — {{ t("web.titel") }}{% endblock %}
-{% block inhalt %}
+{% block inhalt %}<div class="inventar-seite">
 {% with seite = "inventar_inventur", titel = t("inventar.verwaltung.inventur") %}{% include "teil_seitenkopf.html" %}{% endwith %}
 {% if fertig %}<p class="gut" role="status" id="inventur-fertig">✓ {{ t("inventar.inventur.fertig." ~ fertig) }}</p>{% endif %}
 <div id="inventur-meldung"></div>
@@ -55,4 +55,6 @@
 <section id="exporte"><h2>{{ t("inventar.kosten.exportiert") }}</h2>
   <ul>{% for pfad in exporte %}{% set name = pfad.split("/")[-1] %}<li><code>{{ pfad }}</code>{% if darf_kosten_sehen and name.endswith(".csv") %} · <a href="/inventar/kosten/auszug/{{ name|urlencode }}">{{ t("inventar.kosten.herunterladen") }}</a>{% endif %}</li>{% endfor %}</ul></section>
 {% endif %}
+<script src="{{ statisch("inventar.js") }}" defer></script>
+</div>
 {% endblock %}

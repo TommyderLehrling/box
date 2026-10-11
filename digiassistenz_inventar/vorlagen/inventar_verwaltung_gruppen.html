@@ -1,6 +1,6 @@
 {% extends "rahmen.html" %}
 {% block titel %}{{ t("inventar.verwaltung.gruppen") }} — {{ t("web.titel") }}{% endblock %}
-{% block inhalt %}
+{% block inhalt %}<div class="inventar-seite">
 {% with seite = "inventar_gruppen", titel = t("inventar.verwaltung.gruppen") %}{% include "teil_seitenkopf.html" %}{% endwith %}
 {% if fertig %}<p class="gut" role="status">✓ {{ t("inventar.fertig.gespeichert") }}</p>{% endif %}
 <table class="liste">
@@ -26,4 +26,6 @@
   <p class="tastenreihe"><button type="submit" class="haupt">{{ t("inventar.taste.speichern") }}</button><a class="taste" data-abbrechen href="/inventar/verwaltung/gruppen">{{ t("inventar.taste.abbrechen") }}</a></p>
 </form>
 <div id="katalog-meldung"></div>
+<script src="{{ statisch("inventar.js") }}" defer></script>
+</div>
 {% endblock %}

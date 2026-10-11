@@ -1,6 +1,6 @@
 {% extends "rahmen.html" %}
 {% block titel %}{{ t("inventar.verwaltung.import") }} — {{ t("web.titel") }}{% endblock %}
-{% block inhalt %}
+{% block inhalt %}<div class="inventar-seite">
 {% with seite = "inventar_import", titel = t("inventar.verwaltung.import") %}{% include "teil_seitenkopf.html" %}{% endwith %}
 <p class="tastenreihe"><a class="taste" href="/inventar/verwaltung/import/vorlage">{{ t("inventar.taste.vorlage_laden") }}</a></p>
 <form method="post" action="/inventar/verwaltung/import" enctype="multipart/form-data">
@@ -30,4 +30,5 @@
 </form>
 {% endif %}
 {% endif %}
+</div>
 {% endblock %}

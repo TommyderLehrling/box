@@ -1,6 +1,6 @@
 {% extends "rahmen.html" %}
 {% block titel %}{{ titel_form }} — {{ t("web.titel") }}{% endblock %}
-{% block inhalt %}
+{% block inhalt %}<div class="inventar-seite">
 {% with seite = "inventar_stueck_form", titel = titel_form %}{% include "teil_seitenkopf.html" %}{% endwith %}
 <form id="stueck-form" method="post" enctype="multipart/form-data"
       hx-post="{% if zeile %}/inventar/stueck/{{ zeile.id }}/aendern{% else %}/inventar/stueck/neu{% endif %}"
@@ -77,4 +77,5 @@
 </form>
 <div id="stueck-meldung"></div>
 <script src="{{ statisch("inventar.js") }}" defer></script>
+</div>
 {% endblock %}

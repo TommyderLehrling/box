@@ -26,3 +26,32 @@ Alles ist Entwurf, bis VSC es im Browser fährt. Antworten bitte in die Spalte �
 | 20 | Inventur: wer darf | Die Seite öffnet für **`stilllegen` oder `einstellen`**; den Stichtag setzt nur `einstellen`, „als vermisst eintragen“ braucht `stilllegen` (der Statuswechsel nach `vermisst` hat dieses Recht seit L7). Die Kachel in der Verwaltung folgt `stilllegen`; die Verwaltungs-Startseite selbst öffnet weiter nur für `einstellen` oder `pflegen`. Passt das, oder soll es ein eigenes Recht sein? | |
 | 21 | Inventur: „gesehen“ | Gesehen = seit dem Stichtag (0:00 Ortszeit) „Ist hier“ gescannt auf der Kostenstelle, auf der das Stück schon stand (Protokollzeile `inventar.inventur_gesehen`, jetzt mit dem Ort in `alt_wert`), oder dort per Eingang bestätigt. Beim Mengenartikel zählt ein Scan als **vollständig gesehen** (der Scan nennt keine Menge); ein Teil-Eingang zählt seine Menge. Fehlmengen werden gezeigt, nicht gebucht. Stimmt das? | |
 | 22 | Nicht gefahren / gebaut | Nicht gefahren: Docker-Bild, Browser, Kamera, Druck, T-I-6, der Prozess `erinnern` im Container (diesmal nur die Fälle im Test). Nicht gebaut: Playwright-Dateien (L16), Etikett-Code (Abschnitt 7 vorgesehen), Einsatzstunden, Rechnungen, steuerliche AfA, Feiertage, Download der Auszüge, BGL-Einspielen. | |
+
+
+## Antworten GER (11.10.2026 — Fach-Entscheidungen von Thomas; **Vorab-Fassung:** CD und VSC lesen in Umlauf 04 noch gegen. Was von ihnen abhängt, ist markiert ⏳; alles andere gilt)
+| Nr. | Antwort |
+|---|---|
+| 1 | **Ja, Form passt.** `mandant_id` bleibt Pflicht-Schlüsselwort (der `TypeError` ohne es ist gewollt) — nicht aus einer Sitzung ziehen, der Prozess `erinnern` hat keine Benutzersitzung |
+| 2 | **Ja** — eine Mail je Person, kein gemeinsames `an=[…]` mehr ⏳ (CD nickt in Umlauf 04) |
+| 3 | **Vermerk im Verlauf genügt.** Zusatz (L15a): die Werkstatt-Seite zeigt am Vorgang ein kleines „✉ nicht zugestellt (keine Adresse)", wenn der letzte Vermerk `mail_ohne_adresse`/`mail_nicht_eingereiht` ist |
+| 4 | **Ja, gewollt** (`offen` → `angenommen` → `erledigt`, zwei Vermerke, ein Mailtext); zurückgezogene ohne Haken: ja |
+| 5 | **Ja**; VSC fährt das Skript im Browser (ein Playwright-Fall in L16) |
+| 6 | **Ja.** Auswahl der Person (L15a): zuerst Konten mit Baustein `inventar.werkstatt`, dann die übrigen aktiven — wenn das mit einer Abfrage geht; sonst alle aktiven |
+| 7 | **Ja** |
+| 8 | **Ja, genügt** für jetzt; eine Liste älterer Bilder kommt später (nicht L16) |
+| 9 | **Ja** |
+| 10 | **`kosten_pflegen` gilt** (Thomas) — Einkauf und Buchhaltung pflegen die Sätze; der Auftrag 06 war ungenau, du hast richtig gebaut |
+| 11 | **Ja.** Beschriftung (L15a): „Stand der Parameter" statt „Gerechnet am" |
+| 12 | **Ja**; `bgl` bleibt reserviert |
+| 13 | **Ja, bauen (Thomas, L16):** Einstellung je Mandant „Bundesland" (16 Länder); gesetzliche Feiertage rechnet das Modul in `rein/feiertage.py` (feste + bewegliche nach Ostern; Prüffälle mit Sollwerten 2026/2027, je Land), dazu eigene Tage je Jahr eintragbar (Verwaltung → Einstellungen). Werktage = Mo–Fr ohne Feiertage des Bundeslands; der `werktage`-Teiler bleibt Einstellung. **Datenzugriff an einer Stelle** (`dienstlogik/feiertage.py`), damit die Liste später in den Kern wandern kann ⏳ (CD sagt in Umlauf 04, ob der Kern sie will — baue so oder so im Modul) |
+| 14 | **Ja, fachlich richtig** (Thomas): Ortszeit, Eingangstag zum Ziel, Abgangstag nicht zur Quelle, unterwegs kostet niemanden, Teil-Eingang wie gebaut |
+| 15 | **Ja (Thomas):** echt und kalkulatorisch getrennt, nicht addiert. Dazu (L15a) eine **Vergleichszeile** „Reparaturen: geplant (Monate seit Kauf × Reparaturanteil je Monat) / angefallen (Σ `reparatur.kosten`)" auf der Stück-Seite und im Block je Stück; Beschriftung „echt" / „kalkulatorisch" |
+| 16 | **Ja** |
+| 17 | **Download dazu (Thomas, L15a):** `/inventar/kosten/auszug/<dateiname>` mit `kosten_sehen`, nur Dateien aus `export/` (Pfadprüfung wie beim Nachweis), `Content-Disposition: attachment`, `nosniff`; die Datei bleibt zusätzlich im Ordner. **Keine Erweiterungsstelle** — richtig, nichts erfinden ⏳ (CD bestätigt) |
+| 18 | **Ja** (bis Dienst `maschinenstunden`, AP-K2) |
+| 19 | **Ja.** Dazu (L16): Spalte „Zählerstand" in die Excel-Importvorlage (Quelle `import`, Plausibilität wie Prüfung: zu niedrig → nur vermerkt) |
+| 20 | **Ja, so** (Thomas) — kein eigenes Recht |
+| 21 | **Ja — mit einer Änderung (Thomas, L16):** beim Scan eines **Mengenartikels während einer laufenden Inventur** fragt die Hier-Seite die **Menge** ab (vorbelegt mit der Buchmenge); gesehen = genannte Menge, Fehlmenge = Rest, nichts wird gebucht |
+| 22 | T-I-6 fährt VSC mit dem Kern-Tausch; Docker/Browser/Kamera/Druck bei VSC/Thomas. **L16 ist freigegeben (Thomas, 11.10.)** — Inhalt in `BOX_AUFTRAG_07.md` |
+
+**Dazu:** Kern bleibt 0.15.4 · die ungenutzten Importe (pyflakes) räumst du mit L16 auf · deine flache Lieferform mit Sortiertabelle hat funktioniert (48/48) — so weiter.

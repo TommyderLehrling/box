@@ -98,9 +98,8 @@
 </table>
 {% endif %}
 {% endmacro %}
-{% block titel %}{{ t("inventar.menue_werkstatt") }} — {{ t("web.titel") }}<script src="{{ statisch("inventar.js") }}" defer></script>
-{% endblock %}
-{% block inhalt %}
+{% block titel %}{{ t("inventar.menue_werkstatt") }} — {{ t("web.titel") }}{% endblock %}
+{% block inhalt %}<div class="inventar-seite">
 {% with seite = "inventar_werkstatt", titel = t("inventar.menue_werkstatt") %}{% include "teil_seitenkopf.html" %}{% endwith %}
 {% if fertig %}<p class="gut" role="status" id="werkstatt-fertig">✓ {{ t("inventar.werkstatt.fertig." ~ fertig) }}</p>{% endif %}
 {% if zaehler_hinweis %}<p class="warnung" role="status">{{ zaehler_hinweis }}</p>{% endif %}
@@ -168,4 +167,5 @@
 <section id="werkstatt-erledigt"><h2>{{ t("inventar.werkstatt.abschnitt.erledigt") }} ({{ p.erledigt|length }})</h2>{{ meldungen(p.erledigt) }}</section>
 <section id="werkstatt-reparaturen-fertig"><h2>{{ t("inventar.werkstatt.abschnitt.reparaturen_fertig") }} ({{ p.reparaturen_fertig|length }})</h2>{{ reparaturen(p.reparaturen_fertig, darf_kosten_sehen, darf_kosten_pflegen, heute_iso) }}</section>
 <script src="{{ statisch("inventar.js") }}" defer></script>
+</div>
 {% endblock %}

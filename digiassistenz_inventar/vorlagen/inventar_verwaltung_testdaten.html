@@ -1,6 +1,6 @@
 {% extends "rahmen.html" %}
 {% block titel %}{{ t("inventar.verwaltung.testdaten") }} — {{ t("web.titel") }}{% endblock %}
-{% block inhalt %}
+{% block inhalt %}<div class="inventar-seite">
 {% with seite = "inventar_testdaten", titel = t("inventar.verwaltung.testdaten") %}{% include "teil_seitenkopf.html" %}{% endwith %}
 {% if erlaubt %}
 <form method="post" action="/inventar/verwaltung/testdaten" hx-post="/inventar/verwaltung/testdaten" hx-target="#katalog-meldung" hx-swap="innerHTML">
@@ -10,4 +10,6 @@
 </form>
 <div id="katalog-meldung"></div>
 {% else %}<p class="leise">{{ t("inventar.code.testdaten.nach_auslieferung") }}</p>{% endif %}
+<script src="{{ statisch("inventar.js") }}" defer></script>
+</div>
 {% endblock %}

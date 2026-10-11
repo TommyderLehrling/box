@@ -1,6 +1,6 @@
 {% extends "rahmen.html" %}
 {% block titel %}{{ t("inventar.menue_inventar") }} — {{ t("web.titel") }}{% endblock %}
-{% block inhalt %}
+{% block inhalt %}<div class="inventar-seite">
 {% with seite = "inventar_uebersicht", titel = t("inventar.menue_inventar") %}{% include "teil_seitenkopf.html" %}{% endwith %}
 
 {% if kacheln %}
@@ -61,4 +61,5 @@
   {% include "teil_inventar_liste.html" %}
 </div>
 {% endif %}
+</div>
 {% endblock %}

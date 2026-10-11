@@ -3,3 +3,16 @@
 .inventar-kacheln .zahl { font-weight: 700; color: #8A5A00; }
 .inventar-reiter p { margin: 0.2rem 0; }
 .stueck-foto { max-width: min(100%, 24rem); height: auto; border-radius: 4px; }
+
+/* Schmale Bildschirme (Handy, Zoom): breite Tabellen scrollen in sich, Felder laufen nicht über die Seite hinaus — nur auf den Seiten des Inventars */
+@media (max-width: 48rem) {
+  .inventar-seite table.liste { display: block; max-width: 100%; overflow-x: auto; }
+  .inventar-seite input,
+  .inventar-seite select,
+  .inventar-seite textarea { max-width: 100%; box-sizing: border-box; }
+  .inventar-seite span.wahl { max-width: 100%; }
+  .inventar-seite span.wahl input[type="search"] { min-width: 0; width: 100%; }
+  .inventar-seite span.wahl select { min-width: 0; width: 100%; }
+  .inventar-seite .filterzeile span.wahl { flex-wrap: wrap; }
+  .inventar-seite code { overflow-wrap: anywhere; }
+}

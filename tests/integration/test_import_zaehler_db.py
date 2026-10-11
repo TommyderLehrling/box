@@ -10,7 +10,7 @@ from openpyxl import Workbook
 from sqlalchemy import select, text
 
 from conftest import VERWALTER, anmelden, aufbau_pruefen
-from digiassistenz_kern import Benutzer, Kostenstelle
+from digiassistenz_kern import Benutzer
 from digiassistenz_kern.sitzung import benutzersitzung, systemsitzung
 
 from digiassistenz_inventar.dienstlogik import import_lauf

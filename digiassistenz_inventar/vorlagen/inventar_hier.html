@@ -1,6 +1,6 @@
 {% extends "rahmen.html" %}
 {% block titel %}{{ t("inventar.menue_hier") }} — {{ t("web.titel") }}{% endblock %}
-{% block inhalt %}
+{% block inhalt %}<div class="inventar-seite">
 {% with seite = "inventar_hier", titel = t("inventar.menue_hier") %}{% include "teil_seitenkopf.html" %}{% endwith %}
 {% if fertig %}<p class="gut" role="status" id="hier-fertig">✓ {{ t("inventar.fertig." ~ fertig) }}</p>{% endif %}
 
@@ -63,4 +63,6 @@
 </section>
 <div id="hier-meldung"></div>
 {% endif %}
+<script src="{{ statisch("inventar.js") }}" defer></script>
+</div>
 {% endblock %}

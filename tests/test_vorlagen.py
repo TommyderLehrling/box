@@ -483,3 +483,20 @@ def test_inventur_seite_verlinkt_den_download_nur_mit_kosten_sehen(umgebung):
     ohne = render(umgebung, "inventar_verwaltung_inventur.html", exporte=["inventar/x/export/inventur_20261010-101010.csv"],
                   **{**darf(False), "darf_sehen": True, "darf_stilllegen": True})
     assert "/inventar/kosten/auszug/" not in ohne
+
+
+def test_L16_im_titelblock_steht_nur_text():
+    """`<title>` kennt kein Markup: ein `<script>` dort erscheint als Text im Tab (so war es in der Werkstatt-Seite)."""
+    import re
+
+    for datei in sorted((PAKET / "vorlagen").glob("*.html")):
+        for block in re.findall(r"\{% block titel %\}(.*?)\{% endblock %\}", datei.read_text(encoding="utf-8"), flags=re.S):
+            assert "<" not in block, datei.name
+
+
+def test_L16_jede_seite_mit_formular_laedt_das_skript_fuer_409():
+    """htmx 2 tauscht eine abgewiesene Handlung (409) nicht ein; `inventar.js` tut es. Jede Vorlage mit `hx-post` muss es laden."""
+    for datei in sorted((PAKET / "vorlagen").glob("*.html")):
+        text = datei.read_text(encoding="utf-8")
+        if "hx-post" in text:
+            assert 'statisch("inventar.js")' in text, datei.name

@@ -7,7 +7,7 @@
 </form>
 {% endmacro %}
 {% block titel %}{{ t("inventar.menue_kosten") }} — {{ t("web.titel") }}{% endblock %}
-{% block inhalt %}
+{% block inhalt %}<div class="inventar-seite">
 {% with seite = "inventar_kosten", titel = t("inventar.menue_kosten") %}{% include "teil_seitenkopf.html" %}{% endwith %}
 {% if fertig %}<p class="gut" role="status" id="kosten-fertig">✓ {{ t("inventar.kosten.fertig." ~ fertig) }}</p>{% endif %}
 {% if zeitraum_ersetzt %}<p class="warnung" role="status">{{ t("inventar.kosten.zeitraum_ersetzt") }}</p>{% endif %}
@@ -115,4 +115,6 @@
   <p class="klein leise">{{ t("inventar.kosten.exportiert_hinweis") }}</p>
   {% endif %}
 </section>
+<script src="{{ statisch("inventar.js") }}" defer></script>
+</div>
 {% endblock %}

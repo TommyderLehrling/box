@@ -1,6 +1,6 @@
 {% extends "rahmen.html" %}
 {% block titel %}{{ t("inventar.verwaltung.einstellungen") }} — {{ t("web.titel") }}{% endblock %}
-{% block inhalt %}
+{% block inhalt %}<div class="inventar-seite">
 {% with seite = "inventar_einstellungen", titel = t("inventar.verwaltung.einstellungen") %}{% include "teil_seitenkopf.html" %}{% endwith %}
 {% if fertig %}<p class="gut" role="status">✓ {{ t("inventar.fertig.gespeichert") }}</p>{% endif %}
 <form method="post" action="/inventar/verwaltung/einstellungen" hx-post="/inventar/verwaltung/einstellungen" hx-target="#katalog-meldung" hx-swap="innerHTML">
@@ -53,4 +53,6 @@
      <input type="hidden" name="aktiv" value="1">
      <button type="submit" class="haupt">{{ t("inventar.taste.speichern") }}</button></p>
 </form>
+<script src="{{ statisch("inventar.js") }}" defer></script>
+</div>
 {% endblock %}

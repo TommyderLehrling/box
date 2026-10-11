@@ -93,7 +93,7 @@ def exportieren(
         sitzung.db.rollback()
         return helfer.fehlerteil(fehler)
     weg = _filterweg(anfang, ende, _text(f, "kostenstelle"), _text(f, "gruppe"), _text(f, "vergleich"))
-    return gemeinsam.umleiten(f"{WEG}?fertig=export&{weg}#exporte", request)
+    return gemeinsam.umleiten(f"{WEG}?fertig=export&{weg}", request)
 
 
 @router.get(WEG + "/auszug/{dateiname}")

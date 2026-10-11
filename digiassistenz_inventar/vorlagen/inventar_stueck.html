@@ -1,6 +1,6 @@
 {% extends "rahmen.html" %}
 {% block titel %}{{ stueck.bezeichnung }} — {{ t("web.titel") }}{% endblock %}
-{% block inhalt %}
+{% block inhalt %}<div class="inventar-seite">
 {% with seite = "inventar_stueck", titel = stueck.bezeichnung %}{% include "teil_seitenkopf.html" %}{% endwith %}
 
 <section class="statuszeile" id="statuszeile" aria-label="{{ t("inventar.statuszeile") }}">
@@ -365,4 +365,6 @@
   </table>
   {% else %}<p class="leise">{{ t("inventar.leer") }}</p>{% endif %}
 </details>
+<script src="{{ statisch("inventar.js") }}" defer></script>
+</div>
 {% endblock %}
