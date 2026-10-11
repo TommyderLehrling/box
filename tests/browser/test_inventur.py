@@ -102,3 +102,23 @@ def test_inventur_abschliessen_schreibt_csv_und_loescht_den_stichtag(verwalter: 
     with verwalter.expect_download() as geladen:
         verwalter.click("#inventur-letzte a")
     assert re.fullmatch(r"inventur_\d{4}-\d{2}-\d{2}_\d{8}-\d{6}\.csv", geladen.value.suggested_filename), geladen.value.suggested_filename
+
+
+def test_abgewiesene_handlung_zeigt_den_roten_satz_und_die_seite_bleibt(verwalter: Page) -> None:
+    """Sollwert (kern-0.15.5, Steckbrief 5.10): ein Stichtag in der Zukunft wird mit 409 abgewiesen; der Satz steht in der Meldezeile, die Seite und das
+    Formular bleiben, htmx meldet keinen Fehler. Ohne den Tausch des 409 durch den Kern bliebe die Zeile leer (kein Eigenbau im Modul)."""
+    verwalter.goto("/inventar/verwaltung/inventur")
+    fehler: list[str] = []
+    verwalter.evaluate("() => { window.__htmx_fehler = []; document.body.addEventListener('htmx:responseError', e => window.__htmx_fehler.push(e.detail.xhr.status)); }")
+    vorher = verwalter.url
+    verwalter.evaluate("""() => {
+        const feld = document.getElementById('inv-tag');
+        feld.removeAttribute('max');
+        const morgen = new Date(Date.now() + 2 * 86400000);
+        feld.value = morgen.toISOString().slice(0, 10);
+    }""")
+    verwalter.click("#inventur-stichtag button.haupt")
+    expect(verwalter.locator("#inventur-meldung")).to_contain_text("Stichtag darf nicht in der Zukunft liegen")
+    assert verwalter.url == vorher, "die Seite bleibt"
+    expect(verwalter.locator("#inventur-stichtag")).to_be_visible()
+    assert verwalter.evaluate("() => window.__htmx_fehler") == fehler, "kein htmx:responseError beim 409"

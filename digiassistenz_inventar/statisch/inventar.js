@@ -2,14 +2,6 @@
 (function () {
   "use strict";
 
-  /* htmx 2 tauscht Antworten außerhalb 2xx nicht ein. Der Satz zu einer abgewiesenen Handlung (409, `fehlerteil`) soll aber an Ort und Stelle stehen. */
-  document.addEventListener("htmx:beforeSwap", function (ereignis) {
-    if (ereignis.detail.xhr && ereignis.detail.xhr.status === 409) {
-      ereignis.detail.shouldSwap = true;
-      ereignis.detail.isError = false;
-    }
-  });
-
   function nummerAusText(text) {
     var marke = "/inventar/s/";
     var stelle = text.indexOf(marke);

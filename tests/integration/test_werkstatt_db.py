@@ -12,7 +12,7 @@ import pytest
 from sqlalchemy import select, text
 
 from conftest import _konto, anmelden, aufbau_pruefen
-from digiassistenz_kern import Benutzer, BenutzerKostenstelle, Kostenstelle, Lieferant, Mandant, mail
+from digiassistenz_kern import Benutzer, BenutzerKostenstelle, BenutzerRecht, Kostenstelle, Lieferant, Mandant, mail
 from digiassistenz_kern import rechte as kern_rechte
 from digiassistenz_kern.sitzung import systemsitzung
 
@@ -531,3 +531,26 @@ def test_personen_auswahl_im_abschluss_dialog_zuerst_die_konten_mit_werkstatt(bo
     assert namen.index("Verwalter") < namen.index("Zzz") < namen.index("Aaa") < namen.index("Ent"), namen
     assert namen.index("Zzz") < namen.index("Polier"), "Konten ohne den Baustein folgen danach"
     assert 'selected' in auswahl.split("Verwalter", 1)[0].rsplit("<option", 1)[1], "die Abschließende ist vorbelegt"
+
+
+def test_personen_auswahl_vertretungssatz_ohne_eigenen_baustein_zaehlt_nicht_wie_im_kern(box) -> None:
+    """Sollwert (Umlauf 04, kern-0.15.5): die Auswahl fragt `rechte.wer_darf`. Ein Konto, das `inventar.werkstatt` nur über einen Vertretungssatz hat und den
+    Baustein selbst nicht, steht hinter denen mit eigenem Baustein; hat es ihn selbst, steht es vorn. Das Urteil ist das von `hat_recht`."""
+    k = box.klient
+    a = _ks(k, "70102")
+    sid = _stueck(k, ks="70102")
+    nur_vertretung = _konto_mit("aaa-vertr@l16a.invalid", "polier", a)
+    eigen_und_vertretung = _konto_mit("zzz-eigen@l16a.invalid", "polier", a, werkstatt=True)
+    with systemsitzung("pruefung.l16a") as db:
+        for benutzer_id in (nur_vertretung, eigen_und_vertretung):
+            db.add(BenutzerRecht(benutzer_id=benutzer_id, modul="inventar", aktion="werkstatt", gewaehrt=True, kostenstellen=None,
+                                 gueltig_von=HEUTE, gueltig_bis=HEUTE + dt.timedelta(days=7), grund="vertretung:1"))
+        mid = int(db.execute(select(Mandant.id)).scalar_one())
+        darf = kern_rechte.wer_darf(db, mandant_id=mid, baustein="inventar.werkstatt")
+    assert nur_vertretung not in darf and eigen_und_vertretung in darf
+    k.post("/inventar/werkstatt/reparatur", data={"stueck_id": str(sid), "durchfuehrung": "intern"})
+    rid = int(_db("SELECT max(id) FROM inventar.reparatur")[0][0])
+    _rep(k, rid, "beginnen", datum=HEUTE.isoformat())
+    auswahl = k.get("/inventar/werkstatt", params={"abschluss": str(rid)}).text.split('id="ab-durch"', 1)[1].split("</select>", 1)[0]
+    namen = re.findall(r"<option value=\"\d+\"[^>]*>([^<]+)</option>", auswahl)
+    assert namen.index("Zzz-Eigen") < namen.index("Aaa-Vertr"), namen

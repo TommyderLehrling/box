@@ -18,7 +18,7 @@ from typing import Any
 
 from sqlalchemy import select
 
-from digiassistenz_kern import Benutzer, BenutzerRecht, Lieferant, Protokoll, protokoll, zeit
+from digiassistenz_kern import Benutzer, Lieferant, Protokoll, protokoll, zeit
 from digiassistenz_kern import rechte as kern_rechte
 from digiassistenz_kern.texte import t
 from digiassistenz_kern.web import gemeinsam
@@ -115,21 +115,14 @@ def _vermerk(sitzung: Any, stueck: m.Stueck, aktion: str, neu_wert: str) -> None
 def personen_auswahl(sitzung: Any) -> list[tuple[int, str]]:
     """Die aktiven Konten für „Durchgeführt von“: zuerst die mit dem Baustein `inventar.werkstatt`, dann die übrigen — je Gruppe nach Name.
 
-    Zwei Abfragen für alle (Konten, Rechtesätze), keine je Konto. Ein Entzug schlägt die Gewährung; befristete Sätze zählen nur, solange sie gelten.
+    Wer den Baustein hat, sagt der Kern (`rechte.wer_darf`, dieselbe Auswertung wie `hat_recht`, Obergrenze der Vertretung eingeschlossen);
+    das Modul wertet keine Rechtesätze selbst aus.
     """
-    db, heute = sitzung.db, zeit.heute()
+    db = sitzung.db
     konten = list(db.execute(sitzung.abfrage(Benutzer).where(Benutzer.aktiv).order_by(Benutzer.name, Benutzer.id)).scalars())
     if not konten:
         return []
-    saetze = db.execute(select(BenutzerRecht).where(
-        BenutzerRecht.modul == "inventar", BenutzerRecht.aktion == "werkstatt", BenutzerRecht.beendet_am.is_(None),
-        BenutzerRecht.benutzer_id.in_([int(b.id) for b in konten]))).scalars()
-    gewaehrt: set[int] = set()
-    entzogen: set[int] = set()
-    for s in saetze:
-        if kern_rechte.gilt_heute(s, heute):
-            (gewaehrt if s.gewaehrt else entzogen).add(int(s.benutzer_id))
-    werkstatt_konten = gewaehrt - entzogen
+    werkstatt_konten = set(kern_rechte.wer_darf(db, mandant_id=sitzung.kontext.mandant_id, baustein="inventar.werkstatt"))
     erst = [(int(b.id), b.name) for b in konten if int(b.id) in werkstatt_konten]
     dann = [(int(b.id), b.name) for b in konten if int(b.id) not in werkstatt_konten]
     return erst + dann

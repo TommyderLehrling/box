@@ -100,13 +100,18 @@ def test_etikett_url_wird_geprueft(angemeldet):
 
 
 def test_modulbeschreibung_traegt_die_mindestfassung_des_kerns():
-    """Seit kern-0.15.3: zu alter Kern → das Modul bleibt aus (Satz im Log)."""
-    assert B.kern_mindestens == modul.KERN_MINDESTFASSUNG == "0.15.3"
+    """Seit kern-0.15.5: zu alter Kern → das Modul bleibt aus (Satz im Log); das Modul nutzt `rechte.wer_darf` und `reihenfolge`."""
+    assert B.kern_mindestens == modul.KERN_MINDESTFASSUNG == "0.15.5"
+
+
+def test_modul_ordnet_sich_hinter_belege_und_baustelle_ein():
+    """Sollwert (Thomas 10.10.): Belege 10 · Baustelle 20 · Inventar 30."""
+    assert B.reihenfolge == modul.REIHENFOLGE == 30
 
 
 def test_mindestfassung_des_kerns_steht_in_der_pyproject_und_als_konstante():
     daten = tomllib.loads((WURZEL / "pyproject.toml").read_text(encoding="utf-8"))
     assert f"digiassistenz-kern>={modul.KERN_MINDESTFASSUNG}" in daten["project"]["dependencies"]
-    assert modul.KERN_MINDESTFASSUNG == "0.15.3"
+    assert modul.KERN_MINDESTFASSUNG == "0.15.5"
     assert daten["project"]["entry-points"]["digiassistenz.module"]["inventar"] == "digiassistenz_inventar.modul:BESCHREIBUNG"
     assert re.fullmatch(r"\d+\.\d+\.\d+", modul.VERSION)

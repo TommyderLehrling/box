@@ -1,6 +1,6 @@
 """Startet eine Prüf-Box für die Browserfälle: Ketten (Kern, dann Inventar), Startdaten, drei Konten und den Webserver.
 
-Aufruf (Kern 0.15.4 und Inventar sind eingebaut, `konfig.env` im Arbeitsverzeichnis wie bei jedem Lauf)::
+Aufruf (Kern 0.15.5 und Inventar sind eingebaut, `konfig.env` im Arbeitsverzeichnis wie bei jedem Lauf)::
 
     DIGIASSISTENZ_WURZEL=$PWD python <pfad>/tests/browser/box_starten.py --port 8765
 

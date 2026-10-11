@@ -1,4 +1,4 @@
-"""Die Modulbeschreibung des Inventars — Muster: die Attrappe des Kerns (Steckbrief 0.15.3, Abschnitt 2 und 10).
+"""Die Modulbeschreibung des Inventars — Muster: die Attrappe des Kerns (Steckbrief 0.15.5, Abschnitt 2 und 10).
 
 Was hier steht, sagt das Modul dem Kern über sich. Vertrag: Namen und Wege sind wörtlich Auftrag 03, Abschnitt 4.
 Kein Import eines anderen Moduls; der Schlüssel der Baustelle steht nur als Konstante `MODUL_BAUSTELLE` in der
@@ -29,7 +29,9 @@ from .rechte import MODULRECHTE
 
 SCHLUESSEL = "inventar"
 VERSION = fassung("digiassistenz-inventar", neben=Path(__file__))
-KERN_MINDESTFASSUNG = "0.15.3"
+KERN_MINDESTFASSUNG = "0.15.5"
+#: feste Ordnung der Module im Kern (Belege 10 · Baustelle 20 · Inventar 30; Steckbrief 0.15.5, Abschnitt 1.1)
+REIHENFOLGE = 30
 
 #: Schlüssel der Baustelle — nur für `Verbindung(braucht=…)`; offen, ob `app` oder `baustelle` (Auftrag 03, Abschnitt 4)
 MODUL_BAUSTELLE = "baustelle"
@@ -116,6 +118,7 @@ BESCHREIBUNG = Modulbeschreibung(
     bezeichnung="inventar.modul",
     version=VERSION,
     kern_mindestens=KERN_MINDESTFASSUNG,
+    reihenfolge=REIHENFOLGE,
     rechte=MODULRECHTE,
     menuepunkte=(
         Menueeintrag(WEG_UEBERSICHT, "inventar.menue_inventar", "inventar", reihenfolge=10,
@@ -161,4 +164,4 @@ BESCHREIBUNG = Modulbeschreibung(
     suche=_suche,
 )
 
-__all__ = ["BESCHREIBUNG", "KERN_MINDESTFASSUNG", "MODUL_BAUSTELLE", "SCHLUESSEL", "VERSION"]
+__all__ = ["BESCHREIBUNG", "KERN_MINDESTFASSUNG", "MODUL_BAUSTELLE", "REIHENFOLGE", "SCHLUESSEL", "VERSION"]

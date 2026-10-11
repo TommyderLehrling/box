@@ -1,17 +1,17 @@
 # INTEGRATION_VSC — was VSC mit `digiassistenz_inventar` tut (L10–L16a, Aufträge 05 bis 08, Box, 11.10.2026) — final
 
-Gebaut gegen **KERN_STECKBRIEF_kern-0.15.4**. Alles hier gilt als Entwurf, bis es auf dem echten Kern läuft. Schon gefahren (Auftrag 05, Abschnitt 5): Kern-Start
+Gebaut gegen **KERN_STECKBRIEF_kern-0.15.5**. Alles hier gilt als Entwurf, bis es auf dem echten Kern läuft. Schon gefahren (Auftrag 05, Abschnitt 5): Kern-Start
 mit `prozesse` (GER am Kern ohne Docker, VSC im Container) und **T-I-6** nach L13 (VSC, 3 passed). Neu mit L16a: Feiertagsregion aus dem Kern, „Inventur abschließen“, Ablesedatum im Import (Abschnitt 2, „L16a“). Neu mit L16: Feiertage, Mengenabfrage, Zählerstand im Import, die Browser-Dateien unter `tests/browser/` (Abschnitt 4) und drei Funde aus dem Browser (Abschnitt 2, „Funde“).
 
-## 1. Was Box schon gefahren hat (Python 3.12.3, Wheel 0.15.4 nicht editierbar, PostgreSQL 16.15, Superuser)
+## 1. Was Box schon gefahren hat (Python 3.12.3, Wheel 0.15.5 nicht editierbar, PostgreSQL 16.15, Superuser)
 
-* `python -m pytest -q -W error`: **417** passed, 0 skipped. Einmal vorher: `pip install -e <pfad>/Inventar[pruefung]` (pytest, httpx, pyflakes, `playwright==1.49.1`); die Feiertage brauchen `holidays==0.60` (`requirements-modul.txt`).
+* `python -m pytest -q -W error`: **418** passed, 0 skipped. Einmal vorher: `pip install -e <pfad>/Inventar[pruefung]` (pytest, httpx, pyflakes, `playwright==1.49.1`); die Feiertage brauchen `holidays==0.60` (`requirements-modul.txt`).
 * Kette `k0001…k0004` → `i0001`, Startdaten, zweiter Start ändert nichts.
-* `tests/integration` (ohne `test_t_i_6.py`): **69** passed, 0 skipped — T-I-5 (8), Anwendungsfälle gegen die echte Datenbank (13), Modelle gegen Kette (2),
-  Seiten L11/L12 (5), Prüfungen/Erinnerung/Kaufdaten/Scan-Quelle/Startstandort L13 (8), L13a (3), Werkstatt L14/L14a/L15a (**12**), Kosten und Inventur L15/L15a (**7**), **Feiertage (4), Mengenabfrage (4), Zählerstand-Import (3) — L16/L16a**.
-* **Browser (L16): `tests/browser`, Chromium 141 headless (Treiber Playwright 1.49.1; der Download von Chromium 131 scheitert in der Box, darum zeigt ein Ordner mit Verweisen `chromium-1148` auf das vorhandene Chromium 141) gegen eine Prüf-Box aus `box_starten.py`: 30 passed, 0 skipped** (frische Box, 124 s; Kamera-Attrappe, Import mit 2.500 Stücken). Firefox und WebKit hat Box nicht gefahren (nicht eingebaut).
+* `tests/integration` (ohne `test_t_i_6.py`): **70** passed, 0 skipped — T-I-5 (8), Anwendungsfälle gegen die echte Datenbank (13), Modelle gegen Kette (2),
+  Seiten L11/L12 (5), Prüfungen/Erinnerung/Kaufdaten/Scan-Quelle/Startstandort L13 (8), L13a (3), Werkstatt L14/L14a/L15a/L16a (**13**), Kosten und Inventur L15/L15a (**7**), **Feiertage (4), Mengenabfrage (4), Zählerstand-Import (3) — L16/L16a**.
+* **Browser (L16): `tests/browser`, Chromium 141 headless (Treiber Playwright 1.49.1; der Download von Chromium 131 scheitert in der Box, darum zeigt ein Ordner mit Verweisen `chromium-1148` auf das vorhandene Chromium 141) gegen eine Prüf-Box aus `box_starten.py`: 31 Fälle, 0 skipped** (30 in der Gesamtfahrt, 132 s; der Zeitfall `test_zz_import_gross` (Liste mit 2.500 Stücken unter 1 s) war darin einmal mit 1,18 s knapp darüber und bestand einzeln auf frischer Box in 38 s — Zeitgrenze, kein Fehler der Logik; Kamera-Attrappe, Import mit 2.500 Stücken). Firefox und WebKit hat Box nicht gefahren (nicht eingebaut).
 * Der Prozess `python -m digiassistenz_inventar.erinnern` von Hand gestartet und mit SIGTERM beendet: schreibt auf stdout und in
-  `log/digiassistenz-inventar-erinnern.log` (Kern 0.15.4, eine Logdatei je Prozess), `inventar.erinnern_start` und `inventar.erinnern_ende`.
+  `log/digiassistenz-inventar-erinnern.log` (Kern 0.15.5, eine Logdatei je Prozess), `inventar.erinnern_start` und `inventar.erinnern_ende`.
 * Kern-Start mit `prozesse`: **ist gefahren** — GER am Kern 0.15.3/0.15.4 ohne Docker; VSC im Container (Prozess im Bild gefunden, `kill -9` → Neustart durch Docker,
   `docker stop` → `erinnern_ende`, Exit 0); **T-I-6 nach L13 grün (VSC)**. Box hat das nicht selbst gefahren.
 * Nicht gefahren: Docker (`compose.yml`, `docker/Dockerfile`), Firefox und WebKit, das Erkennen eines echten QR-Etiketts mit der Handykamera, der Probedruck auf Etikettenpapier.
@@ -19,15 +19,17 @@ mit `prozesse` (GER am Kern ohne Docker, VSC im Container) und **T-I-6** nach L1
 ## 2. Einbauen
 
 ```
-pip install --no-deps digiassistenz_kern-0.15.4-py3-none-any.whl
+pip install --no-deps digiassistenz_kern-0.15.5-py3-none-any.whl
 pip install -r requirements.txt && pip install -r requirements-modul.txt      # Kern-Pakete + openpyxl, weasyprint
 pip install -e <pfad>/Inventar[pruefung]                                        # Einstiegspunkt digiassistenz.module → inventar; dazu pytest, httpx, pyflakes, playwright==1.49.1 (H1)
 python -m digiassistenz_kern.start                                             # Ketten (Kern, dann i0001), Startdaten, Web, Prozesse der Module
 ```
 
 * Nachzug: beim Start bekommen Konten, deren Vorlage einen Baustein trägt, die elf `inventar.*`-Rechte (Grund `nachzug:inventar_einbau`, einmal je Konto).
-* Kern: **0.15.4** (einzige Änderung gegenüber 0.15.3: eine Logdatei je Prozess, `log/digiassistenz-<prozess>.log`). `Modulbeschreibung(kern_mindestens="0.15.3")` und
-  `digiassistenz-kern>=0.15.3` in `pyproject.toml` bleiben; ein Kern unter 0.15.3 lässt das Modul aus (Satz im Log, `KernZuAlt`).
+* Kern: **0.15.5**. `Modulbeschreibung(kern_mindestens="0.15.5")` und `digiassistenz-kern>=0.15.5` in `pyproject.toml`, weil das Modul `rechte.wer_darf`
+  (Auswahl „Durchgeführt von“, keine eigene Rechte-Auswertung mehr) und `Modulbeschreibung.reihenfolge=30` nutzt; ein Kern unter 0.15.5 lässt das Modul aus (Satz im Log, `KernZuAlt`).
+  Der Ausweg für den 409 in `statisch/inventar.js` ist entfernt: seit 0.15.5 tauscht der Kern (`htmx-config` in `rahmen.html`) den 409 ein. Alle Formulare des Inventars
+  haben als `hx-target` eine kleine Meldezeile (`#stueck-meldung`, `#katalog-meldung`, `#inventur-meldung`, `#kosten-meldung`, `#werkstatt-meldung`, `#hier-meldung`), der rote Satz ersetzt also nur sie.
 * `konfig.env`: `INVENTAR_ETIKETT_URL` (leer = aus der Anfrage). Die Kern-Schlüssel stehen in derselben Datei.
 * **Erinnerungen sind ein Modulprozess, kein Cron.** `Modulbeschreibung.prozesse=("digiassistenz_inventar.erinnern",)`: der Kern startet
   `python -m digiassistenz_inventar.erinnern` neben dem Webserver und überwacht ihn. Der Prozess läuft dauerhaft und arbeitet einmal täglich
@@ -87,7 +89,7 @@ Alles unter `<ARBEITSORDNER>/inventar/<mandant.ordnername>/`; nichts wird gelös
 | `import/` | hochgeladene Excel-Importdateien (`<kennung>.xlsx`), bleiben liegen |
 | `export/` | Etiketten-PDF (`etiketten_*.pdf`); **seit L15** die CSV-Auszüge `kosten_<block>_<JJJJMMTT-HHMMSS>.csv` (je Kostenstelle, je Stück, Miete, Anlagenbuch) und `inventur_<…>.csv` — UTF-8 mit BOM, Semikolon, Dezimalkomma; nichts wird überschrieben |
 | `kostenstellen/<nr>/` | reserviert für Kostenstellen-Unterlagen |
-| `<ARBEITSORDNER>/log/digiassistenz-inventar-erinnern.log` | Log des Prozesses `erinnern` (vom Kern, 0.15.4) |
+| `<ARBEITSORDNER>/log/digiassistenz-inventar-erinnern.log` | Log des Prozesses `erinnern` (vom Kern, 0.15.5) |
 
 ## 3. Läufe
 
@@ -103,7 +105,7 @@ Alles unter `<ARBEITSORDNER>/inventar/<mandant.ordnername>/`; nichts wird gelös
 | **L16/L16a:** Region aus dem Kern, eigene Tage (auch jährlich), Werktage an einer Stelle, Vorhaltung ohne Feiertage | Kern + Inventar | `tests/integration/test_feiertage_db.py` (4 Fälle) |
 | **L16:** Mengenabfrage bei laufender Inventur | Kern + Inventar | `tests/integration/test_inventur_menge_db.py` (4 Fälle: Menge merken, zweiter Scan, Mehrmenge-Hinweis, Inventur abschließen) |
 | **L16:** Zählerstand im Excel-Import | Kern + Inventar | `tests/integration/test_import_zaehler_db.py` (3 Fälle, davon Ablesedatum) |
-| **L16 Browser** | laufende Box (`tests/browser/box_starten.py`) | `tests/browser/` (30 Fälle, Anleitung `tests/browser/README.md`) |
+| **L16 Browser** | laufende Box (`tests/browser/box_starten.py`) | `tests/browser/` (31 Fälle, Anleitung `tests/browser/README.md`) |
 | **T-I-6**, T-K-14 | Kern + Belegerfassung + Inventar | `tests/integration/test_t_i_6.py` (Muster T-I-4; von VSC nach L13 gefahren: 3 passed) |
 
 Aufruf und Stolpersteine (auch Nicht-Superuser): `tests/integration/laufen.md`.
@@ -111,7 +113,7 @@ Aufruf und Stolpersteine (auch Nicht-Superuser): `tests/integration/laufen.md`.
 ## 4. Browserfälle — jetzt als Dateien unter `tests/browser/` (Playwright; Chromium + Firefox, Zoom auch in WebKit)
 
 Aufbau, Konten und Aufruf: **`tests/browser/README.md`**. Die Fälle fahren gegen eine laufende Box (`box_starten.py` baut Ketten, Startdaten, Kostenstellen und vier Konten und startet den Server; `BROWSER_BASIS_URL`, `BROWSER_ENGINES`). Box hat sie auf
-**Chromium headless** gefahren: **30 passed, 0 skipped**; Firefox und WebKit sind bei Box nicht eingebaut — das fährt VSC. Je Fall: Aufbau (Seed der Testdaten oder ein eigenes Stück mit eindeutiger Bezeichnung), Schritte, Sollwert im Docstring.
+**Chromium headless** gefahren: **31 Fälle, 0 skipped** (Zeitfall siehe Abschnitt 1); Firefox und WebKit sind bei Box nicht eingebaut — das fährt VSC. Je Fall: Aufbau (Seed der Testdaten oder ein eigenes Stück mit eindeutiger Bezeichnung), Schritte, Sollwert im Docstring.
 
 | Nr. aus der Liste unten | Datei :: Fall |
 |---|---|

@@ -1,16 +1,16 @@
 # DOKON Inventar — `digiassistenz_inventar` (Modul `inventar`, Gesamtübersicht L10–L16a, Entwurf)
 
-Geräteverwaltung einer Baufirma als Modul des Kerns `digiassistenz_kern` ≥ 0.15.3 (gebaut und geprüft mit 0.15.4): Schema `inventar`, Konto `inventar_nutzer`,
+Geräteverwaltung einer Baufirma als Modul des Kerns `digiassistenz_kern` ≥ 0.15.5 (gebaut und geprüft mit 0.15.5): Schema `inventar`, Konto `inventar_nutzer`,
 Kette `i0001…`, Bausteine `inventar.*`. Die Fachlogik liegt in `digiassistenz_inventar/rein/` (reine Module, keine Datenbank).
 **Entwurf**, bis VSC das Modul auf dem echten Kern fährt (Aufträge 01–03, Lieferungen L1–L16a, Aufträge 04 bis 08). L16a ist die letzte Lieferung von Box.
 
 ## Prüfen
 
 ```
-python -m pytest -q                    # im Ordner Inventar; ohne Datenbank; erwartet: 417 passed, skipped = 0
+python -m pytest -q                    # im Ordner Inventar; ohne Datenbank; erwartet: 418 passed, skipped = 0
 ```
 
-Mit Datenbank (Kern 0.15.4 als Wheel, PostgreSQL 16 mit contrib, `pg_dump` 16; Anleitung `tests/integration/laufen.md`) — alle Dateien außer T-I-6:
+Mit Datenbank (Kern 0.15.5 als Wheel, PostgreSQL 16 mit contrib, `pg_dump` 16; Anleitung `tests/integration/laufen.md`) — alle Dateien außer T-I-6:
 
 ```
 cd <wurzel mit konfig.env> && DIGIASSISTENZ_WURZEL=$PWD python -m pytest --rootdir=<pfad> $(ls <pfad>/tests/integration/test_*.py | grep -v test_t_i_6)
@@ -20,9 +20,9 @@ Einmal die Prüfpakete: `pip install -e <pfad>/Inventar[pruefung]` (pytest, http
 
 Browser (Playwright 1.49.1, **von VSC zu fahren**; Anleitung `tests/browser/README.md`): `python -m pytest tests/browser` gegen eine laufende Box, `BROWSER_BASIS_URL` setzen.
 
-Stand Box (Python 3.12.3, Kern-Wheel 0.15.4, PostgreSQL 16.15): `tests` **417 passed**, `tests/integration` **69 passed** (T-I-5, Anwendungsfälle, Modelle gegen Kette, Seiten, Prüfungen, L13a, Werkstatt,
+Stand Box (Python 3.12.3, Kern-Wheel 0.15.5, PostgreSQL 16.15): `tests` **418 passed**, `tests/integration` **70 passed** (T-I-5, Anwendungsfälle, Modelle gegen Kette, Seiten, Prüfungen, L13a, Werkstatt,
 Kosten und Inventur, Feiertage, Mengenabfrage, Zählerstand-Import), jeweils `skipped = 0`. **T-I-6** (mit Belegerfassung) hat Box nicht gefahren — sie fehlt ihr; VSC hat es nach L13 mit 0.15.3 gefahren (3 passed).
-Browserfälle: **30 passed** (Chromium 141 headless, Playwright 1.49.1-Treiber); siehe `docs/L16a/README.md` (Stand der Läufe).
+Browserfälle: **31** (Chromium 141 headless, Playwright 1.49.1-Treiber; 30 in der Gesamtfahrt, der Zeitfall `test_zz_import_gross` einzeln auf frischer Box); siehe `docs/L16a/README.md` (Stand der Läufe).
 
 ## Was das Modul kann (nach Lieferung)
 
@@ -35,7 +35,7 @@ Browserfälle: **30 passed** (Chromium 141 headless, Playwright 1.49.1-Treiber);
 | L13 / L13a | kern-0.15.3; Prüfungen und Fällig-Liste, Nachweis, Erinnerungen als Modulprozess; Startstandort Pflicht, Rechte `pflegen`/`buchen` getrennt |
 | L14 / L14a | Werkstatt: Posteingang, Reparatur-Vorgang, Pflichtangaben beim Abschließen, Haken „Meldung erledigen“, eine Mailstelle, Foto am Stück |
 | L15 / L15a | Kosten (Sätze, Seite, CSV-Auszüge mit Download, Vergleichszeile geplant/angefallen), Zählerstände, Stichtags-Inventur |
-| **L16a** | Feiertagsregion aus dem Kern, Rechner auf `holidays==0.60`, „jährlich“ für eigene Tage, Mehrmenge-Hinweis und zweiter Scan mit Zahl bei der Inventur, **Inventur abschließen** (CSV), Spalte „Ablesedatum“ im Excel-Import, Playwright 1.49.1 |
+| **L16a** | Feiertagsregion aus dem Kern, Rechner auf `holidays==0.60`, „jährlich“ für eigene Tage, Mehrmenge-Hinweis und zweiter Scan mit Zahl bei der Inventur, **Inventur abschließen** (CSV), Spalte „Ablesedatum“ im Excel-Import, Playwright 1.49.1; **kern-0.15.5**: `reihenfolge=30`, `Durchgeführt von` über `rechte.wer_darf`, 409 vom Kern getauscht (Umgehung entfernt) |
 | **L16** | **Feiertage** (Region, eigene Tage, ein Datenzugriff), **Mengenabfrage** bei laufender Inventur, **Zählerstand** im Excel-Import, Browser-Prüffälle (`tests/browser/`), diese Übersicht |
 
 ## Seiten, Wege, Rechte
@@ -91,7 +91,7 @@ Alles unter `<ARBEITSORDNER>/inventar/<mandant.ordnername>/`; nichts wird gelös
 
 | Ort | Inhalt |
 |---|---|
-| `pyproject.toml` | Einstiegspunkt `digiassistenz.module` → `inventar`, `digiassistenz-kern>=0.15.3` |
+| `pyproject.toml` | Einstiegspunkt `digiassistenz.module` → `inventar`, `digiassistenz-kern>=0.15.5` |
 | `digiassistenz_inventar/modul.py` | die Modulbeschreibung (Menü, Erweiterungen, Ereignis, Suche, Verbindung) |
 | `rechte.py`, `modelle.py` | elf Bausteine, Vorlagen-Ergänzung, Nachzug · **19 Tabellen** |
 | `migration.py`, `migrationen/` | Kette `i0001_grundlinie` (Rolle, Schema, alle Tabellen), Kern zuerst |

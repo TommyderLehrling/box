@@ -9,7 +9,7 @@ VSC fährt sie auf Chromium und Firefox; der Zoom-Fall auch in WebKit. Box hat *
 pip install playwright==1.49.1            # festgelegt; auch über `pip install -e <pfad>/Inventar[pruefung]`
 python -m playwright install chromium firefox webkit     # nur dort, wo das Netz es erlaubt (in der Box: Chromium liegt schon da)
 
-# frische, leere Prüfdatenbank in DB_URL (konfig.env im Arbeitsverzeichnis); Kern 0.15.4 und das Inventar sind eingebaut
+# frische, leere Prüfdatenbank in DB_URL (konfig.env im Arbeitsverzeichnis); Kern 0.15.5 und das Inventar sind eingebaut
 DIGIASSISTENZ_WURZEL=$PWD python <pfad>/tests/browser/box_starten.py --port 8765        # baut Ketten, Startdaten, Kostenstellen, vier Konten und startet den Server
 ```
 
@@ -39,7 +39,7 @@ BROWSER_ENGINES=webkit ... test_zoom.py             # in WebKit zählt der Zoom-
 | `test_pruefungen.py` | 12 Fällig-Liste mit Rücksprung (und Hinweis bei zu niedrigem Zählerstand) · 13 Nachweis inline, Textdatei abgewiesen | `Content-Disposition: inline`, `nosniff` |
 | `test_werkstatt.py` | Posteingang, Foto der Meldung, Abschluss-Dialog mit Haken und Vorfüll-Skript, Rückmeldung an der Stück-Seite, Zurückziehen mit Grund | Titel ohne Markup |
 | `test_kosten.py` | Polier sieht keine Preise · Export und Download (BOM, Anhang, `nosniff`, nur `export/`) · Kostensatz überschreiben · Vergleichszeile | |
-| `test_inventur.py` | Stichtag · Mengenabfrage (vorbelegt, nichts gebucht) · „als vermisst“ nur mit Grund | |
+| `test_inventur.py` | Stichtag · Mengenabfrage (vorbelegt, nichts gebucht) · „als vermisst“ nur mit Grund · **abgewiesene Handlung (409): roter Satz steht in der Meldezeile, die Seite bleibt, kein `htmx:responseError` (kern-0.15.5)** | |
 | `test_verwaltung.py` | Feiertage und eigene Tage · Zählerstand-Spalte im Import | |
 | `test_zoom.py` | 200 % und 400 % Zoom (640/320 px): kein Querlauf der Seiten | in WebKit |
 | `test_zz_import_gross.py` | 4 Import mit 2.500 Stücken, danach `/inventar` in unter 1 s | |
