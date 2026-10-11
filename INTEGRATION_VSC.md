@@ -60,8 +60,7 @@ python -m digiassistenz_kern.start                                             #
   * **Mengenabfrage.** Läuft eine Inventur (Stichtag gesetzt), fragt der Scan eines Mengenartikels auf der Stück-Seite die „Menge vor Ort“ (vorbelegt mit der Buchmenge); gebucht wird nichts, `inventar.inventur_gesehen` trägt die Menge
     (`alt_wert = ks:<id>;menge:<n>`). Mehrere Sichtungen derselben Kostenstelle ergeben eine (die jüngste gilt; ein gewöhnlicher Scan macht eine genannte Menge nicht rückgängig).
   * **Zählerstand im Import.** Neue 15. Spalte „Zählerstand“ in der Vorlage (alte Dateien mit 14 Spalten werden weiter gelesen); Quelle `import`, zu niedrig oder ohne Zähler: nur ein Hinweis im Bericht.
-  * **Funde aus dem Browser** (alle drei im Modul behoben, Tests dazu): (1) **htmx 2 tauscht eine Antwort 409 nicht ein** — der Satz zu einer abgewiesenen Handlung (`fehlerteil`) blieb in jedem Browser unsichtbar; `statisch/inventar.js` tauscht 409 ein, jede Vorlage mit `hx-post` lädt es.
-    Der saubere Ort wäre der Kern (`rahmen.html`: `htmx.config.responseHandling`), siehe `docs/L16/FRAGEN_L16.md` Nr. 1. (2) Auf der Werkstatt-Seite stand ein `<script>` im Titelblock und erschien als Text im Tab. (3) Der Export-Knopf der Kosten-Seite leitete mit `#exporte`
+  * **Funde aus dem Browser** (alle drei im Modul behoben, Tests dazu): (1) **htmx 2 tauschte eine Antwort 409 nicht ein** — der Satz zu einer abgewiesenen Handlung (`fehlerteil`) blieb in jedem Browser unsichtbar; das Modul half sich in L16/L16a mit einem Eingriff in `statisch/inventar.js`. **Seit kern-0.15.5 tauscht der Kern** (`htmx-config` in `rahmen.html`, Steckbrief 5.10); der Eingriff ist entfernt, ein Browserfall (`tests/browser/test_inventur.py`, abgewiesener Stichtag) prüft, dass der rote Satz steht und die Seite bleibt. (2) Auf der Werkstatt-Seite stand ein `<script>` im Titelblock und erschien als Text im Tab. (3) Der Export-Knopf der Kosten-Seite leitete mit `#exporte`
     auf dieselbe Adresse um; ein zweiter Klick lud nichts neu. Dazu: auf schmalen Bildschirmen (Handy, Zoom 200–400 %) liefen Tabellen und Wahlfelder über die Seite hinaus; der Stil des Inventars (`.inventar-seite`) hält sie jetzt in der Seite.
 
 ### Pakete (Auftrag 04 Abschnitt 4, Auftrag 05 Abschnitt 3)
@@ -100,7 +99,7 @@ Alles unter `<ARBEITSORDNER>/inventar/<mandant.ordnername>/`; nichts wird gelös
 | Seiten L11/L12 durch die Anwendung | Kern + Inventar | `tests/integration/test_seiten_db.py` (5 Fälle) |
 | Prüfungen, Erinnerung, Kaufdaten, Scan-Quelle, Startstandort (L13) | Kern + Inventar | `tests/integration/test_pruefungen_db.py` (8 Fälle) |
 | Startstandort mit `pflegen`, Import nach Rechten, Kachel für `werkstatt` (L13a) | Kern + Inventar | `tests/integration/test_l13a_db.py` (3 Fälle) |
-| Werkstatt: Posteingang, Rückmeldung, Reparatur, `in_reparatur` (L14) und **L14a** (Hand bleibt Hand, Pflichtangaben beim Abschluss, Haken „Meldung damit erledigen“, Fehlerfall Mail, Zurückziehen, Foto am Stück), **L15a** (nicht zugestellt, Reihenfolge der Personen) | Kern + Inventar | `tests/integration/test_werkstatt_db.py` (**12** Fälle) |
+| Werkstatt: Posteingang, Rückmeldung, Reparatur, `in_reparatur` (L14) und **L14a** (Hand bleibt Hand, Pflichtangaben beim Abschluss, Haken „Meldung damit erledigen“, Fehlerfall Mail, Zurückziehen, Foto am Stück), **L15a** (nicht zugestellt, Reihenfolge der Personen) | Kern + Inventar | `tests/integration/test_werkstatt_db.py` (**13** Fälle, davon einer mit Vertretungssatz über `rechte.wer_darf`) |
 | **L15/L15a:** Vorhaltung über Transfer und Teil-Eingang, Miete gegen eigen, CSV im Exportordner, Download, Rechte, Kostensatz je Stück, Stichtags-Inventur, Zählerstand aus der Werkstatt | Kern + Inventar | `tests/integration/test_kosten_db.py` (7 Fälle) |
 | **L16/L16a:** Region aus dem Kern, eigene Tage (auch jährlich), Werktage an einer Stelle, Vorhaltung ohne Feiertage | Kern + Inventar | `tests/integration/test_feiertage_db.py` (4 Fälle) |
 | **L16:** Mengenabfrage bei laufender Inventur | Kern + Inventar | `tests/integration/test_inventur_menge_db.py` (4 Fälle: Menge merken, zweiter Scan, Mehrmenge-Hinweis, Inventur abschließen) |
@@ -133,7 +132,7 @@ Aufbau, Konten und Aufruf: **`tests/browser/README.md`**. Die Fälle fahren gege
 | 14 Startstandort Pflicht, Büro | `test_oberflaeche.py::test_F14_…` |
 | 15–17 Werkstatt (Posteingang, Foto der Meldung, Abschluss-Dialog mit Haken und Vorfüll-Skript, Zurückziehen) | `test_werkstatt.py` (3 Fälle) |
 | 18–19 Kosten (Export, Download, Kostensatz überschreiben, Vergleichszeile) | `test_kosten.py` (3 Fälle) |
-| 20 Inventur (Stichtag, Mengenabfrage, „als vermisst“ mit Grund) | `test_inventur.py` |
+| 20 Inventur (Stichtag, Mengenabfrage, „als vermisst“ mit Grund) und **L16a: abgewiesene Handlung (409), roter Satz steht, Seite bleibt** | `test_inventur.py` |
 | L16 Feiertage, Zählerstand im Import | `test_verwaltung.py` (2 Fälle) |
 | Zoom 200 % / 400 % | `test_zoom.py` (in WebKit fahren) |
 

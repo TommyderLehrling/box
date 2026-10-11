@@ -23,4 +23,4 @@ Bezug: `BOX_AUFTRAG_08.md`; Antworten GER in `FRAGEN_L15.md` und `FRAGEN_L16.md`
 | `tests/integration` ohne `test_t_i_6.py` (Kern 0.15.5) | **70 passed**, `skipped = 0` |
 | `tests/browser` (Chromium 141, Treiber Playwright 1.49.1) | **31 Fälle**, `skipped = 0` (30 in der Gesamtfahrt; der Zeitfall `test_zz_import_gross` einzeln auf frischer Box bestanden) |
 
-Guthaben: zu Beginn von L16a rund 14,9 Mio. Tokens, jetzt rund 14,6 Mio.
+Guthaben: zu Beginn von L16a rund 14,9 Mio. Tokens, jetzt rund 13,9 Mio. (Stand beim Hochladen der letzten Dateien).
